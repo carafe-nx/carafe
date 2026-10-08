@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://github.com/carafe-nx/carafe/discussions/categories/q-a
+    about: Ask how to do something with Carafe.
+  - name: Game compatibility
+    url: https://github.com/carafe-nx/carafe/discussions/categories/compatibility
+    about: Tell others how a game ran, or look up a game before you try it.
+  - name: Idea
+    url: https://github.com/carafe-nx/carafe/discussions/categories/ideas
+    about: Suggest a feature you would like to see.

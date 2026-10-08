@@ -29,7 +29,6 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
 
 ## Rules
 
-- Keys, firmware, games and NSPs never go into the repository.
+- Firmware, games and NSPs never go into the repository.
 - Text files use LF line endings; patches are stored byte for byte (`.gitattributes`).
 - Commit messages follow Conventional Commits: one line in English, `type(scope): description`.
-- Console tests run on emuMMC with no access to Nintendo's servers.

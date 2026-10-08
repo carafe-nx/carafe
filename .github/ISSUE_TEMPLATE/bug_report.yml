@@ -1,0 +1,92 @@
+name: Bug report
+description: Something in Carafe does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Questions go to
+        [Q&A](https://github.com/carafe-nx/carafe/discussions/categories/q-a), and how a particular game runs
+        goes to [Compatibility](https://github.com/carafe-nx/carafe/discussions/categories/compatibility).
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it happen?
+      options:
+        - In the Carafe app on the PC
+        - When installing to the Switch
+        - When the game starts or runs on the Switch
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Pick the game folder …
+        2. Press Build …
+        3. …
+
+  - type: input
+    id: carafe-version
+    attributes:
+      label: Carafe version
+      description: It is in the installer's name, `Carafe_0.1.0_…`, and in Windows Settings → Apps → Installed apps.
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows
+      description: Windows Settings → System → About → System type.
+      options:
+        - x64
+        - ARM64
+        - I don't know
+    validations:
+      required: true
+
+  - type: input
+    id: switch
+    attributes:
+      label: Switch firmware, Atmosphère and DBI versions
+      description: Needed when the problem is on the console or when installing.
+      placeholder: firmware 19.0.1, Atmosphère 1.8.0, DBI 750
+
+  - type: input
+    id: game
+    attributes:
+      label: Game and its version
+      description: Needed when the problem is about a game.
+      placeholder: OpenTTD 15.3, 32-bit
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        For a problem on the Switch, open the game in Carafe and press **Fetch logs**, then zip the folder that
+        opens and drag the archive here. For a build problem, paste the **Build log** from the last step of the
+        wizard.
+
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Before you send
+      options:
+        - label: I searched the existing issues and did not find this bug.
+          required: true
+        - label: This report contains no firmware, games or links to them.
+          required: true

@@ -90,7 +90,7 @@ new commit is described in [`external/README.md`](external/README.md).
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org): one line in English,
   `type(scope): description`, for example `fix(pack): keep the icon when rebuilding`.
 - Pull requests go to `main`. Keep one change per pull request and say how you tested it.
-- Changes that affect the console are tested on emuMMC with no access to Nintendo's servers.
+- Changes that affect the console are tested on the console.
 - Firmware, games and links to them never go into issues, pull requests or discussions.
 
 ## License
