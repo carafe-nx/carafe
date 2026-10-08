@@ -47,8 +47,14 @@ with Box64 or FEX to run x86 code, DXVK for Direct3D and Mesa for the GPU.
 
 ## Download
 
-Carafe is in development and has no release yet. Installers will appear on the
-[Releases](https://github.com/carafe-nx/carafe/releases) page.
+Get the installer from the [latest release](https://github.com/carafe-nx/carafe/releases/latest):
+
+- `x64` — most Windows PCs;
+- `arm64` — Windows on Arm, such as laptops with Snapdragon chips;
+- `en-US` or `ru-RU` — the language of the installer. Carafe itself speaks both.
+
+The installer is not signed yet, so Windows may warn about an unknown publisher. Choose **More info** →
+**Run anyway** to continue.
 
 ## Compatibility
 
