@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/banner-dark.png">
-  <img src="assets/readme/banner-light.png" alt="Carafe" width="447">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/github/banner-dark.png">
+  <img src="assets/github/banner-light.png" alt="Carafe" width="447">
 </picture>
 
 **Bring your Windows games to Nintendo Switch**
