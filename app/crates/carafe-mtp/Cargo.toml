@@ -10,7 +10,7 @@ publish.workspace = true
 carafe-core.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
     "Win32_Devices_PortableDevices",
     "Win32_Foundation",
     "Win32_System_Com",
