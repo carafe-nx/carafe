@@ -238,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "carafe-core"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -248,7 +248,7 @@ dependencies = [
 
 [[package]]
 name = "carafe-desktop"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
  "carafe-folder",
@@ -269,28 +269,28 @@ dependencies = [
 
 [[package]]
 name = "carafe-folder"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
 ]
 
 [[package]]
 name = "carafe-images"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
 ]
 
 [[package]]
 name = "carafe-keys"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
 ]
 
 [[package]]
 name = "carafe-library"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
  "serde_json",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "carafe-mtp"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
  "windows",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "carafe-pack"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
  "flate2",
@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "carafe-steamgriddb"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "carafe-core",
  "serde",

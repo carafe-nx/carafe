@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.2.0
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -21,14 +26,19 @@ jobs:
           persist-credentials: false
 
       - id: version
-        name: Read the version
+        name: Check the tag
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          version=$(jq -r .version app/crates/carafe-desktop/tauri.conf.json)
-          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
-            echo "::error::Tag v$version already exists. Raise the version in tauri.conf.json."
+          if ! [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::The tag must look like v1.2.3, got '$TAG'."
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "::error::Tag $TAG already exists."
+            exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
   runtime:
     needs: prepare
@@ -118,6 +128,12 @@ jobs:
           name: hacbrewpack
           path: app/crates/carafe-desktop/binaries
 
+      - name: Set the version
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: sed -i "s/^version = \"0.0.0\"$/version = \"$VERSION\"/" Cargo.toml && grep -q "^version = \"$VERSION\"$" Cargo.toml
+
       - run: npm ci
 
       - run: npx tauri build --config crates/carafe-desktop/tauri.release.conf.json
@@ -154,13 +170,14 @@ jobs:
       - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "::error::A release or draft v$VERSION already exists. Delete the draft and run again."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::A release or draft $TAG already exists. Delete the draft and run again."
             exit 1
           fi
-          gh release create "v$VERSION" dist/*.msi dist/SHA256SUMS.txt \
+          gh release create "$TAG" dist/*.msi dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --draft \
             --target "$GITHUB_SHA" \

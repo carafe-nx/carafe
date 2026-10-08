@@ -24,7 +24,7 @@ use tauri::{Manager, Runtime};
 use crate::preferences::PREFERENCES_FILE;
 use crate::services::Services;
 
-const RUNTIME_VERSION: &str = "0.1.0";
+const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
 const RUNTIME_ARCHIVE: &str = "carafe-runtime.bin";
 const DEV_RUNTIME_ARCHIVE: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/resources/carafe-runtime.bin");
