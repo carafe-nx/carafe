@@ -15,6 +15,15 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: windows
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+      - dependency-name: sha2
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
 
   - package-ecosystem: npm
     directory: /app
