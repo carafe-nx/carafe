@@ -1,0 +1,10 @@
+[submodule "external/autorun"]
+	path = external/autorun
+	url = https://github.com/autorunhq/autorun.git
+	ignore = dirty
+[submodule "external/hacbrewpack"]
+	path = external/hacbrewpack
+	url = https://github.com/rlaphoenix/hacBrewPack.git
+[submodule "external/nx-hbloader"]
+	path = external/nx-hbloader
+	url = https://github.com/switchbrew/nx-hbloader.git
