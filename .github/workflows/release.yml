@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - id: version
+        name: Read the version
+        run: |
+          version=$(jq -r .version app/crates/carafe-desktop/tauri.conf.json)
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "::error::Tag v$version already exists. Raise the version in tauri.conf.json."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  runtime:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Build the runtime
+        run: |
+          docker compose build runtime
+          docker compose run --rm runtime
+
+      - name: Build hacBrewPack
+        run: docker compose run --rm hacbrewpack
+
+      - name: Pack the runtime
+        working-directory: app
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          cargo +1.99.0 run --release -p carafe-pack --example pack_runtime -- \
+            crates/carafe-desktop/resources/runtime "$RUNNER_TEMP/carafe-runtime.bin"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime
+          path: ${{ runner.temp }}/carafe-runtime.bin
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hacbrewpack
+          path: app/crates/carafe-desktop/binaries/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  installer:
+    needs: [prepare, runtime]
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install Rust
+        shell: pwsh
+        run: |
+          if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+            $installer = Join-Path $env:RUNNER_TEMP 'rustup-init.exe'
+            $url = if ('${{ matrix.arch }}' -eq 'arm64') { 'https://win.rustup.rs/aarch64' } else { 'https://win.rustup.rs/x86_64' }
+            Invoke-WebRequest $url -OutFile $installer
+            & $installer -y --default-toolchain none --profile minimal
+            Add-Content $env:GITHUB_PATH (Join-Path $env:USERPROFILE '.cargo\bin')
+            $env:PATH = (Join-Path $env:USERPROFILE '.cargo\bin') + ';' + $env:PATH
+          }
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup default 1.99.0
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime
+          path: app/crates/carafe-desktop/resources
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: hacbrewpack
+          path: app/crates/carafe-desktop/binaries
+
+      - run: npm ci
+
+      - run: npx tauri build --config crates/carafe-desktop/tauri.release.conf.json
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: msi-${{ matrix.arch }}
+          path: app/target/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 7
+
+  draft:
+    needs: [prepare, installer]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: msi-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum *.msi > SHA256SUMS.txt
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: dist/*.msi
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::A release or draft v$VERSION already exists. Delete the draft and run again."
+            exit 1
+          fi
+          gh release create "v$VERSION" dist/*.msi dist/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Carafe $VERSION" \
+            --generate-notes

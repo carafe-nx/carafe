@@ -1,5 +1,6 @@
 {
   "bundle": {
+    "externalBin": ["binaries/hacbrewpack"],
     "resources": {
       "resources/carafe-runtime.bin": "carafe-runtime.bin"
     }

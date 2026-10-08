@@ -20,8 +20,8 @@ OVERLAY_OBJECTS := $(SWITCH)/CMakeFiles/wine-nx-runtime.dir$(CURDIR)/overlay
 all: layout
 
 fetch:
-	git -C $(ROOT) submodule update --init external/autorun external/nx-hbloader
-	git -C $(AUTORUN) submodule update --init horizon-dlls
+	git -C $(ROOT) submodule update --init --depth 1 external/autorun external/nx-hbloader
+	git -C $(AUTORUN) submodule update --init --depth 1 horizon-dlls
 	sh $(WINE)/tools/bootstrap-box64-core.sh
 	sh $(WINE)/tools/bootstrap-wma.sh
 

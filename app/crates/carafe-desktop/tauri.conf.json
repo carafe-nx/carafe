@@ -26,7 +26,11 @@
   "bundle": {
     "active": true,
     "targets": ["msi"],
-    "externalBin": ["binaries/hacbrewpack"],
-    "icon": ["../../../assets/logo/icon.ico"]
+    "icon": ["../../../assets/logo/icon.ico"],
+    "windows": {
+      "wix": {
+        "language": ["en-US", "ru-RU"]
+      }
+    }
   }
 }

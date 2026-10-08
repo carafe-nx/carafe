@@ -11,7 +11,7 @@ EXES := $(foreach arch,$(ARCHES),$(OUT)/hacbrewpack-$(arch)-pc-windows-msvc.exe)
 all: $(EXES)
 
 fetch:
-	git -C $(ROOT) submodule update --init external/hacbrewpack
+	git -C $(ROOT) submodule update --init --depth 1 external/hacbrewpack
 
 $(OUT)/hacbrewpack-%-pc-windows-msvc.exe: hacbrewpack.manifest manifest.rc | fetch
 	rm -rf $(BUILD)/$*
