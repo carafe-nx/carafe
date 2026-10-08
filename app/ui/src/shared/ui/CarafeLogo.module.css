@@ -1,0 +1,19 @@
+.image {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
+}
+
+:global([data-theme="dark"]) .onLight,
+:global([data-theme="light"]) .onDark {
+  display: none;
+}
+
+.word {
+  display: block;
+  flex: none;
+  background: var(--text);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  image-rendering: pixelated;
+}

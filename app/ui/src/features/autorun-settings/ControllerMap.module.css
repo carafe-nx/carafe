@@ -1,0 +1,385 @@
+.stage {
+  position: relative;
+  display: grid;
+  gap: 20px;
+  align-items: center;
+}
+
+.wide {
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) minmax(220px, 270px);
+}
+
+.narrow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.single .art {
+  grid-column: 1 / -1;
+  order: -1;
+}
+
+.narrow .art {
+  grid-column: 1 / -1;
+  order: -1;
+  max-width: 560px;
+}
+
+.art {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 520px;
+  justify-self: center;
+}
+
+.rows {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.leaders path {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  transition: stroke 120ms;
+}
+
+.leaders circle {
+  fill: var(--border-strong);
+  transition: fill 120ms;
+}
+
+.leaderOn path {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+
+.leaderOn circle {
+  fill: var(--accent);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+  transition: border-color 120ms, background 120ms;
+}
+
+.wide .right .row {
+  flex-direction: row-reverse;
+}
+
+.group,
+.wide .right .group {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.wide .right .rowHead {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.wide .right .group .rowHead {
+  align-self: flex-end;
+}
+
+.rowOn {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 84px;
+}
+
+.rowName {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.rowName small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.glyph {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+}
+
+.glyphFill {
+  fill: var(--muted);
+}
+
+.rowOn .glyph {
+  stroke: var(--accent);
+}
+
+.rowOn .glyphFill {
+  fill: var(--accent);
+}
+
+.rowBody {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.wide .right .rowBody {
+  justify-content: flex-start;
+}
+
+.group .rowBody,
+.wide .right .group .rowBody {
+  justify-content: center;
+}
+
+.cross {
+  display: grid;
+  width: 100%;
+  max-width: 260px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.n { grid-area: 1 / 2; }
+.w { grid-area: 2 / 1; }
+.c { grid-area: 2 / 2; }
+.e { grid-area: 2 / 3; }
+.s { grid-area: 3 / 2; }
+
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 64px;
+  padding: 4px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms, color 120ms;
+}
+
+.cross .chip {
+  min-width: 0;
+  width: 100%;
+}
+
+.chip:hover,
+.chipOn {
+  border-color: var(--accent);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.chipMark {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.chipLabel {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipEmpty .chipLabel {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.chipEditing {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.chipEditing .chipMark,
+.chipEditing .chipLabel {
+  color: var(--on-accent);
+}
+
+.device {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.device .shell {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 0.9;
+}
+
+.device .screen {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 0.6;
+}
+
+.device .fixed {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 0.6;
+}
+
+.device .hit {
+  fill: transparent;
+}
+
+.part {
+  cursor: pointer;
+}
+
+.part .key {
+  fill: var(--panel-solid);
+  stroke: var(--text);
+  stroke-width: 0.7;
+  transition: fill 120ms, stroke 120ms;
+}
+
+.part .ring {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 0.7;
+  transition: stroke 120ms;
+}
+
+.part .keyText {
+  fill: var(--text);
+  font: 700 3.6px var(--font);
+  text-anchor: middle;
+  pointer-events: none;
+  transition: fill 120ms;
+}
+
+.on .key {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.on .ring {
+  stroke: var(--accent);
+}
+
+.on .keyText {
+  fill: var(--on-accent);
+}
+
+.popover {
+  position: absolute;
+  z-index: 5;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow-panel);
+}
+
+.popoverTitle {
+  margin: 2px 6px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.popoverHint {
+  margin: 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.popoverList {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.popoverItem,
+.popoverClear {
+  border: 0;
+  border-radius: 7px;
+  padding: 6px 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.popoverItem:hover,
+.popoverItem[aria-checked="true"] {
+  background: var(--accent-soft);
+}
+
+.popoverClear {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 7px 7px;
+  color: var(--muted);
+}
+
+.popoverClear:not(:disabled):hover {
+  color: var(--text);
+}
+
+.popoverClear:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage * {
+    transition: none;
+  }
+}

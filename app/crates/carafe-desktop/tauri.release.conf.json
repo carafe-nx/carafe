@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/carafe-runtime.bin": "carafe-runtime.bin"
+    }
+  }
+}

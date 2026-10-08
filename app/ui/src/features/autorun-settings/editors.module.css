@@ -1,0 +1,122 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 24px;
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.hint {
+  grid-column: 1 / -1;
+  margin: -6px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.viewHead {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.table thead th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel-solid);
+  position: sticky;
+  top: 0;
+}
+
+.table tbody th {
+  font-weight: 500;
+  width: 40%;
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.capturing {
+  background: var(--accent-soft);
+}
+
+.captureBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.captureText {
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.unbound {
+  color: var(--muted);
+}
+
+.rowActions {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.advanced {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.advanced[open] summary {
+  margin-bottom: 16px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.groupTitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

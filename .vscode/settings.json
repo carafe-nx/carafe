@@ -1,0 +1,15 @@
+{
+  "rust-analyzer.linkedProjects": ["app/Cargo.toml"],
+  "rust-analyzer.check.command": "clippy",
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/node_modules/**": true,
+    "**/external/**": true,
+    "**/out/**": true
+  },
+  "search.exclude": {
+    "**/target": true,
+    "**/external": true,
+    "**/out": true
+  }
+}

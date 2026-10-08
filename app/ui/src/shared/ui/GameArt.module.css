@@ -1,0 +1,21 @@
+.art {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: 100%;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  object-fit: cover;
+  box-shadow: var(--shadow-tile);
+}
+
+.tile {
+  border-radius: var(--r-tile);
+  font-size: 34px;
+}
+
+.card {
+  width: 88px;
+  border-radius: calc(var(--r-tile) * 0.8);
+  font-size: 32px;
+}

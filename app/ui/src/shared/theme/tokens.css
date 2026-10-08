@@ -1,0 +1,53 @@
+:root {
+  --font: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --r-tile: 20px;
+  --r-panel: 16px;
+  --r-control: 11px;
+  --blur: blur(14px);
+  --shadow-tile: 0 6px 14px -8px rgba(60, 20, 30, 0.45);
+  --shadow-panel: 0 10px 30px -18px rgba(60, 20, 30, 0.35);
+
+  --bg: #f6f1ef;
+  --bg-image: radial-gradient(120% 80% at 0% 0%, rgba(142, 40, 70, 0.07), transparent 60%);
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel-solid: #ffffff;
+  --text: #251b20;
+  --muted: #7c6d73;
+  --border: #e8dee1;
+  --border-strong: #d9ccd0;
+  --track: #ede3e6;
+  --accent: #8e2846;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(142, 40, 70, 0.1);
+  --ring: rgba(142, 40, 70, 0.28);
+  --ok: #2f8f5b;
+  --warn: #8a6100;
+  --warn-soft: rgba(184, 138, 30, 0.14);
+  --danger: #b3261e;
+  --danger-soft: rgba(179, 38, 30, 0.1);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --shadow-tile: 0 8px 18px -10px rgba(0, 0, 0, 0.8);
+  --shadow-panel: 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+  --bg: #17121a;
+  --bg-image: radial-gradient(120% 80% at 0% 0%, rgba(219, 110, 135, 0.1), transparent 60%);
+  --panel: rgba(40, 32, 42, 0.72);
+  --panel-solid: #251e27;
+  --text: #f1e9ec;
+  --muted: #a99ba2;
+  --border: #352b35;
+  --border-strong: #4a3d49;
+  --track: #3a2f39;
+  --accent: #db6e87;
+  --on-accent: #22121a;
+  --accent-soft: rgba(219, 110, 135, 0.14);
+  --ring: rgba(219, 110, 135, 0.32);
+  --ok: #5bc48a;
+  --warn: #e2bc55;
+  --warn-soft: rgba(226, 188, 85, 0.14);
+  --danger: #f28b82;
+  --danger-soft: rgba(242, 139, 130, 0.12);
+  color-scheme: dark;
+}

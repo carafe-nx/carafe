@@ -1,0 +1,14 @@
+[package]
+name = "carafe-library"
+description = "Carafe builder: library — NSP files in a folder, their carafe.json and icon.jpg"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+carafe-core.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

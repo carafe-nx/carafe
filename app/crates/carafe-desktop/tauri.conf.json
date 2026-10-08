@@ -1,0 +1,32 @@
+{
+  "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Carafe",
+  "version": "0.1.0",
+  "identifier": "app.carafe.builder",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../../ui/dist",
+    "beforeDevCommand": "npm run dev --workspace ui",
+    "beforeBuildCommand": "npm run build --workspace ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Carafe",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data: asset: http://asset.localhost https://cdn2.steamgriddb.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi"],
+    "externalBin": ["binaries/hacbrewpack"],
+    "icon": ["../../../assets/logo/icon.ico"]
+  }
+}

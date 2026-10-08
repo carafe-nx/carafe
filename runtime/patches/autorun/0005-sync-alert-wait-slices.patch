@@ -1,0 +1,69 @@
+Carafe: an endless wait for an alert by thread id returns every 250 ms.
+In OpenTTD's start-up a thread sometimes waits in RtlWaitOnAddress for a wake that is never sent;
+the cause is not found. NtWaitForAlertByThreadId with no timeout now waits 250 ms at a time and
+returns STATUS_ALERTED when a slice ends: callers may wake spuriously and check their condition
+again (SRW locks, condition variables, WaitOnAddress, critical sections), so a lost wake costs
+a quarter of a second instead of the thread. Slices are counted in the alert diagnostics.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/sync.c	2026-10-06 07:34:02.567759900 +0400
++++ b/dlls/ntdll/unix/sync.c	2026-10-06 07:34:41.323802400 +0400
+@@ -3627,12 +3627,14 @@
+ 
+ #ifdef __SWITCH__
+ #define CARAFE_ALERT_SLOTS 256
++#define CARAFE_ALERT_SLICE_NS 250000000
+ 
+ struct carafe_alert_slot
+ {
+     unsigned int tid;
+     unsigned int waits;
+     unsigned int alerts;
++    unsigned int slices;
+     int waiting;
+     const void *address;
+     unsigned long long since;
+@@ -3647,7 +3649,7 @@
+ 
+     if (__atomic_load_n( &slot->tid, __ATOMIC_RELAXED ) != tid)
+     {
+-        slot->waits = slot->alerts = 0;
++        slot->waits = slot->alerts = slot->slices = 0;
+         slot->waiting = 0;
+         __atomic_store_n( &slot->tid, tid, __ATOMIC_RELAXED );
+     }
+@@ -3771,7 +3773,21 @@
+                 ret = futex_wait( futex, 0, &timespec );
+             }
+             else
++            {
++#ifdef __SWITCH__
++                struct timespec slice = { 0, CARAFE_ALERT_SLICE_NS };
++
++                ret = futex_wait( futex, 0, &slice );
++                if (ret == -1 && errno == ETIMEDOUT)
++                {
++                    __atomic_add_fetch( &slot->slices, 1, __ATOMIC_RELAXED );
++                    carafe_alert_wait_end( slot );
++                    return STATUS_ALERTED;
++                }
++#else
+                 ret = futex_wait( futex, 0, NULL );
++#endif
++            }
+ 
+             if (ret == -1 && errno == ETIMEDOUT)
+             {
+@@ -3856,9 +3872,9 @@
+         if (!tid || !__atomic_load_n( &slot->waiting, __ATOMIC_RELAXED )) continue;
+         entry = get_tid_alert_entry( ULongToHandle( tid ) );
+         snprintf( line, sizeof(line),
+-                  "[CARAFE-DIAG] tid %u waits for an alert at %p for %llu ms: %u alerts and %u waits so far, "
+-                  "futex %d",
+-                  tid, slot->address, (now - slot->since) / 10000, slot->alerts, slot->waits,
++                  "[CARAFE-DIAG] tid %u waits for an alert at %p for %llu ms: %u alerts, %u waits and %u slices "
++                  "so far, futex %d",
++                  tid, slot->address, (now - slot->since) / 10000, slot->alerts, slot->waits, slot->slices,
+                   entry ? (int)entry->futex : -1 );
+         wine_nx_runtime_trace( line );
+     }

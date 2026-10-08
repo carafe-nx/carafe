@@ -1,0 +1,33 @@
+[package]
+name = "carafe-desktop"
+description = "Carafe builder: Tauri shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+name = "carafe_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+carafe-core.workspace = true
+carafe-folder.workspace = true
+carafe-images.workspace = true
+carafe-keys.workspace = true
+carafe-library.workspace = true
+carafe-mtp.workspace = true
+carafe-pack.workspace = true
+carafe-steamgriddb.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ts-rs.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
+[lints]
+workspace = true

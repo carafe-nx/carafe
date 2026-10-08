@@ -1,0 +1,40 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 6px;
+  border-radius: var(--r-control);
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.back:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.title {
+  font-size: 17px;
+}
+
+.aside {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

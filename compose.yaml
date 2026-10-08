@@ -1,0 +1,19 @@
+x-build: &build
+  volumes:
+    - .:/work
+  working_dir: /work
+  environment:
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: safe.directory
+    GIT_CONFIG_VALUE_0: "*"
+
+services:
+  runtime:
+    <<: *build
+    build: docker
+    command: make -C runtime
+
+  hacbrewpack:
+    <<: *build
+    image: mstorsjo/llvm-mingw:20260505@sha256:974eec0b217e2a97cca35d7418741be32a55880010620937497a2a78e73cd482
+    command: make -C tools/hacbrewpack

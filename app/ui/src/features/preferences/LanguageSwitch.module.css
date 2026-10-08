@@ -1,0 +1,58 @@
+.switch {
+  position: relative;
+  width: max-content;
+}
+
+.button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--accent-soft);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 10;
+  padding-top: 6px;
+  transform: translateX(-50%);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    visibility 0.12s;
+}
+
+.switch:hover .menu,
+.switch:focus-within .menu {
+  visibility: visible;
+  opacity: 1;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--r-control) + 4px);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow-panel);
+}

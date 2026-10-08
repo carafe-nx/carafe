@@ -1,0 +1,15 @@
+/docs/
+/.idea/
+/app/target/
+node_modules/
+/app/ui/dist/
+/app/crates/carafe-desktop/binaries/
+/app/crates/carafe-desktop/resources/
+/app/crates/carafe-desktop/gen/
+/runtime/build/
+/runtime/loader/build/
+/tools/hacbrewpack/build/
+*.keys
+*.nsp
+*.nca
+*.xci

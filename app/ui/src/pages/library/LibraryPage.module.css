@@ -1,0 +1,265 @@
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.iconLink {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-control);
+  color: var(--muted);
+}
+
+.iconLink:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 28px;
+  padding: 28px;
+  align-items: start;
+}
+
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.shelfHead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 22px 18px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.tileArt {
+  position: relative;
+  display: block;
+  border-radius: var(--r-tile);
+  transition:
+    outline-color 0.15s,
+    transform 0.15s;
+  outline: 3px solid transparent;
+  outline-offset: 4px;
+}
+
+.tile:hover .tileArt {
+  transform: translateY(-2px);
+}
+
+.tile[aria-pressed="true"] .tileArt {
+  outline-color: var(--accent);
+}
+
+.outdatedDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 0 3px var(--panel-solid);
+}
+
+.addArt {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: var(--r-tile);
+  border: 2px dashed var(--border-strong);
+  color: var(--muted);
+}
+
+.tile:hover .addArt {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tileName {
+  font-weight: 600;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tileMeta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -5px;
+}
+
+.empty {
+  color: var(--muted);
+}
+
+.side {
+  position: sticky;
+  top: 92px;
+}
+
+.hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-panel);
+  color: var(--muted);
+  text-align: center;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cardHead {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.cardTitle {
+  min-width: 0;
+}
+
+.cardTitle h2 {
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.progressBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progressRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deleteZone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1080px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+.installBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.installLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.errorDetail {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

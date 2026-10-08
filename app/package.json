@@ -1,0 +1,26 @@
+{
+  "name": "carafe",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["ui"],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "runtime": "docker compose -f ../compose.yaml run --rm runtime",
+    "hacbrewpack": "docker compose -f ../compose.yaml run --rm hacbrewpack",
+    "pack": "cargo run --release -p carafe-pack --example pack_runtime -- crates/carafe-desktop/resources/runtime crates/carafe-desktop/resources/carafe-runtime.bin",
+    "dev": "npm run runtime && npm run hacbrewpack && npm run dev:app",
+    "dev:app": "npm run pack && tauri dev --config crates/carafe-desktop/tauri.dev.conf.json",
+    "build": "npm run runtime && npm run hacbrewpack && npm run build:app",
+    "build:app": "npm run pack && tauri build --config crates/carafe-desktop/tauri.release.conf.json",
+    "cdp": "node scripts/cdp.mjs",
+    "tauri": "tauri",
+    "bindings": "cargo test --workspace --quiet",
+    "check": "cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --quiet && npm run check --workspace ui"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1"
+  }
+}

@@ -1,0 +1,221 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 15px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+.primary:hover:not(:disabled) {
+  border-color: transparent;
+  filter: brightness(1.08);
+}
+
+.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.danger {
+  background: transparent;
+  color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-panel);
+  padding: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.fieldHint {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.input,
+.select {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border-radius: calc(var(--r-control) + 3px);
+  background: var(--track);
+}
+
+.segment {
+  border: 0;
+  background: transparent;
+  padding: 6px 13px;
+  border-radius: var(--r-control);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.segment[aria-pressed="true"] {
+  background: var(--panel-solid);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+
+.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.toggle input {
+  appearance: none;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 1px 0 0;
+  border-radius: 999px;
+  background: var(--track);
+  border: 1px solid var(--border-strong);
+  position: relative;
+  cursor: pointer;
+}
+
+.toggle input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s;
+}
+
+.toggle input:checked {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.toggle input:checked::after {
+  transform: translateX(16px);
+  background: var(--on-accent);
+}
+
+.toggleText {
+  display: flex;
+  flex-direction: column;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.notice {
+  display: flex;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--r-control);
+  font-size: 13.5px;
+}
+
+.notice svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.info {
+  background: var(--accent-soft);
+}
+
+.warning {
+  background: var(--warn-soft);
+}
+
+.warning svg {
+  color: var(--warn);
+}
+
+.error {
+  background: var(--danger-soft);
+}
+
+.error svg {
+  color: var(--danger);
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s;
+}

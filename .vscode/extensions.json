@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "ms-vscode.cpptools",
+    "tamasfe.even-better-toml",
+    "tauri-apps.tauri-vscode",
+    "ms-vscode.powershell",
+    "ms-azuretools.vscode-containers"
+  ]
+}

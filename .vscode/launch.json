@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Carafe: npm run dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/app"
+    },
+    {
+      "name": "Carafe: debug Rust",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/app/target/debug/carafe-desktop.exe",
+      "cwd": "${workspaceFolder}/app",
+      "console": "integratedTerminal",
+      "environment": [
+        {
+          "name": "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+          "value": "--remote-debugging-port=9222"
+        }
+      ],
+      "preLaunchTask": "carafe: debug build"
+    },
+    {
+      "name": "Carafe: debug UI",
+      "type": "msedge",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/app/ui"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Carafe: Rust + UI",
+      "configurations": ["Carafe: debug Rust", "Carafe: debug UI"],
+      "stopAll": true
+    }
+  ]
+}

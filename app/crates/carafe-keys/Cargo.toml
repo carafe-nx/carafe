@@ -1,0 +1,13 @@
+[package]
+name = "carafe-keys"
+description = "Carafe builder: checking prod.keys from disk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+carafe-core.workspace = true
+
+[lints]
+workspace = true

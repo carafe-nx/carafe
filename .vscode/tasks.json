@@ -1,0 +1,87 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ui: dev",
+      "type": "shell",
+      "command": "npm run dev --workspace ui",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^\\b$" },
+        "background": {
+          "activeBegins": true,
+          "beginsPattern": "VITE",
+          "endsPattern": "ready in"
+        }
+      }
+    },
+    {
+      "label": "carafe: debug build",
+      "type": "shell",
+      "command": "cargo build -p carafe-desktop",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": "$rustc",
+      "dependsOn": "ui: dev"
+    },
+    {
+      "label": "carafe: check",
+      "type": "shell",
+      "command": "npm run check",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": ["$rustc", "$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "runtime: build",
+      "type": "shell",
+      "command": "npm run runtime",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": []
+    },
+    {
+      "label": "hacbrewpack: build",
+      "type": "shell",
+      "command": "npm run hacbrewpack",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": []
+    },
+    {
+      "label": "runtime: pack",
+      "type": "shell",
+      "command": "npm run pack",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "app: dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "app: dev without runtime",
+      "type": "shell",
+      "command": "npm run dev:app",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "app: build installer",
+      "type": "shell",
+      "command": "npm run build",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": "$rustc",
+      "group": "build"
+    },
+    {
+      "label": "app: build installer without runtime",
+      "type": "shell",
+      "command": "npm run build:app",
+      "options": { "cwd": "${workspaceFolder}/app" },
+      "problemMatcher": "$rustc"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+[env]
+TS_RS_EXPORT_DIR = { value = "ui/src/shared/api/bindings", relative = true }

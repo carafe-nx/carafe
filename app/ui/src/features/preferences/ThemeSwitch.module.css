@@ -1,0 +1,49 @@
+.switch {
+  position: relative;
+  flex: none;
+  width: 56px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--track);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.switch:hover {
+  border-color: var(--accent);
+}
+
+.switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 7px;
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--panel-solid);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+  transition: transform 0.18s;
+}
+
+.switch[aria-checked="true"] .thumb {
+  transform: translateX(26px);
+}
