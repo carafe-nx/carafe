@@ -393,6 +393,12 @@
     "defaultsHint": "The wizard starts from these. Games already built stay as they are.",
     "reset": "Restore recommended",
     "resetConfirm": "Restore the recommended settings for new games? Controls, button layout and graphics will become what Carafe recommends for the Switch. Games already built won’t change.",
-    "resetYes": "Restore"
+    "resetYes": "Restore",
+    "about": "About Carafe",
+    "version": "Carafe {{version}}",
+    "copyright": "© 2026 Carafe contributors",
+    "licenseNotice": "Carafe is free software: you can redistribute it and modify it under the terms of the GNU General Public License, version 3 or any later version. It comes with absolutely no warranty.",
+    "sourceCode": "Source code",
+    "license": "License"
   }
 }

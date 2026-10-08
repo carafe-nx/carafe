@@ -1,5 +1,6 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AdvancedEditor } from "@/features/autorun-settings/AdvancedEditor";
 import { GraphicsEditor } from "@/features/autorun-settings/GraphicsEditor";
@@ -29,6 +30,11 @@ export function SettingsPage() {
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [artKey, setArtKey] = useState(preferences.steamGridDbKey ?? "");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getVersion().then(setVersion);
+  }, []);
 
   const resetDefaults = async () => {
     const recommended = await api.recommendedSettings();
@@ -167,6 +173,23 @@ export function SettingsPage() {
               </Button>
             </div>
           )}
+        </Panel>
+
+        <Panel className={styles.section}>
+          <h2>{t("settings.about")}</h2>
+          <div className={styles.about}>
+            <p className={styles.aboutName}>{version ? t("settings.version", { version }) : "Carafe"}</p>
+            <p className={styles.muted}>{t("settings.copyright")}</p>
+            <p className={styles.aboutNotice}>{t("settings.licenseNotice")}</p>
+          </div>
+          <div className={styles.links}>
+            <Button variant="ghost" onClick={() => void api.openLink("source")}>
+              {t("settings.sourceCode")}
+            </Button>
+            <Button variant="ghost" onClick={() => void api.openLink("license")}>
+              {t("settings.license")}
+            </Button>
+          </div>
         </Panel>
       </main>
     </div>

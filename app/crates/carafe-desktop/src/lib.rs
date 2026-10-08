@@ -92,6 +92,7 @@ pub fn run() {
             commands::icons::art_games,
             commands::icons::art_images,
             commands::icons::art_download,
+            commands::about::open_link,
         ])
         .run(tauri::generate_context!());
     if let Err(error) = result {

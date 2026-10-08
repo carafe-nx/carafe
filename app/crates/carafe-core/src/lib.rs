@@ -10,6 +10,7 @@ pub mod exe_icon;
 pub mod icon;
 pub mod keys;
 pub mod library;
+pub mod links;
 pub mod metadata;
 pub mod nacp;
 pub mod npdm;

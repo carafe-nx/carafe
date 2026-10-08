@@ -57,6 +57,32 @@
   font-size: 13px;
 }
 
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.about p {
+  margin: 0;
+}
+
+.aboutName {
+  font-weight: 600;
+}
+
+.aboutNotice {
+  max-width: 65ch;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .appearance {
   position: relative;
   z-index: 1;

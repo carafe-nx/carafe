@@ -6,6 +6,7 @@ import type { BuildRecord } from "./bindings/BuildRecord";
 import type { BuildRequest } from "./bindings/BuildRequest";
 import type { CommandError } from "./bindings/CommandError";
 import type { DeviceStatus } from "./bindings/DeviceStatus";
+import type { ExternalLink } from "./bindings/ExternalLink";
 import type { GameSummary } from "./bindings/GameSummary";
 import type { InstallTarget } from "./bindings/InstallTarget";
 import type { KeysReport } from "./bindings/KeysReport";
@@ -37,6 +38,7 @@ export const api = {
   artGames: (term: string) => invoke<ArtGame[]>("art_games", { term }),
   artImages: (gameId: number) => invoke<ArtImage[]>("art_images", { gameId }),
   artDownload: (url: string) => invoke<string>("art_download", { url }),
+  openLink: (link: ExternalLink) => invoke<void>("open_link", { link }),
 };
 
 export function isCommandError(value: unknown): value is CommandError {
