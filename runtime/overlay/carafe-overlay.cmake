@@ -44,7 +44,7 @@ endfunction()
 
 function(carafe_apply_patches)
     get_filename_component(autorun_root "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
-    file(GLOB patches "${CARAFE_PATCH_DIR}/*.patch")
+    file(GLOB patches CONFIGURE_DEPENDS "${CARAFE_PATCH_DIR}/*.patch")
     list(SORT patches)
     set(copied "")
     foreach(patch IN LISTS patches)
