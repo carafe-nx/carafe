@@ -14,6 +14,10 @@ path: string,
  */
 arch: Arch, 
 /**
+ * The `.exe` runs only at its own address below 4 GB: it gets a 32-bit address space.
+ */
+fixedAddress: boolean, 
+/**
  * Size in bytes.
  */
 sizeBytes: number, 

@@ -79,8 +79,10 @@ export function WizardPage() {
             <LaunchStep
               draft={state.draft}
               executable={state.executable}
+              archOverride={state.archOverride}
               args={state.args}
               onExecutable={(path) => dispatch({ type: "executable", path })}
+              onArchOverride={(arch) => dispatch({ type: "archOverride", arch })}
               onArgs={(args) => dispatch({ type: "args", args })}
             />
           ) : null}

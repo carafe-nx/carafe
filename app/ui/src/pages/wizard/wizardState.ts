@@ -1,3 +1,4 @@
+import type { Arch } from "@/shared/api/bindings/Arch";
 import type { AutorunSettings } from "@/shared/api/bindings/AutorunSettings";
 import type { BuildRecord } from "@/shared/api/bindings/BuildRecord";
 import type { BuildRequest } from "@/shared/api/bindings/BuildRequest";
@@ -16,6 +17,7 @@ export type WizardState = {
   titleId: TitleId | null;
   draft: WizardDraft | null;
   executable: string | null;
+  archOverride: Arch | null;
   args: string;
   metadata: Metadata;
   settings: AutorunSettings;
@@ -26,6 +28,7 @@ export type WizardAction =
   | { type: "draftLoaded"; draft: WizardDraft }
   | { type: "recordLoaded"; record: BuildRecord; draft: WizardDraft | null }
   | { type: "executable"; path: string }
+  | { type: "archOverride"; arch: Arch | null }
   | { type: "args"; args: string }
   | { type: "metadata"; metadata: Metadata }
   | { type: "settings"; settings: AutorunSettings };
@@ -38,6 +41,7 @@ export function initialState(defaults: AutorunSettings): WizardState {
     titleId: null,
     draft: null,
     executable: null,
+    archOverride: null,
     args: "",
     metadata: { title: "", publisher: "Carafe", localized: [], displayVersion: null, icon: { kind: "executable" } },
     settings: defaults,
@@ -57,6 +61,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         ...state,
         draft: action.draft,
         executable: keepExecutable ? state.executable : action.draft.selected,
+        archOverride: keepExecutable ? state.archOverride : null,
         metadata: rebuild ? state.metadata : action.draft.metadata,
       };
     }
@@ -69,12 +74,18 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         titleId: action.record.titleId,
         draft: action.draft,
         executable: action.record.source.executable,
+        archOverride: action.record.source.archOverride,
         args: action.record.source.arguments.join(" "),
         metadata: action.record.metadata,
         settings: action.record.settings,
       };
     case "executable":
-      return { ...state, executable: action.path };
+      if (action.path === state.executable) {
+        return state;
+      }
+      return { ...state, executable: action.path, archOverride: null };
+    case "archOverride":
+      return { ...state, archOverride: action.arch };
     case "args":
       return { ...state, args: action.args };
     case "metadata":
@@ -123,6 +134,7 @@ export function toRequest(state: WizardState): BuildRequest | null {
       folder: state.draft.folder,
       executable: choice.info.path,
       arch: choice.info.arch,
+      archOverride: state.archOverride,
       arguments: state.args.split(" ").filter((part) => part !== ""),
     },
     metadata: state.metadata,

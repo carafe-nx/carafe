@@ -86,7 +86,10 @@ export function GameCard({ game, connected, onDeleted }: GameCardProps) {
         <dt>{t("card.version")}</dt>
         <dd>{game.version}</dd>
         <dt>{t("card.arch")}</dt>
-        <dd>{game.arch === "x86" ? "x86 · 32 bit" : "x64 · 64 bit"}</dd>
+        <dd>
+          {game.arch === "x86" ? "x86 · 32 bit" : "x64 · 64 bit"}
+          {game.archManual ? ` · ${t("card.archManual")}` : null}
+        </dd>
         <dt>{t("card.size")}</dt>
         <dd>{formatBytes(game.sizeBytes, i18n.language)}</dd>
         <dt>Title ID</dt>

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Arch } from "./bindings/Arch";
 import type { ArtGame } from "./bindings/ArtGame";
 import type { ArtImage } from "./bindings/ArtImage";
 import type { AutorunSettings } from "./bindings/AutorunSettings";
@@ -32,8 +33,8 @@ export const api = {
   installGame: (titleId: TitleId, target: InstallTarget) => invoke<void>("install_game", { titleId, target }),
   fetchLogs: (titleId: TitleId) => invoke<string>("fetch_logs", { titleId }),
   inspectFolder: (folder: string) => invoke<WizardDraft>("inspect_folder", { folder }),
-  wizardWarnings: (draft: WizardDraft, executable: string | null) =>
-    invoke<Warning[]>("wizard_warnings", { draft, executable }),
+  wizardWarnings: (draft: WizardDraft, executable: string | null, archOverride: Arch | null) =>
+    invoke<Warning[]>("wizard_warnings", { draft, executable, archOverride }),
   startBuild: (request: BuildRequest) => invoke<TitleId>("start_build", { request }),
   readImage: (path: string) => invoke<string>("read_image", { path }),
   executableIcon: (folder: string, executable: string) =>

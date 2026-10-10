@@ -24,8 +24,10 @@ pub struct GameSummary {
     pub publisher: String,
     /// Version for display.
     pub version: String,
-    /// Bitness of the `.exe`.
+    /// Bitness the game is built for.
     pub arch: Arch,
+    /// The bitness was chosen by hand.
+    pub arch_manual: bool,
     /// NSP size in bytes.
     #[ts(type = "number")]
     pub size_bytes: u64,
@@ -49,7 +51,8 @@ pub fn summaries(games: &[StoredGame], current_runtime: &str) -> Vec<GameSummary
                 title: record.metadata.title.clone(),
                 publisher: record.metadata.publisher.clone(),
                 version: record.display_version(),
-                arch: record.source.arch,
+                arch: record.source.launch_arch(),
+                arch_manual: record.source.arch_override.is_some(),
                 size_bytes: game.size_bytes,
                 icon: game
                     .icon
@@ -119,6 +122,7 @@ mod tests {
                     folder: String::new(),
                     executable: "game.exe".to_owned(),
                     arch: Arch::X86,
+                    arch_override: None,
                     arguments: Vec::new(),
                 },
                 metadata: Metadata::new(title),

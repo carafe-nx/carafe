@@ -96,6 +96,8 @@ pub struct ExecutableInfo {
     pub path: String,
     /// Bitness from the PE header.
     pub arch: Arch,
+    /// The `.exe` runs only at its own address below 4 GB: it gets a 32-bit address space.
+    pub fixed_address: bool,
     /// Size in bytes.
     #[ts(type = "number")]
     pub size_bytes: u64,

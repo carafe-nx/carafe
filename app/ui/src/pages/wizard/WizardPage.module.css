@@ -163,7 +163,8 @@
 }
 
 .badge,
-.badgeWarn {
+.badgeWarn,
+.badgeManual {
   font-size: 11.5px;
   font-weight: 600;
   padding: 2px 8px;
@@ -308,4 +309,88 @@
   font: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.badgeManual {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.more {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.moreSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.moreSummary::-webkit-details-marker {
+  display: none;
+}
+
+.moreSummary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.more[open] .moreSummary::before {
+  transform: rotate(45deg);
+}
+
+.moreSummary:hover {
+  color: var(--text);
+}
+
+.moreDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.moreBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.moreLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.archRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.linkButton {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
 }

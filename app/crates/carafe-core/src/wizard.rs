@@ -36,6 +36,10 @@ pub enum Warning {
     InstallerSelected,
     /// The folder has only installers.
     OnlyInstallers,
+    /// 32 bit is chosen by hand for a 64-bit `.exe`: it cannot run in a 32-bit address space.
+    X86OnX64,
+    /// 64 bit is chosen by hand for an `.exe` that runs only at its own address below 4 GB.
+    X64OnFixedAddress,
 }
 
 /// What the current runtime can do; the warnings depend on it.
@@ -134,11 +138,17 @@ pub fn draft(report: &FolderReport) -> WizardDraft {
     }
 }
 
-/// Returns the warnings for the selected `.exe`.
+/// Returns the warnings for the selected `.exe` and the bitness chosen by hand.
+///
+/// # Parameters
+///
+/// - `arch_override`: the bitness chosen by hand; `None` means the one from the header, which
+///   never warns by itself.
 #[must_use]
 pub fn warnings(
     draft: &WizardDraft,
     executable: Option<&str>,
+    arch_override: Option<Arch>,
     runtime: RuntimeCapabilities,
 ) -> Vec<Warning> {
     let mut found = Vec::new();
@@ -161,6 +171,13 @@ pub fn warnings(
         }
         if choice.info.arch == Arch::X64 && !runtime.stable_x64 {
             found.push(Warning::UnstableX64);
+        }
+        match (arch_override, choice.info.arch) {
+            (Some(Arch::X86), Arch::X64) => found.push(Warning::X86OnX64),
+            (Some(Arch::X64), _) if choice.info.fixed_address => {
+                found.push(Warning::X64OnFixedAddress);
+            }
+            _ => {}
         }
     }
     if draft.has_steam_api {
@@ -266,6 +283,7 @@ mod tests {
         ExecutableInfo {
             path: path.to_owned(),
             arch,
+            fixed_address: false,
             size_bytes,
             product_name: None,
             company_name: None,
@@ -325,10 +343,34 @@ mod tests {
     fn x64_warning_depends_on_runtime() {
         let draft = draft(&report(vec![exe("game.exe", Arch::X64, 1)]));
         assert_eq!(
-            warnings(&draft, Some("game.exe"), TODAY),
+            warnings(&draft, Some("game.exe"), None, TODAY),
             vec![Warning::UnstableX64]
         );
-        assert!(warnings(&draft, Some("game.exe"), STABLE).is_empty());
+        assert!(warnings(&draft, Some("game.exe"), None, STABLE).is_empty());
+    }
+
+    #[test]
+    fn x86_by_hand_on_x64_warns() {
+        let draft = draft(&report(vec![exe("game.exe", Arch::X64, 1)]));
+        assert_eq!(
+            warnings(&draft, Some("game.exe"), Some(Arch::X86), STABLE),
+            vec![Warning::X86OnX64]
+        );
+        assert!(warnings(&draft, Some("game.exe"), Some(Arch::X64), STABLE).is_empty());
+    }
+
+    #[test]
+    fn x64_by_hand_warns_only_for_fixed_address() {
+        let mut fixed = exe("old.exe", Arch::X86, 2);
+        fixed.fixed_address = true;
+        let draft = draft(&report(vec![fixed, exe("new.exe", Arch::X86, 1)]));
+        assert_eq!(
+            warnings(&draft, Some("old.exe"), Some(Arch::X64), STABLE),
+            vec![Warning::X64OnFixedAddress]
+        );
+        assert!(warnings(&draft, Some("new.exe"), Some(Arch::X64), STABLE).is_empty());
+        assert!(warnings(&draft, Some("old.exe"), Some(Arch::X86), STABLE).is_empty());
+        assert!(warnings(&draft, Some("old.exe"), None, STABLE).is_empty());
     }
 
     #[test]
@@ -336,7 +378,7 @@ mod tests {
         let draft = draft(&report(vec![exe("setup.exe", Arch::X86, 1)]));
         assert_eq!(draft.selected, None);
         assert_eq!(
-            warnings(&draft, None, STABLE),
+            warnings(&draft, None, None, STABLE),
             vec![Warning::OnlyInstallers]
         );
     }
@@ -347,7 +389,7 @@ mod tests {
         folder.has_steam_api = true;
         let draft = draft(&folder);
         assert_eq!(
-            warnings(&draft, Some("game.exe"), STABLE),
+            warnings(&draft, Some("game.exe"), None, STABLE),
             vec![Warning::SteamApi]
         );
     }
@@ -359,6 +401,7 @@ mod tests {
                 folder: "D:\\Game\\openttd".to_owned(),
                 executable: "openttd.exe".to_owned(),
                 arch: Arch::X86,
+                arch_override: None,
                 arguments: Vec::new(),
             },
             metadata: Metadata::new("OpenTTD"),

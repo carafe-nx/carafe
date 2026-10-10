@@ -4,7 +4,8 @@ use std::fs::{self, File};
 use std::io::{self, ErrorKind, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
-use carafe_core::pe::{PeError, read_info};
+use carafe_core::npdm::AddressSpace;
+use carafe_core::pe::{PeError, read_info, required_address_space};
 use carafe_core::ports::{AdapterError, ExecutableInfo, FolderInspector, FolderReport};
 
 /// Folders with more files and subfolders than this are not analyzed: that is more likely a whole drive than a game.
@@ -87,9 +88,11 @@ fn executable(path: &Path, relative: &Path) -> Option<ExecutableInfo> {
         Ok(info) => info,
         Err(PeError::NotPe | PeError::BadResources) => return None,
     };
+    let fixed_address = required_address_space(&mut read) == Ok(AddressSpace::Bits32NoAlias);
     Some(ExecutableInfo {
         path: windows_path(relative),
         arch: info.arch?,
+        fixed_address,
         size_bytes,
         product_name: info.product_name,
         company_name: info.company_name,
@@ -182,6 +185,8 @@ mod tests {
             vec![("Game.EXE", Arch::X86), ("bin\\x64\\tool.exe", Arch::X64)]
         );
         assert_eq!(report.executables[0].size_bytes, 0x180);
+        assert!(report.executables[0].fixed_address);
+        assert!(!report.executables[1].fixed_address);
         assert!(!report.has_steam_api);
     }
 

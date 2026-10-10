@@ -62,6 +62,7 @@ mod tests {
             publisher: String::new(),
             version: "1.1".to_owned(),
             arch: Arch::X86,
+            arch_manual: false,
             size_bytes: 1,
             icon: None,
             runtime_version: "0.1.0".to_owned(),

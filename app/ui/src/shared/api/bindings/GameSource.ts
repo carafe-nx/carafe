@@ -14,9 +14,13 @@ folder: string,
  */
 executable: string, 
 /**
- * Bitness of the `.exe`.
+ * Bitness of the `.exe` from its PE header.
  */
 arch: Arch, 
+/**
+ * Bitness chosen by hand; `None` means the one from the header.
+ */
+archOverride: Arch | null, 
 /**
  * Launch arguments.
  */

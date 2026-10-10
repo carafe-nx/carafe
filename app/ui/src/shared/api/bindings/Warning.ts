@@ -3,4 +3,4 @@
 /**
  * Wizard warning. Does not prevent the build.
  */
-export type Warning = "unstableX64" | "steamApi" | "installerSelected" | "onlyInstallers";
+export type Warning = "unstableX64" | "steamApi" | "installerSelected" | "onlyInstallers" | "x86OnX64" | "x64OnFixedAddress";

@@ -5,6 +5,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 use crate::metadata::Metadata;
+use crate::npdm::AddressSpace;
 use crate::settings::AutorunSettings;
 use crate::title_id::TitleId;
 
@@ -31,10 +32,41 @@ pub struct GameSource {
     pub folder: String,
     /// Path to the `.exe` relative to the folder.
     pub executable: String,
-    /// Bitness of the `.exe`.
+    /// Bitness of the `.exe` from its PE header.
     pub arch: Arch,
+    /// Bitness chosen by hand; `None` means the one from the header.
+    #[serde(default)]
+    pub arch_override: Option<Arch>,
     /// Launch arguments.
     pub arguments: Vec<String>,
+}
+
+impl GameSource {
+    /// Returns the bitness the game is built for: the one chosen by hand, otherwise the one from the header.
+    #[must_use]
+    pub fn launch_arch(&self) -> Arch {
+        self.arch_override.unwrap_or(self.arch)
+    }
+
+    /// Returns the address space of the game process.
+    ///
+    /// # Parameters
+    ///
+    /// - `required`: the address space the `.exe` header asks for, from
+    ///   [`crate::pe::required_address_space`].
+    ///
+    /// # Returns
+    ///
+    /// `required` when the bitness is not chosen by hand; [`AddressSpace::Bits32NoAlias`] for 32 bit
+    /// chosen by hand; [`AddressSpace::Bits39`] for 64 bit chosen by hand.
+    #[must_use]
+    pub fn address_space(&self, required: AddressSpace) -> AddressSpace {
+        match self.arch_override {
+            None => required,
+            Some(Arch::X86) => AddressSpace::Bits32NoAlias,
+            Some(Arch::X64) => AddressSpace::Bits39,
+        }
+    }
 }
 
 /// Everything the NSP was built from: the contents of `carafe.json` inside it.
@@ -119,6 +151,7 @@ mod tests {
                 folder: "D:\\Game\\openttd".to_owned(),
                 executable: "openttd.exe".to_owned(),
                 arch: Arch::X86,
+                arch_override: None,
                 arguments: Vec::new(),
             },
             metadata: Metadata::new("OpenTTD"),
@@ -144,6 +177,54 @@ mod tests {
             newer.check_format(),
             Err(RecordError::NewerFormat(_))
         ));
+    }
+
+    #[test]
+    fn header_decides_without_override() {
+        let source = record().source;
+        assert_eq!(source.launch_arch(), Arch::X86);
+        assert_eq!(
+            source.address_space(AddressSpace::Bits32NoAlias),
+            AddressSpace::Bits32NoAlias
+        );
+        assert_eq!(
+            source.address_space(AddressSpace::Bits39),
+            AddressSpace::Bits39
+        );
+    }
+
+    #[test]
+    fn override_decides_address_space() {
+        let forced_x86 = GameSource {
+            arch: Arch::X64,
+            arch_override: Some(Arch::X86),
+            ..record().source
+        };
+        assert_eq!(forced_x86.launch_arch(), Arch::X86);
+        assert_eq!(
+            forced_x86.address_space(AddressSpace::Bits39),
+            AddressSpace::Bits32NoAlias
+        );
+        let forced_x64 = GameSource {
+            arch_override: Some(Arch::X64),
+            ..record().source
+        };
+        assert_eq!(forced_x64.launch_arch(), Arch::X64);
+        assert_eq!(
+            forced_x64.address_space(AddressSpace::Bits32NoAlias),
+            AddressSpace::Bits39
+        );
+    }
+
+    #[test]
+    fn reads_record_without_override() {
+        let mut json: serde_json::Value = serde_json::to_value(record()).unwrap();
+        json["source"]
+            .as_object_mut()
+            .unwrap()
+            .remove("archOverride");
+        let read: BuildRecord = serde_json::from_value(json).unwrap();
+        assert_eq!(read.source.arch_override, None);
     }
 
     #[test]

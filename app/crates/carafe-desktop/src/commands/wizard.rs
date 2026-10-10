@@ -3,6 +3,7 @@
 use carafe_core::TitleId;
 use carafe_core::library::{GameSummary, summaries};
 use carafe_core::ports::{BuildProgress, PackTarget};
+use carafe_core::record::Arch;
 use carafe_core::wizard::{self, BuildRequest, Warning, WizardDraft};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -42,16 +43,18 @@ pub async fn inspect_folder(
     Ok(wizard::draft(&report))
 }
 
-/// Returns the warnings for the selected `.exe`.
+/// Returns the warnings for the selected `.exe` and the bitness chosen by hand.
 #[tauri::command]
 pub async fn wizard_warnings(
     services: State<'_, Services>,
     draft: WizardDraft,
     executable: Option<String>,
+    arch_override: Option<Arch>,
 ) -> Result<Vec<Warning>, CommandError> {
     Ok(wizard::warnings(
         &draft,
         executable.as_deref(),
+        arch_override,
         services.capabilities,
     ))
 }

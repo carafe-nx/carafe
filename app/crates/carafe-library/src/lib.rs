@@ -120,6 +120,7 @@ mod tests {
                 folder: "D:\\Game\\openttd".to_owned(),
                 executable: "openttd.exe".to_owned(),
                 arch: Arch::X86,
+                arch_override: None,
                 arguments: Vec::new(),
             },
             metadata: Metadata::new("OpenTTD"),

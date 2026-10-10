@@ -94,7 +94,8 @@ impl HacBrewPacker {
         create_dir(&exefs)?;
         write(&exefs.join("main"), &runtime.read(RUNTIME_MAIN)?)?;
         let mut npdm = runtime.read(RUNTIME_NPDM)?;
-        let space = address_space(game_folder, &record.source.executable)?;
+        let required = address_space(game_folder, &record.source.executable)?;
+        let space = record.source.address_space(required);
         npdm::set_title_id(&mut npdm, record.title_id)
             .and_then(|()| npdm::set_address_space(&mut npdm, space))
             .map_err(|error| AdapterError::Tool(format!("{RUNTIME_NPDM}: {error}")))?;
@@ -510,6 +511,7 @@ mod tests {
                 folder: "D:\\Game\\openttd".to_owned(),
                 executable: "openttd.exe".to_owned(),
                 arch: Arch::X86,
+                arch_override: None,
                 arguments: Vec::new(),
             },
             metadata: Metadata::new("OpenTTD"),

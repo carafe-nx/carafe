@@ -23,9 +23,13 @@ publisher: string,
  */
 version: string, 
 /**
- * Bitness of the `.exe`.
+ * Bitness the game is built for.
  */
 arch: Arch, 
+/**
+ * The bitness was chosen by hand.
+ */
+archManual: boolean, 
 /**
  * NSP size in bytes.
  */

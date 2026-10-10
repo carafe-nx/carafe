@@ -22,6 +22,7 @@
   "card": {
     "version": "Version",
     "arch": "Architecture",
+    "archManual": "by hand",
     "size": "Size",
     "runtimeOutdated": "Built with runtime {{version}}; Carafe has a newer one. Rebuild the game to get the fixes.",
     "runtimeOutdatedShort": "Newer runtime available",
@@ -115,13 +116,24 @@
     "text": "Carafe picked the largest file. If the game starts from another one, select it.",
     "installer": "looks like an installer",
     "args": "Launch arguments",
-    "argsPlaceholder": "--option value"
+    "argsPlaceholder": "--option value",
+    "more": "Advanced",
+    "manual": "by hand",
+    "arch": "Bitness",
+    "archAuto": "Auto ({{arch}})",
+    "archReset": "Back to auto",
+    "archHintAuto": "{{file}} is {{arch}}. Change it only if the game doesn’t start.",
+    "archHintX86": "The game gets 4 GB of addresses, as on 32-bit Windows.",
+    "archHintX64": "The game gets the full address space instead of 4 GB.",
+    "archWasReset": "Bitness is back to Auto ({{arch}}) for the new file."
   },
   "warnings": {
     "unstableX64": "64-bit games are not stable yet. If the game has a 32-bit version, use that.",
     "steamApi": "The folder has steam_api.dll: the game may need the Steam client and then won’t start. GOG versions usually work.",
     "installerSelected": "This looks like an installer or uninstaller, not the game itself.",
-    "onlyInstallers": "The folder only has installers. Install the game on this PC and pick its folder."
+    "onlyInstallers": "The folder only has installers. Install the game on this PC and pick its folder.",
+    "x86OnX64": "This is a 64-bit program: it won’t start in 32-bit memory.",
+    "x64OnFixedAddress": "This older game needs its own address in memory, and 64-bit memory doesn’t have it. The game will most likely close right after it starts."
   },
   "look": {
     "title": "Title",

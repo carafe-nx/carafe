@@ -199,6 +199,7 @@ mod tests {
                 folder: folder.to_owned(),
                 executable: executable.to_owned(),
                 arch: Arch::X86,
+                arch_override: None,
                 arguments: arguments.iter().map(|&a| a.to_owned()).collect(),
             },
             metadata: Metadata::new("OpenTTD x86"),
