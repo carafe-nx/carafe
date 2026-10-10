@@ -1,0 +1,162 @@
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 24px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.head h2,
+.head p {
+  margin: 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pick,
+.row {
+  display: grid;
+  grid-template-columns: auto 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--r-control);
+}
+
+.row {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+}
+
+.pick {
+  cursor: pointer;
+}
+
+.pick:hover {
+  background: var(--accent-soft);
+}
+
+.pick input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.art {
+  display: block;
+  width: 44px;
+}
+
+.art > * {
+  border-radius: 11px;
+  font-size: 18px;
+  box-shadow: none;
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.name b {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.name span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.name .error {
+  color: var(--danger);
+}
+
+.size {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.space {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--r-control);
+  background: var(--track);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.footer .muted {
+  margin-right: auto;
+}
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--track);
+  color: var(--muted);
+}
+
+.building {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.done {
+  background: var(--accent-soft);
+  color: var(--ok);
+}
+
+.failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

@@ -12,7 +12,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `bug` Saves and game settings are lost after a restart when the game keeps a file open the whole session
 - [ ] `feature` Launch bitness in the build wizard: filled in from the chosen `.exe`, can be changed by hand
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
-- [ ] `feature` Carafe updates itself from GitHub releases and offers to rebuild games made with an older runtime
+- [ ] **`feature` Carafe updates itself from GitHub releases and offers to rebuild games made with an older runtime**
 - [ ] `feature` Buttons mapped by their labels, as on the Switch (A → A), with a choice to map them by position
 - [ ] `feature` Back up and restore game saves over USB
 - [ ] `research` Smaller save data on the console: measure what games really write

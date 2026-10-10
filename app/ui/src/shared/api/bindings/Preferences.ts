@@ -2,6 +2,7 @@
 import type { AutorunSettings } from "./AutorunSettings";
 import type { Language } from "./Language";
 import type { Theme } from "./Theme";
+import type { UpdateMode } from "./UpdateMode";
 
 /**
  * Application settings.
@@ -34,4 +35,16 @@ defaults: AutorunSettings,
 /**
  * SteamGridDB API key for cover search.
  */
-steamGridDbKey: string | null, };
+steamGridDbKey: string | null, 
+/**
+ * How Carafe looks for its new versions.
+ */
+updates: UpdateMode, 
+/**
+ * The version the player chose not to be told about.
+ */
+skippedUpdate: string | null, 
+/**
+ * The runtime version for which the player chose not to be offered a rebuild.
+ */
+rebuildDismissed: string | null, };

@@ -54,6 +54,7 @@
     "unsupported": "This file is not an image Carafe can read.",
     "icon": "Could not make the icon — see the build log for details.",
     "invalid": "The data did not pass validation.",
+    "busy": "A build or a USB install is running — wait for it to finish.",
     "unknown": "Something went wrong."
   },
   "onboarding": {
@@ -399,6 +400,105 @@
     "copyright": "© 2026 Carafe contributors",
     "licenseNotice": "Carafe is free software: you can redistribute it and modify it under the terms of the GNU General Public License, version 3 or any later version. It comes with absolutely no warranty.",
     "sourceCode": "Source code",
-    "license": "License"
+    "license": "License",
+    "updates": "Updates",
+    "updatesMode": {
+      "automatic": "Automatic",
+      "notifyOnly": "Notify only",
+      "off": "Off"
+    },
+    "updatesHint": {
+      "automatic": "Twice a day Carafe looks at its releases page on GitHub and downloads a new version in the background. It installs only when you ask. The check sends nothing else.",
+      "notifyOnly": "Twice a day Carafe looks at its releases page on GitHub and shows a button in the library. It downloads only when you ask.",
+      "off": "Carafe doesn’t contact GitHub on its own. Check with the button below."
+    }
+  },
+  "update": {
+    "title": "Carafe update",
+    "pill": {
+      "available": "Carafe {{version}}",
+      "downloading": "Downloading {{version}}",
+      "ready": "Restart to update",
+      "waiting": "Update ready",
+      "restartsWhenDone": "Restarts when done",
+      "failed": {
+        "download": "Update didn’t download",
+        "verify": "Update failed the check",
+        "install": "Update didn’t install"
+      }
+    },
+    "availableTitle": "Carafe {{version}} is out",
+    "current": "You have {{version}}",
+    "runtimeChanged": "The runtime is updated: afterwards, rebuild your games to give them the fixes.",
+    "whatsNew": "What’s new",
+    "download": "Download",
+    "skip": "Skip this version",
+    "downloadingTitle": "Downloading Carafe {{version}}",
+    "progress": "{{received}} of {{total}}",
+    "downloadingHint": "Keep working as usual. When it’s downloaded, this button offers a restart.",
+    "readyTitle": "Carafe {{version}} is ready",
+    "readyHint": "Your library, settings and built games stay as they are. The restart takes a few seconds.",
+    "restartNow": "Restart now",
+    "restarting": "Restarting…",
+    "onClose": "When I close Carafe",
+    "onCloseSet": "The update installs when you close Carafe.",
+    "onCloseCancel": "Don’t install on close",
+    "busyHint": "A build or a USB install is running — restarting now would interrupt it.",
+    "whenDone": "Restart when it finishes",
+    "failed": {
+      "download": {
+        "title": "The update didn’t download",
+        "text": "The download stopped. Nothing in Carafe has changed."
+      },
+      "verify": {
+        "title": "The update failed the check",
+        "text": "The downloaded file isn’t signed for this release, so Carafe won’t install it. Nothing in Carafe has changed."
+      },
+      "install": {
+        "title": "The update didn’t install",
+        "text": "The installer didn’t finish, and Carafe is still on {{version}}. Your library and settings are untouched."
+      }
+    },
+    "fromGithub": "Download from GitHub",
+    "updatedTo": "Carafe updated to {{version}}",
+    "close": "Close",
+    "check": "Check for updates",
+    "checking": "Checking…",
+    "upToDate": "You have the latest version",
+    "found": "Carafe {{version}} is out — see the button in the library",
+    "checkedAt": "Checked {{when}}",
+    "justNow": "just now",
+    "devBuild": "This development build doesn’t update itself."
+  },
+  "rebuild": {
+    "offerTitle_one": "{{count}} game is built with an older runtime",
+    "offerTitle_other": "{{count}} games are built with an older runtime",
+    "offerText": "Rebuilding gives them the fixes of runtime {{version}}.",
+    "notNow": "Not now",
+    "open": "Rebuild…",
+    "running": "Rebuilding {{current}} of {{total}}: {{title}}",
+    "stopping": "Finishing the rebuild…",
+    "details": "Details",
+    "pageTitle": "Rebuild games",
+    "title": "Rebuild with runtime {{version}}",
+    "intro": "Games are built one by one with the same settings, Title ID and icon. The old NSP is replaced only after a successful build.",
+    "nothing": "Every game is built with the current runtime. Nothing to rebuild.",
+    "builtWith": "runtime {{version}}",
+    "space": "Needs up to {{size}} of free space on the library drive",
+    "reinstallHint": "Install each rebuilt game on the Switch again. Your saves on the console stay: the Title ID is the same.",
+    "start_one": "Rebuild {{count}} game",
+    "start_other": "Rebuild {{count}} games",
+    "queueTitle": "Rebuilding",
+    "queueDone": "Rebuild finished",
+    "stopAfter": "Stop after this game",
+    "stoppingAfter": "Stopping after this game…",
+    "summary": "Rebuilt {{done}} of {{total}}",
+    "state": {
+      "waiting": "Waiting",
+      "building": "Building",
+      "done": "Done",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    }
   }
 }

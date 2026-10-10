@@ -2,6 +2,8 @@
 
 Date: 2026-10-05 – 2026-10-07
 
+The rejection of `reqwest` is replaced by [0017](0017-updates.md).
+
 ## Context
 
 The app reads a game folder, draws an icon, builds an NSP, talks to the Switch over USB and needs to look the same in

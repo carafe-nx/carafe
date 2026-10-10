@@ -17,7 +17,7 @@ use std::io::{self, BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 use carafe_core::BuildRecord;
-use carafe_core::icon::{IconJpeg, data_url};
+use carafe_core::icon::IconJpeg;
 use carafe_core::npdm::AddressSpace;
 use carafe_core::package::{GamePackage, ICON_FILE, RECORD_FILE, ROMFS_ICON_FILE, package};
 use carafe_core::pfs0::{self, Pfs0Entry};
@@ -190,7 +190,7 @@ impl HacBrewPacker {
             record: record.clone(),
             file_name,
             size_bytes,
-            icon: icon.map(|icon| data_url("image/jpeg", icon.bytes())),
+            icon: icon.cloned(),
         })
     }
 

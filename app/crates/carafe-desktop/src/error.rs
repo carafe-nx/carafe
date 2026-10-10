@@ -35,6 +35,8 @@ pub enum ErrorCode {
     Unsupported,
     /// Invalid data from the window.
     Invalid,
+    /// A build or a USB install is running and must finish first.
+    Busy,
 }
 
 /// A command error: a code for translation and a text for the log.

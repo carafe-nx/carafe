@@ -2,6 +2,8 @@
 
 Date: 2026-10-08 – 2026-10-09
 
+The installer format, the release assets and the runtime version are replaced by [0017](0017-updates.md).
+
 ## Context
 
 Releases must be reproducible, immutable and easy to check. The code mixes Carafe's own work with code that runs inside

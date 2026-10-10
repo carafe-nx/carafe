@@ -11,7 +11,10 @@ import type { GameSummary } from "./bindings/GameSummary";
 import type { InstallTarget } from "./bindings/InstallTarget";
 import type { KeysReport } from "./bindings/KeysReport";
 import type { Preferences } from "./bindings/Preferences";
+import type { RebuildOffer } from "./bindings/RebuildOffer";
+import type { RebuildStatus } from "./bindings/RebuildStatus";
 import type { TitleId } from "./bindings/TitleId";
+import type { UpdateStatus } from "./bindings/UpdateStatus";
 import type { Warning } from "./bindings/Warning";
 import type { WizardDraft } from "./bindings/WizardDraft";
 
@@ -39,6 +42,21 @@ export const api = {
   artImages: (gameId: number) => invoke<ArtImage[]>("art_images", { gameId }),
   artDownload: (url: string) => invoke<string>("art_download", { url }),
   openLink: (link: ExternalLink) => invoke<void>("open_link", { link }),
+  openRelease: (version: string) => invoke<void>("open_release", { version }),
+  updateStatus: () => invoke<UpdateStatus>("update_status"),
+  checkUpdates: () => invoke<UpdateStatus>("check_updates"),
+  downloadUpdate: () => invoke<void>("download_update"),
+  cancelUpdateDownload: () => invoke<void>("cancel_update_download"),
+  skipUpdate: () => invoke<void>("skip_update"),
+  installUpdate: () => invoke<void>("install_update"),
+  installUpdateOnClose: (enabled: boolean) => invoke<void>("install_update_on_close", { enabled }),
+  installUpdateWhenIdle: (enabled: boolean) => invoke<void>("install_update_when_idle", { enabled }),
+  rebuildOffer: () => invoke<RebuildOffer>("rebuild_offer_status"),
+  dismissRebuildOffer: () => invoke<void>("dismiss_rebuild_offer"),
+  rebuildSpaceNeeded: (games: TitleId[]) => invoke<number>("rebuild_space_needed", { games }),
+  startRebuild: (games: TitleId[]) => invoke<void>("start_rebuild", { games }),
+  stopRebuild: () => invoke<void>("stop_rebuild"),
+  rebuildStatus: () => invoke<RebuildStatus>("rebuild_status"),
 };
 
 export function isCommandError(value: unknown): value is CommandError {

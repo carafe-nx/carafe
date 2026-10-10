@@ -41,7 +41,7 @@ Run them from `app/`:
 
 - `npm run dev` — builds the runtime and hacBrewPack, then opens the app in development mode;
 - `npm run dev:app` — opens the app with the runtime already built;
-- `npm run build` — builds everything and the installer, `app/target/release/bundle/msi/`;
+- `npm run build` — builds everything and the installer, `app/target/release/bundle/nsis/`;
 - `npm run build:app` — the installer with the runtime already built;
 - `npm run runtime` — only the runtime, into `app/crates/carafe-desktop/resources/runtime/`;
 - `npm run hacbrewpack` — only hacBrewPack, into `app/crates/carafe-desktop/binaries/`;

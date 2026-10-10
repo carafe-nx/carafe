@@ -30,7 +30,7 @@ fn main() -> ExitCode {
     let mut added = 0usize;
     let result = write_archive(runtime, Path::new(out), &mut |_| {
         added += 1;
-        if added % 200 == 0 {
+        if added.is_multiple_of(200) {
             println!("{added} files");
         }
     });

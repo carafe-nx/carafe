@@ -7,6 +7,7 @@ import { GraphicsEditor } from "@/features/autorun-settings/GraphicsEditor";
 import { InputEditor } from "@/features/autorun-settings/InputEditor";
 import { LanguageSwitch } from "@/features/preferences/LanguageSwitch";
 import { usePreferences } from "@/features/preferences/usePreferences";
+import { UpdateSettings } from "@/features/updates/UpdateSettings";
 import { api, isCommandError } from "@/shared/api/commands";
 import type { KeysReport } from "@/shared/api/bindings/KeysReport";
 import type { Preferences } from "@/shared/api/bindings/Preferences";
@@ -177,8 +178,9 @@ export function SettingsPage() {
 
         <Panel className={styles.section}>
           <h2>{t("settings.about")}</h2>
+          <p className={styles.aboutName}>{version ? t("settings.version", { version }) : "Carafe"}</p>
+          <UpdateSettings mode={preferences.updates} onModeChange={(updates) => update({ updates })} />
           <div className={styles.about}>
-            <p className={styles.aboutName}>{version ? t("settings.version", { version }) : "Carafe"}</p>
             <p className={styles.muted}>{t("settings.copyright")}</p>
             <p className={styles.aboutNotice}>{t("settings.licenseNotice")}</p>
           </div>

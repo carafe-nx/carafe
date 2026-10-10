@@ -3,4 +3,4 @@
 /**
  * Kind of error; the window uses it to pick the text from the translations.
  */
-export type ErrorCode = "notFound" | "io" | "pack" | "blocked" | "noSpace" | "pathTooLong" | "runtimeDamaged" | "device" | "network" | "apiKey" | "unsupported" | "invalid";
+export type ErrorCode = "notFound" | "io" | "pack" | "blocked" | "noSpace" | "pathTooLong" | "runtimeDamaged" | "device" | "network" | "apiKey" | "unsupported" | "invalid" | "busy";

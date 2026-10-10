@@ -2,6 +2,8 @@
 
 Date: 2026-10-05 – 2026-10-07
 
+The runtime version is replaced by [0017](0017-updates.md).
+
 ## Context
 
 The app has to show built games, rebuild them with the same settings and keep their save data across reinstalls.

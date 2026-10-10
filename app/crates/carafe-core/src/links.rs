@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::version::Version;
+
 /// A web page the window may ask to open.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -24,9 +26,24 @@ impl ExternalLink {
     }
 }
 
+/// Returns the address of the release page of Carafe `version`, with its notes.
+#[must_use]
+pub fn release_url(version: Version) -> String {
+    format!("https://github.com/carafe-nx/carafe/releases/tag/v{version}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_is_the_tag_page() {
+        let version = Version::parse("0.3.0").unwrap();
+        assert_eq!(
+            release_url(version),
+            "https://github.com/carafe-nx/carafe/releases/tag/v0.3.0"
+        );
+    }
 
     #[test]
     fn source_is_the_repository() {

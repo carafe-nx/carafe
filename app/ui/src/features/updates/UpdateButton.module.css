@@ -1,0 +1,206 @@
+.root {
+  position: relative;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 13px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-solid);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  animation: appear 0.25s ease-out;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    filter 0.15s;
+}
+
+.pill:hover {
+  border-color: var(--accent);
+}
+
+.pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.news {
+  color: var(--text);
+}
+
+.quiet {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.accent {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+.accent:hover {
+  border-color: transparent;
+  filter: brightness(1.08);
+}
+
+.warn {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--warn);
+}
+
+.warn:hover {
+  border-color: var(--warn);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.ring {
+  transform: rotate(-90deg);
+}
+
+.ringSpinning {
+  animation: spin 1.2s linear infinite;
+}
+
+.ringTrack,
+.ringFill {
+  fill: none;
+  stroke-width: 2.4;
+}
+
+.ringTrack {
+  stroke: var(--track);
+}
+
+.ringFill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 20;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow-panel);
+  animation: drop 0.18s ease-out;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.meta {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.calm {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-control);
+  background: var(--accent-soft);
+  font-size: 13px;
+}
+
+.runtime {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 13px;
+}
+
+.runtime svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--warn);
+}
+
+.link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill,
+  .panel,
+  .ringSpinning {
+    animation: none;
+  }
+}

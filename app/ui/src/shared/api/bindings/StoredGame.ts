@@ -18,6 +18,6 @@ fileName: string,
  */
 sizeBytes: number, 
 /**
- * Icon as a `data:` URL, if it could be read.
+ * The NSP's icon, if it could be read.
  */
-icon: string | null, };
+icon: Array<number> | null, };

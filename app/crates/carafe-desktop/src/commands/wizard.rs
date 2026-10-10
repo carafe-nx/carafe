@@ -10,6 +10,7 @@ use ts_rs::TS;
 
 use crate::error::CommandError;
 use crate::services::{Services, entropy};
+use crate::updates;
 
 /// Build progress event.
 pub const BUILD_PROGRESS: &str = "build://progress";
@@ -102,6 +103,7 @@ pub async fn start_build(
     let title_id = record.title_id;
     let worker = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let _work = updates::begin_work(&worker);
         let services = worker.state::<Services>();
         let mut report = |progress: BuildProgress| {
             let _ = worker.emit(BUILD_PROGRESS, progress);

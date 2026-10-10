@@ -3,8 +3,10 @@
 mod commands;
 mod error;
 mod preferences;
+mod rebuilds;
 mod services;
 mod shell;
+mod updates;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,12 +21,17 @@ use carafe_mtp::MtpDevice;
 use carafe_pack::HacBrewPacker;
 use carafe_steamgriddb::SteamGridDb;
 use tauri::path::PathResolver;
-use tauri::{Manager, Runtime};
+use tauri::{Manager, RunEvent, Runtime};
 
 use crate::preferences::PREFERENCES_FILE;
+use crate::rebuilds::Rebuilds;
 use crate::services::Services;
+use crate::updates::Updates;
 
-const RUNTIME_VERSION: &str = env!("CARGO_PKG_VERSION");
+const RUNTIME_VERSION: &str = match option_env!("CARAFE_RUNTIME_VERSION") {
+    Some(version) => version,
+    None => env!("CARGO_PKG_VERSION"),
+};
 const RUNTIME_ARCHIVE: &str = "carafe-runtime.bin";
 const DEV_RUNTIME_ARCHIVE: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/resources/carafe-runtime.bin");
@@ -45,8 +52,11 @@ pub fn run() {
     );
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(services)
+        .manage(Rebuilds::default())
         .setup(|app| {
+            app.manage(Updates::new(updates::enabled(app.handle())));
             let services = app.state::<Services>();
             let file = app
                 .path()
@@ -69,6 +79,8 @@ pub fn run() {
                     let _ = packer.clean(&dir);
                 });
             }
+            drop(preferences);
+            updates::start(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -93,11 +105,33 @@ pub fn run() {
             commands::icons::art_images,
             commands::icons::art_download,
             commands::about::open_link,
+            commands::about::open_release,
+            commands::updates::update_status,
+            commands::updates::check_updates,
+            commands::updates::download_update,
+            commands::updates::cancel_update_download,
+            commands::updates::skip_update,
+            commands::updates::install_update,
+            commands::updates::install_update_on_close,
+            commands::updates::install_update_when_idle,
+            commands::rebuild::rebuild_offer_status,
+            commands::rebuild::dismiss_rebuild_offer,
+            commands::rebuild::rebuild_space_needed,
+            commands::rebuild::start_rebuild,
+            commands::rebuild::stop_rebuild,
+            commands::rebuild::rebuild_status,
         ])
-        .run(tauri::generate_context!());
-    if let Err(error) = result {
-        eprintln!("Carafe failed to start: {error}");
-        std::process::exit(1);
+        .build(tauri::generate_context!());
+    match result {
+        Ok(app) => app.run(|app, event| {
+            if let RunEvent::ExitRequested { .. } = event {
+                updates::on_exit(app);
+            }
+        }),
+        Err(error) => {
+            eprintln!("Carafe failed to start: {error}");
+            std::process::exit(1);
+        }
     }
 }
 

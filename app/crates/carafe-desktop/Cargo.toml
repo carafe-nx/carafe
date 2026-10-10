@@ -28,6 +28,7 @@ thiserror.workspace = true
 ts-rs.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-updater = { version = "2.13", default-features = false, features = ["native-tls", "system-proxy"] }
 
 [lints]
 workspace = true

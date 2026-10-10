@@ -19,10 +19,13 @@ pub mod path_limit;
 pub mod pe;
 pub mod pfs0;
 pub mod ports;
+pub mod rebuild;
 pub mod record;
 pub mod runtime_files;
 pub mod settings;
 pub mod title_id;
+pub mod update;
+pub mod version;
 pub mod wizard;
 
 pub use record::BuildRecord;

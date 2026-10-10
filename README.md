@@ -49,9 +49,13 @@ with Box64 or FEX to run x86 code, DXVK for Direct3D and Mesa for the GPU.
 
 Get the installer from the [latest release](https://github.com/carafe-nx/carafe/releases/latest):
 
-- `x64` — most Windows PCs;
-- `arm64` — Windows on Arm, such as laptops with Snapdragon chips;
-- `en-US` or `ru-RU` — the language of the installer. Carafe itself speaks both.
+- `x64-setup.exe` — most Windows PCs;
+- `arm64-setup.exe` — Windows on Arm, such as laptops with Snapdragon chips.
+
+The installer speaks English and Russian and installs Carafe for your Windows account, without administrator
+rights. From then on Carafe updates itself: when a new version is out, a button appears in the library. If you
+have Carafe 0.1, the installer removes it first: confirm removing the old version and allow the administrator
+prompt once. Your settings and library stay.
 
 The installer is not signed yet, so Windows may warn about an unknown publisher. Choose **More info** →
 **Run anyway** to continue.

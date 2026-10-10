@@ -1,0 +1,74 @@
+.toast {
+  position: fixed;
+  left: 28px;
+  bottom: 28px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+  box-shadow: var(--shadow-panel);
+  font-size: 13.5px;
+  animation: rise 0.25s ease-out;
+}
+
+.tick {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--ok);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.close svg {
+  transform: rotate(45deg);
+}
+
+.close:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

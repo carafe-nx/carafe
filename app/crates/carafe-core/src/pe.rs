@@ -167,8 +167,10 @@ fn parse_block(block: &[u8]) -> Option<Block<'_>> {
     let kind = u16_at(block, 4)?;
     let key_units: Vec<u16> = block
         .get(6..)?
-        .chunks_exact(2)
-        .map(|unit| u16::from_le_bytes([unit[0], unit[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|unit| u16::from_le_bytes(*unit))
         .take_while(|&unit| unit != 0)
         .collect();
     let key_end = 6 + (key_units.len() + 1) * 2;
@@ -189,8 +191,10 @@ fn parse_block(block: &[u8]) -> Option<Block<'_>> {
 
 fn utf16_until_nul(bytes: &[u8]) -> String {
     let units: Vec<u16> = bytes
-        .chunks_exact(2)
-        .map(|unit| u16::from_le_bytes([unit[0], unit[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|unit| u16::from_le_bytes(*unit))
         .take_while(|&unit| unit != 0)
         .collect();
     String::from_utf16_lossy(&units)
@@ -263,7 +267,9 @@ impl PeImage {
         let table_at = pe + 24 + optional_size as u64;
         let table = read(table_at, section_count * 40).ok_or(PeError::NotPe)?;
         let sections = table
-            .chunks_exact(40)
+            .as_chunks::<40>()
+            .0
+            .iter()
             .map(|section| Section {
                 virtual_size: u32_at(section, 8).unwrap_or(0),
                 virtual_address: u32_at(section, 12).unwrap_or(0),
@@ -318,7 +324,9 @@ impl PeImage {
             .read_rva(read, rva + 16, count * 8)
             .ok_or(PeError::BadResources)?;
         Ok(list
-            .chunks_exact(8)
+            .as_chunks::<8>()
+            .0
+            .iter()
             .map(|entry| (u32_at(entry, 0).unwrap_or(0), u32_at(entry, 4).unwrap_or(0)))
             .collect())
     }

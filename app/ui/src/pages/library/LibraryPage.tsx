@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { DeviceChip } from "@/features/device/DeviceChip";
 import { useDeviceStatus } from "@/features/device/useDeviceStatus";
+import { RebuildBanner } from "@/features/rebuild/RebuildBanner";
+import { UpdateButton } from "@/features/updates/UpdateButton";
+import { UpdatedToast } from "@/features/updates/UpdatedToast";
+import { useUpdateStatus } from "@/features/updates/useUpdateStatus";
 import type { TitleId } from "@/shared/api/bindings/TitleId";
 import { formatBytes } from "@/shared/format";
 import { CarafeMark } from "@/shared/ui/CarafeMark";
@@ -17,6 +21,7 @@ export function LibraryPage() {
   const { t, i18n } = useTranslation();
   const { games, reload } = useLibrary();
   const device = useDeviceStatus();
+  const update = useUpdateStatus();
   const [selectedId, setSelectedId] = useState<TitleId | null>(null);
   const selected = games?.find((game) => game.titleId === selectedId) ?? null;
   const totalBytes = games?.reduce((sum, game) => sum + game.sizeBytes, 0) ?? 0;
@@ -29,6 +34,7 @@ export function LibraryPage() {
           <CarafeWord cell={3} />
         </span>
         <span className={styles.spacer} />
+        {update ? <UpdateButton status={update} /> : null}
         <DeviceChip status={device} />
         <Link className={styles.iconLink} to="/settings" aria-label={t("settings.title")} title={t("settings.title")}>
           <Icon name="gear" />
@@ -45,6 +51,7 @@ export function LibraryPage() {
               </span>
             ) : null}
           </div>
+          <RebuildBanner games={games} onFinished={() => void reload()} />
           <div className={styles.tiles}>
             {games?.map((game) => (
               <GameTile
@@ -83,6 +90,7 @@ export function LibraryPage() {
           )}
         </aside>
       </main>
+      <UpdatedToast version={update?.updatedTo ?? null} />
     </div>
   );
 }

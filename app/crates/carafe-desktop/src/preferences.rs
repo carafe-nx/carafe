@@ -5,6 +5,8 @@ use std::io;
 use std::path::Path;
 
 use carafe_core::settings::AutorunSettings;
+use carafe_core::update::UpdateMode;
+use carafe_core::version::Version;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -58,6 +60,13 @@ pub struct Preferences {
     pub defaults: AutorunSettings,
     /// SteamGridDB API key for cover search.
     pub steam_grid_db_key: Option<String>,
+    /// How Carafe looks for its new versions.
+    pub updates: UpdateMode,
+    /// The version the player chose not to be told about.
+    #[ts(type = "string | null")]
+    pub skipped_update: Option<Version>,
+    /// The runtime version for which the player chose not to be offered a rebuild.
+    pub rebuild_dismissed: Option<String>,
 }
 
 /// Returns the settings from the file.
@@ -109,6 +118,9 @@ mod tests {
             library_dir: Some("D:/Carafe".to_owned()),
             defaults: AutorunSettings::default(),
             steam_grid_db_key: Some("0123abcd".to_owned()),
+            updates: UpdateMode::NotifyOnly,
+            skipped_update: Version::parse("0.3.0").ok(),
+            rebuild_dismissed: Some("0.2.0".to_owned()),
         };
         store(&path, &preferences).expect("stored");
         let loaded = load(&path);

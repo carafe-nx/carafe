@@ -14,6 +14,7 @@ use ts_rs::TS;
 use crate::error::CommandError;
 use crate::services::Services;
 use crate::shell;
+use crate::updates;
 
 /// Folder for console logs inside the library folder.
 pub const LOGS_DIR: [&str; 2] = [".carafe", "logs"];
@@ -96,6 +97,7 @@ pub async fn install_game(
     let nsp = Path::new(&dir).join(&game.file_name);
     let nsp = nsp.to_string_lossy().into_owned();
     tauri::async_runtime::spawn_blocking(move || {
+        let _work = updates::begin_work(&app);
         let services = app.state::<Services>();
         let mut report = |progress: TransferProgress| {
             let event = InstallEvent {

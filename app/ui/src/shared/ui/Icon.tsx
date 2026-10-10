@@ -14,6 +14,8 @@ const paths = {
   switch: "M7 3h4v18H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM13 3h4a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4h-4zM7 8h.01M17 14h.01",
   sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2.5v2M12 19.5v2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M2.5 12h2M19.5 12h2M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4",
   moon: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
+  restart: "M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2",
 } as const;
 
 export type IconName = keyof typeof paths;

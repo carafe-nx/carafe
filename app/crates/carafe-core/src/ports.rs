@@ -59,8 +59,9 @@ pub struct StoredGame {
     /// NSP size in bytes.
     #[ts(type = "number")]
     pub size_bytes: u64,
-    /// Icon as a `data:` URL, if it could be read.
-    pub icon: Option<String>,
+    /// The NSP's icon, if it could be read.
+    #[ts(type = "Array<number> | null")]
+    pub icon: Option<IconJpeg>,
 }
 
 /// Library NSPs.

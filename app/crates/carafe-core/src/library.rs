@@ -5,9 +5,11 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::icon::data_url;
 use crate::ports::StoredGame;
 use crate::record::Arch;
 use crate::title_id::TitleId;
+use crate::version::runtime_outdated;
 
 /// Library tile.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -49,9 +51,12 @@ pub fn summaries(games: &[StoredGame], current_runtime: &str) -> Vec<GameSummary
                 version: record.display_version(),
                 arch: record.source.arch,
                 size_bytes: game.size_bytes,
-                icon: game.icon.clone(),
+                icon: game
+                    .icon
+                    .as_ref()
+                    .map(|icon| data_url("image/jpeg", icon.bytes())),
                 runtime_version: record.runtime_version.clone(),
-                runtime_outdated: record.runtime_version != current_runtime,
+                runtime_outdated: runtime_outdated(&record.runtime_version, current_runtime),
             }
         })
         .collect();
@@ -155,6 +160,12 @@ mod tests {
     fn marks_outdated_runtime() {
         let tiles = summaries(&[game("OpenTTD", "0.1.0", 1)], "0.2.0");
         assert!(tiles[0].runtime_outdated);
+    }
+
+    #[test]
+    fn a_newer_runtime_is_not_outdated() {
+        let tiles = summaries(&[game("OpenTTD", "0.3.0", 1)], "0.2.0");
+        assert!(!tiles[0].runtime_outdated);
     }
 
     #[test]

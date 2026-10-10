@@ -393,7 +393,7 @@ impl GraphicsSettings {
         if !FRAME_LIMITS.contains(&self.frame_limit) {
             return Err(SettingsError::FrameLimit(self.frame_limit));
         }
-        if self.sharpness > 100 || self.sharpness % 20 != 0 {
+        if self.sharpness > 100 || !self.sharpness.is_multiple_of(20) {
             return Err(SettingsError::Sharpness(self.sharpness));
         }
         if self.direct3d == Direct3d::DxvkVkd3d && self.dxvk_source == DxvkSource::Sarek {

@@ -5,7 +5,7 @@ use std::io::{self, ErrorKind, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use carafe_core::TitleId;
-use carafe_core::icon::{IconJpeg, MAX_ICON_BYTES, data_url};
+use carafe_core::icon::{IconJpeg, MAX_ICON_BYTES};
 use carafe_core::library::newest_per_title;
 use carafe_core::package::{ICON_FILE, RECORD_FILE};
 use carafe_core::pfs0::{self, PREFIX_SIZE, Pfs0File};
@@ -67,8 +67,7 @@ fn read_game(path: &Path, file_name: String) -> Option<StoredGame> {
         .iter()
         .find(|entry| entry.name == ICON_FILE && entry.size <= MAX_ICON_BYTES as u64)
         .and_then(|entry| read_entry(&mut file, size_bytes, entry))
-        .and_then(|bytes| IconJpeg::new(bytes).ok())
-        .map(|icon| data_url("image/jpeg", icon.bytes()));
+        .and_then(|bytes| IconJpeg::new(bytes).ok());
     Some(StoredGame {
         record,
         file_name,
