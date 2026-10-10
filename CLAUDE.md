@@ -32,3 +32,5 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
 - Firmware, games and NSPs never go into the repository.
 - Text files use LF line endings; patches are stored byte for byte (`.gitattributes`).
 - Commit messages follow Conventional Commits: one line in English, `type(scope): description`.
+- ROADMAP.md: one line per item with a `bug`/`game`/`feature`/`research` tag. Planned items go in priority
+  order, bold while in progress; done items get `[x]` and go to the top of Done.
