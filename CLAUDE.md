@@ -17,6 +17,7 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
   changes to Autorun go into `runtime/patches/autorun/`.
 - `docker/`, `compose.yaml` — the build containers.
 - `assets/` — static images, each stored once.
+- `docs/` — how Carafe works, decisions in force, research. Rules for keeping it are in `docs/README.md`.
 
 ## Building
 
@@ -32,5 +33,6 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
 - Firmware, games and NSPs never go into the repository.
 - Text files use LF line endings; patches are stored byte for byte (`.gitattributes`).
 - Commit messages follow Conventional Commits: one line in English, `type(scope): description`.
+- A decision with a reason goes into `docs/decisions/` as a new numbered file, in English.
 - ROADMAP.md: one line per item with a `bug`/`game`/`feature`/`research` tag. Planned items go in priority
   order, bold while in progress; done items get `[x]` and go to the top of Done.
