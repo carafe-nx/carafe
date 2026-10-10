@@ -9,6 +9,13 @@
       "cwd": "${workspaceFolder}/app"
     },
     {
+      "name": "Carafe: npm run dev:app (without runtime)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev:app",
+      "cwd": "${workspaceFolder}/app"
+    },
+    {
       "name": "Carafe: debug Rust",
       "type": "cppvsdbg",
       "request": "launch",
