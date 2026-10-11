@@ -1,4 +1,5 @@
 import { createHashRouter } from "react-router";
+import { BuildPage } from "@/pages/build/BuildPage";
 import { LibraryPage } from "@/pages/library/LibraryPage";
 import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 import { RebuildPage } from "@/pages/rebuild/RebuildPage";
@@ -10,6 +11,7 @@ export const router = createHashRouter([
   { path: "/", element: <StartRedirect /> },
   { path: "/onboarding", element: <OnboardingPage /> },
   { path: "/library", element: <LibraryPage /> },
+  { path: "/build", element: <BuildPage /> },
   { path: "/new", element: <WizardRoute /> },
   { path: "/rebuild", element: <RebuildPage /> },
   { path: "/rebuild/:titleId", element: <WizardRoute /> },

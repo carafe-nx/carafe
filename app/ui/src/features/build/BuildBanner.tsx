@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import type { BuildState } from "@/shared/api/bindings/BuildState";
 import type { TitleId } from "@/shared/api/bindings/TitleId";
 import { api } from "@/shared/api/commands";
@@ -19,6 +20,7 @@ type BuildBannerProps = {
 
 export function BuildBanner({ status, knownGames, onFinished }: BuildBannerProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const running = useRef(false);
 
   useEffect(() => {
@@ -66,6 +68,9 @@ export function BuildBanner({ status, knownGames, onFinished }: BuildBannerProps
           </b>
           <ProgressBar label={t("build.progress")} value={overallPercent(status.stage, status.percent)} />
         </span>
+        <Button variant="ghost" onClick={() => navigate("/build")}>
+          {t("buildTask.open")}
+        </Button>
         <CancelBuildButton title={status.title} rebuild={knownGames.includes(status.titleId)} />
       </div>
     );

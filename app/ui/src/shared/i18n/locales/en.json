@@ -23,6 +23,7 @@
     "failed": "The build of “{{title}}” failed",
     "busyBuild": "“{{title}}” is being built. A new build can start when it finishes.",
     "busyRebuild": "Games are being rebuilt. A new build can start when it finishes.",
+    "open": "Open",
     "toLibrary": "Show in the library"
   },
   "device": {
