@@ -10,13 +10,17 @@ What's planned and what's done, without dates. Open items are in priority order;
 ## Planned
 
 - [ ] `feature` Automated game tests in an emulator: launch, controls, saves, build settings
+- [ ] `feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing
+- [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
+- [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `feature` Buttons mapped by their labels, as on the Switch (A → A), with a choice to map them by position
 - [ ] `feature` Back up and restore game saves over USB
 - [ ] `research` Smaller save data on the console: measure what games really write
 - [ ] `feature` Move saves from the PC version of a game to the Switch
 - [ ] `research` 64-bit games that draw with OpenGL hang
+- [ ] `research` Frame log with stutter causes: shaders, JIT, file reads, sync
 - [ ] `research` Faster game start-up
 - [ ] `bug` The logo shifts slightly between the boot splash and the loading screen
 - [ ] `feature` Sort and search in the library
