@@ -271,6 +271,13 @@ OpenTTD x86 under Autorun sometimes hung at start-up. The investigation found se
   (`wine_nx_drv_ProcessEvents`, `dlls/win32u/winnx_drv.c:776-850`). Patch `0012` flushes it so the cursor follows
   the stick.
 
+## Audio
+
+- Every stream is mixed to stereo 48 kHz by `horizon-wine/source/audio_unix.c`. It counted the buffer it reports to
+  the game in 48 kHz frames and lost a fraction of a frame per write, which silenced games below 48 kHz; patch `0013`
+  counts the buffer and the position in the game's frames. See
+  [research/audio-source-rate/REPORT.md](research/audio-source-rate/REPORT.md).
+
 ## Settings files
 
 Every file is lines of `key = value` (`hw/launcher_settings.h:29-42`).

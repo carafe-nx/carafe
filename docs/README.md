@@ -13,6 +13,7 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/save-commit/REPORT.md](research/save-commit/REPORT.md) — committing save data while files are open.
 - [research/automated-testing/REPORT.md](research/automated-testing/REPORT.md) — testing games in an emulator.
 - [research/build-task/REPORT.md](research/build-task/REPORT.md) — a build as a cancellable task.
+- [research/audio-source-rate/REPORT.md](research/audio-source-rate/REPORT.md) — no sound in games below 48 kHz.
 
 ## Keeping it
 
