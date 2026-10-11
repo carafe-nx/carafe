@@ -1,5 +1,7 @@
 # 4. Reads from RomFS, writes to save data, through an overlay under `sdmc:`
 
+The commit rule is replaced by [19](0019-commit-with-open-files.md).
+
 Date: 2026-10-04, updated 2026-10-08
 
 ## Context

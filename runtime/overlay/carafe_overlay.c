@@ -29,10 +29,10 @@
 #define PATH_SIZE FS_MAX_PATH
 #define COPY_CHUNK 0x10000
 #define COMMIT_POLL_NS 1000000000LL
+#define COMMIT_MAX_WAIT_NS 10000000000ULL
 #define COMMIT_QUIET_NS 2000000000ULL
 #define LOG_HISTORY 5
-#define WRITER_SLOTS 16
-#define WRITERS_LOGGED 4
+#define COMMIT_EARLY_BYTES (CARAFE_SAVE_JOURNAL_SIZE / 2)
 #define USERS_DIR "/drive_c/users/"
 #define DXVK_CACHE_DIR "/AppData/Local/dxvk"
 
@@ -49,10 +49,15 @@ typedef struct {
     char ro[PATH_SIZE];
 } Resolved;
 
-typedef struct {
+typedef struct OverlayFile {
     const devoptab_t* dev;
     void* state;
     bool writer;
+    int flags;
+    Mutex lock;
+    struct OverlayFile* prev;
+    struct OverlayFile* next;
+    char rw_path[PATH_SIZE];
 } OverlayFile;
 
 typedef struct {
@@ -79,12 +84,13 @@ static char g_log_path[PATH_SIZE];
 static bool g_log_ready;
 
 static Mutex g_commit_mutex;
-static int g_open_writers;
-static const void* g_writer_files[WRITER_SLOTS];
-static char g_writer_paths[WRITER_SLOTS][PATH_SIZE];
-static bool g_writers_changed;
+static OverlayFile* g_writers;
 static bool g_dirty;
 static u64 g_last_change;
+static u64 g_dirty_since;
+static u64 g_unsaved_bytes;
+static u64 g_started;
+static bool g_exit_locked;
 static Thread g_commit_thread;
 static u8 g_commit_stack[0x8000] __attribute__((aligned(0x1000)));
 static volatile bool g_stop;
@@ -130,10 +136,11 @@ static int fail(struct _reent* r, int error) {
 }
 
 static void markChanged(void) {
-    mutexLock(&g_commit_mutex);
-    g_dirty = true;
-    g_last_change = armGetSystemTick();
-    mutexUnlock(&g_commit_mutex);
+    u64 now = armGetSystemTick();
+    __atomic_store_n(&g_last_change, now, __ATOMIC_RELAXED);
+    if (!__atomic_exchange_n(&g_dirty, true, __ATOMIC_RELAXED)) {
+        __atomic_store_n(&g_dirty_since, now, __ATOMIC_RELAXED);
+    }
 }
 
 static bool startsWith(const char* text, const char* prefix) {
@@ -447,49 +454,46 @@ static bool wantsWrite(int flags) {
     return (flags & O_ACCMODE) != O_RDONLY || (flags & (O_CREAT | O_TRUNC | O_APPEND)) != 0;
 }
 
-static void changeWriters(int delta) {
+static void rememberWriter(OverlayFile* file, const char* rw_path, int flags) {
+    format(file->rw_path, sizeof(file->rw_path), "%s", rw_path);
+    file->flags = flags & ~(O_CREAT | O_TRUNC | O_EXCL);
+    mutexInit(&file->lock);
     mutexLock(&g_commit_mutex);
-    g_open_writers += delta;
-    g_dirty = true;
-    g_last_change = armGetSystemTick();
+    file->prev = NULL;
+    file->next = g_writers;
+    if (g_writers != NULL) {
+        g_writers->prev = file;
+    }
+    g_writers = file;
     mutexUnlock(&g_commit_mutex);
 }
 
-static void rememberWriter(const OverlayFile* file, const char* rw_path) {
-    const char* separator = strchr(rw_path, ':');
-    const char* shown = separator != NULL ? separator + 1 : rw_path;
-    mutexLock(&g_commit_mutex);
-    for (size_t i = 0; i < WRITER_SLOTS; i++) {
-        if (g_writer_files[i] == NULL) {
-            g_writer_files[i] = file;
-            format(g_writer_paths[i], sizeof(g_writer_paths[i]), "%s", shown);
-            break;
-        }
+static void forgetWriter(OverlayFile* file) {
+    if (file->prev != NULL) {
+        file->prev->next = file->next;
+    } else {
+        g_writers = file->next;
     }
-    g_writers_changed = true;
-    mutexUnlock(&g_commit_mutex);
+    if (file->next != NULL) {
+        file->next->prev = file->prev;
+    }
 }
 
-static void forgetWriter(const OverlayFile* file) {
-    mutexLock(&g_commit_mutex);
-    for (size_t i = 0; i < WRITER_SLOTS; i++) {
-        if (g_writer_files[i] == file) {
-            g_writer_files[i] = NULL;
-            break;
-        }
+static void lockFile(OverlayFile* file) {
+    if (file->writer) {
+        mutexLock(&file->lock);
     }
-    g_writers_changed = true;
-    mutexUnlock(&g_commit_mutex);
 }
 
-static size_t copyWriterPaths(char out[][PATH_SIZE], size_t count) {
-    size_t copied = 0;
-    for (size_t i = 0; i < WRITER_SLOTS && copied < count; i++) {
-        if (g_writer_files[i] != NULL) {
-            memcpy(out[copied++], g_writer_paths[i], PATH_SIZE);
-        }
+static void unlockFile(OverlayFile* file) {
+    if (file->writer) {
+        mutexUnlock(&file->lock);
     }
-    return copied;
+}
+
+static void noteWrite(u64 bytes) {
+    __atomic_add_fetch(&g_unsaved_bytes, bytes, __ATOMIC_RELAXED);
+    markChanged();
 }
 
 static int overlayOpen(struct _reent* r, void* file_struct, const char* path, int flags, int mode) {
@@ -525,7 +529,7 @@ static int overlayOpen(struct _reent* r, void* file_struct, const char* path, in
         return fail(r, EEXIST);
     }
 
-    changeWriters(1);
+    markChanged();
     int ret = 0;
     if (!rwExists(p.rw)) {
         if (!(flags & O_TRUNC) && devExists(r, g_ro, p.ro, NULL)) {
@@ -539,42 +543,67 @@ static int overlayOpen(struct _reent* r, void* file_struct, const char* path, in
         ret = openInner(r, g_rw, p.rw, flags, mode, &file->state);
     }
     if (ret == -1) {
-        changeWriters(-1);
         return -1;
     }
 
     file->writer = true;
-    rememberWriter(file, p.rw);
+    rememberWriter(file, p.rw, flags);
     return 0;
 }
 
 static int overlayClose(struct _reent* r, void* fd) {
     OverlayFile* file = fd;
-    void* saved = enter(r, file->dev);
-    int ret = file->dev->close_r(r, file->state);
-    leave(r, saved);
-    free(file->state);
+    if (file->writer) {
+        mutexLock(&g_commit_mutex);
+        forgetWriter(file);
+        mutexUnlock(&g_commit_mutex);
+    }
+
+    int ret = 0;
+    if (file->state != NULL) {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->close_r(r, file->state);
+        leave(r, saved);
+        free(file->state);
+        file->state = NULL;
+    }
 
     if (file->writer) {
-        forgetWriter(file);
-        changeWriters(-1);
+        markChanged();
     }
     return ret;
 }
 
 static ssize_t overlayWrite(struct _reent* r, void* fd, const char* ptr, size_t len) {
     OverlayFile* file = fd;
-    void* saved = enter(r, file->dev);
-    ssize_t ret = file->dev->write_r(r, file->state, ptr, len);
-    leave(r, saved);
+    lockFile(file);
+    ssize_t ret = -1;
+    if (file->state == NULL) {
+        fail(r, EIO);
+    } else {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->write_r(r, file->state, ptr, len);
+        leave(r, saved);
+    }
+    unlockFile(file);
+    if (ret > 0 && file->writer) {
+        noteWrite((u64)ret);
+    }
     return ret;
 }
 
 static ssize_t overlayRead(struct _reent* r, void* fd, char* ptr, size_t len) {
     OverlayFile* file = fd;
-    void* saved = enter(r, file->dev);
-    ssize_t ret = file->dev->read_r(r, file->state, ptr, len);
-    leave(r, saved);
+    lockFile(file);
+    ssize_t ret = -1;
+    if (file->state == NULL) {
+        fail(r, EIO);
+    } else {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->read_r(r, file->state, ptr, len);
+        leave(r, saved);
+    }
+    unlockFile(file);
     if (ret > 0) {
         __atomic_add_fetch(&g_bytes_read, (u64)ret, __ATOMIC_RELAXED);
     }
@@ -583,17 +612,31 @@ static ssize_t overlayRead(struct _reent* r, void* fd, char* ptr, size_t len) {
 
 static off_t overlaySeek(struct _reent* r, void* fd, off_t pos, int dir) {
     OverlayFile* file = fd;
-    void* saved = enter(r, file->dev);
-    off_t ret = file->dev->seek_r(r, file->state, pos, dir);
-    leave(r, saved);
+    lockFile(file);
+    off_t ret = -1;
+    if (file->state == NULL) {
+        fail(r, EIO);
+    } else {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->seek_r(r, file->state, pos, dir);
+        leave(r, saved);
+    }
+    unlockFile(file);
     return ret;
 }
 
 static int overlayFstat(struct _reent* r, void* fd, struct stat* st) {
     OverlayFile* file = fd;
-    void* saved = enter(r, file->dev);
-    int ret = file->dev->fstat_r(r, file->state, st);
-    leave(r, saved);
+    lockFile(file);
+    int ret = -1;
+    if (file->state == NULL) {
+        fail(r, EIO);
+    } else {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->fstat_r(r, file->state, st);
+        leave(r, saved);
+    }
+    unlockFile(file);
     return ret;
 }
 
@@ -602,9 +645,19 @@ static int overlayFtruncate(struct _reent* r, void* fd, off_t len) {
     if (file->dev->ftruncate_r == NULL) {
         return fail(r, EROFS);
     }
-    void* saved = enter(r, file->dev);
-    int ret = file->dev->ftruncate_r(r, file->state, len);
-    leave(r, saved);
+    lockFile(file);
+    int ret = -1;
+    if (file->state == NULL) {
+        fail(r, EIO);
+    } else {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->ftruncate_r(r, file->state, len);
+        leave(r, saved);
+    }
+    unlockFile(file);
+    if (ret == 0 && file->writer) {
+        noteWrite(0);
+    }
     return ret;
 }
 
@@ -613,9 +666,14 @@ static int overlayFsync(struct _reent* r, void* fd) {
     if (file->dev->fsync_r == NULL) {
         return 0;
     }
-    void* saved = enter(r, file->dev);
-    int ret = file->dev->fsync_r(r, file->state);
-    leave(r, saved);
+    lockFile(file);
+    int ret = 0;
+    if (file->state != NULL) {
+        void* saved = enter(r, file->dev);
+        ret = file->dev->fsync_r(r, file->state);
+        leave(r, saved);
+    }
+    unlockFile(file);
     return ret;
 }
 
@@ -1021,45 +1079,138 @@ static int overlayChdir(struct _reent* r, const char* name) {
     return fail(r, ENOSYS);
 }
 
-static void commitIfQuiet(bool force) {
-    static char blockers[WRITERS_LOGGED][PATH_SIZE];
-    Result rc = 0;
-    size_t shown = 0;
-    int open_writers = 0;
-    bool blocked = false;
-
-    mutexLock(&g_commit_mutex);
-    bool quiet = armGetSystemTick() - g_last_change >= armNsToTicks(COMMIT_QUIET_NS);
-    if (g_dirty && g_open_writers == 0 && (force || quiet)) {
-        rc = fsdevCommitDevice(RW_DEVICE);
-        if (R_SUCCEEDED(rc)) {
-            g_dirty = false;
+static void suspendWriters(struct _reent* r, off_t* offsets, size_t count) {
+    size_t i = 0;
+    for (OverlayFile* file = g_writers; file != NULL; file = file->next, i++) {
+        mutexLock(&file->lock);
+        if (file->state == NULL || i >= count) {
+            continue;
         }
-    } else if (g_dirty && (force || (quiet && g_writers_changed))) {
-        blocked = true;
-        open_writers = g_open_writers;
-        shown = copyWriterPaths(blockers, WRITERS_LOGGED);
-        g_writers_changed = false;
+        void* saved = enter(r, file->dev);
+        offsets[i] = file->dev->seek_r(r, file->state, 0, SEEK_CUR);
+        file->dev->close_r(r, file->state);
+        leave(r, saved);
+        free(file->state);
+        file->state = NULL;
     }
-    mutexUnlock(&g_commit_mutex);
+}
 
-    if (R_FAILED(rc)) {
-        logLine("commit rc=0x%08X", rc);
+static int resumeWriters(struct _reent* r, const off_t* offsets, size_t count) {
+    int lost = 0;
+    size_t i = 0;
+    for (OverlayFile* file = g_writers; file != NULL; file = file->next, i++) {
+        if (file->state == NULL && i < count) {
+            if (openInner(r, g_rw, file->rw_path, file->flags, 0666, &file->state) == 0) {
+                void* saved = enter(r, file->dev);
+                file->dev->seek_r(r, file->state, offsets[i] < 0 ? 0 : offsets[i], SEEK_SET);
+                leave(r, saved);
+            } else {
+                lost++;
+                logLine("reopen failed after commit: %s (errno %d)", file->rw_path, r->_errno);
+            }
+        }
+        mutexUnlock(&file->lock);
     }
-    if (!blocked) {
+    return lost;
+}
+
+static void commitNow(const char* reason) {
+    struct _reent* r = _REENT;
+    int saved_errno = r->_errno;
+    u64 start = armGetSystemTick();
+
+    size_t count = 0;
+    for (OverlayFile* file = g_writers; file != NULL; file = file->next) {
+        count++;
+    }
+    off_t* offsets = count > 0 ? calloc(count, sizeof(off_t)) : NULL;
+    if (count > 0 && offsets == NULL) {
+        logLine("commit skipped: no memory for %zu open files", count);
         return;
     }
-    logLine("commit %s: %d files open for writing", force ? "skipped at exit" : "waits", open_writers);
-    for (size_t i = 0; i < shown; i++) {
-        logLine("  open for writing: %s", blockers[i]);
+
+    suspendWriters(r, offsets, count);
+    Result rc = fsdevCommitDevice(RW_DEVICE);
+    int lost = resumeWriters(r, offsets, count);
+    free(offsets);
+    r->_errno = saved_errno;
+
+    if (R_SUCCEEDED(rc)) {
+        __atomic_store_n(&g_dirty, false, __ATOMIC_RELAXED);
+        __atomic_store_n(&g_unsaved_bytes, 0, __ATOMIC_RELAXED);
+    } else {
+        __atomic_store_n(&g_last_change, armGetSystemTick(), __ATOMIC_RELAXED);
     }
+    u64 end = armGetSystemTick();
+    u64 us = armTicksToNs(end - start) / 1000;
+    u64 at_ms = armTicksToNs(end - g_started) / 1000000;
+    logLine(
+        "commit %s at %lu.%03lu s: rc=0x%08X, %zu files reopened, %d lost, %lu us",
+        reason,
+        at_ms / 1000,
+        at_ms % 1000,
+        rc,
+        count,
+        lost,
+        us
+    );
+}
+
+static void commitIfDue(const char* forced_by) {
+    mutexLock(&g_commit_mutex);
+    if (__atomic_load_n(&g_dirty, __ATOMIC_RELAXED)) {
+        u64 now = armGetSystemTick();
+        u64 last = __atomic_load_n(&g_last_change, __ATOMIC_RELAXED);
+        u64 since = __atomic_load_n(&g_dirty_since, __ATOMIC_RELAXED);
+        bool quiet = now - last >= armNsToTicks(COMMIT_QUIET_NS);
+        bool overdue = now - since >= armNsToTicks(COMMIT_MAX_WAIT_NS);
+        bool full = __atomic_load_n(&g_unsaved_bytes, __ATOMIC_RELAXED) >= (u64)COMMIT_EARLY_BYTES;
+        if (forced_by != NULL) {
+            commitNow(forced_by);
+        } else if (quiet) {
+            commitNow("after writes");
+        } else if (full) {
+            commitNow("journal half full");
+        } else if (overdue) {
+            commitNow("after 10 s of writes");
+        }
+    }
+    mutexUnlock(&g_commit_mutex);
+}
+
+static bool handleAppletMessage(void) {
+    u32 message = 0;
+    if (R_FAILED(appletGetMessage(&message))) {
+        return true;
+    }
+    bool keep_running = appletProcessMessage(message);
+    AppletFocusState focus = appletGetFocusState();
+    logLine("applet message %u, focus %d", message, (int)focus);
+    if (message == AppletMessage_FocusStateChanged && focus != AppletFocusState_InFocus) {
+        commitIfDue("on leaving the game");
+    }
+    if (!keep_running || message == AppletMessage_ExitRequest) {
+        commitIfDue("on close request");
+        logLine("close requested, exit unlocked");
+        if (g_exit_locked) {
+            g_exit_locked = false;
+            appletUnlockExit();
+        }
+        return false;
+    }
+    return true;
 }
 
 static void commitLoop(void* arg) {
     (void)arg;
+    bool listening = true;
     while (!g_stop) {
-        svcSleepThread(COMMIT_POLL_NS);
-        commitIfQuiet(false);
+        if (listening && R_SUCCEEDED(eventWait(appletGetMessageEvent(), COMMIT_POLL_NS))) {
+            listening = handleAppletMessage();
+        } else if (!listening) {
+            svcSleepThread(COMMIT_POLL_NS);
+        }
+        commitIfDue(NULL);
         if (carafeLoadingTick) {
             carafeLoadingTick();
         }
@@ -1233,7 +1384,11 @@ static void carafeOverlayShutdown(void) {
         threadClose(&g_commit_thread);
         g_thread_running = false;
     }
-    commitIfQuiet(true);
+    commitIfDue("at exit");
+    if (g_exit_locked) {
+        g_exit_locked = false;
+        appletUnlockExit();
+    }
     logLine("shutdown");
 }
 
@@ -1257,6 +1412,7 @@ __attribute__((constructor(101))) static void carafeOverlayInstall(void) {
     u64 index_ms = armTicksToNs(armGetSystemTick() - index_start) / 1000000;
 
     mutexInit(&g_commit_mutex);
+    g_started = armGetSystemTick();
     g_base = devoptab_list[device];
     buildOverlay();
     devoptab_list[device] = &g_overlay;
@@ -1296,10 +1452,13 @@ __attribute__((constructor(101))) static void carafeOverlayInstall(void) {
             threadClose(&g_commit_thread);
         }
     }
+    Result lock_rc = g_thread_running ? appletLockExit() : MAKERESULT(Module_Libnx, LibnxError_NotInitialized);
+    g_exit_locked = R_SUCCEEDED(lock_rc);
     logLine(
-        "installed over sdmc:%s, commit thread %s (rc=0x%08X)",
+        "installed over sdmc:%s, commit thread %s (rc=0x%08X), exit lock rc=0x%08X",
         WINE_ROOT,
         g_thread_running ? "running" : "missing",
-        rc
+        rc,
+        lock_rc
     );
 }

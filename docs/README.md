@@ -10,6 +10,7 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/fixed-base/REPORT.md](research/fixed-base/REPORT.md) — games with a fixed load address.
 - [research/loading-screen/REPORT.md](research/loading-screen/REPORT.md) — the loading screen without black pauses.
 - [research/updates/REPORT.md](research/updates/REPORT.md) — updating Carafe from GitHub releases.
+- [research/save-commit/REPORT.md](research/save-commit/REPORT.md) — committing save data while files are open.
 
 ## Keeping it
 

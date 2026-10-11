@@ -9,7 +9,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
-- [ ] `bug` Saves and game settings are lost after a restart when the game keeps a file open the whole session
+- [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `feature` Buttons mapped by their labels, as on the Switch (A → A), with a choice to map them by position
 - [ ] `feature` Back up and restore game saves over USB
@@ -29,6 +29,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` Saves and game settings survive a restart: committed while files are open, and on closing from the HOME menu
 - [x] `feature` Carafe updates itself from GitHub releases and offers to rebuild games made with an older runtime — v0.2.0
 - [x] `feature` Launch bitness in the build wizard: Auto from the chosen `.exe`, or 32/64 bit by hand under Advanced
 - [x] `bug` Blurry taskbar icon at high display scaling
