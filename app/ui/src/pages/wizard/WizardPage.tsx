@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import { AdvancedEditor } from "@/features/autorun-settings/AdvancedEditor";
@@ -21,7 +21,9 @@ export function WizardPage() {
   const { t } = useTranslation();
   const { titleId } = useParams();
   const { preferences } = usePreferences();
-  const [state, dispatch] = useReducer(wizardReducer, preferences.defaults, initialState);
+  const [state, dispatch] = useReducer(wizardReducer, preferences.defaults, (defaults) =>
+    initialState(defaults, titleId !== undefined),
+  );
   const [folderMissing, setFolderMissing] = useState(false);
   const index = STEPS.indexOf(state.step);
   const rebuild = titleId !== undefined;
@@ -30,17 +32,26 @@ export function WizardPage() {
     if (!titleId) {
       return;
     }
+    dispatch({ type: "loading", what: "folder", on: true });
     void (async () => {
-      const record = await api.getRecord(titleId);
       try {
-        const draft = await api.inspectFolder(record.source.folder);
-        dispatch({ type: "recordLoaded", record, draft });
-      } catch {
-        setFolderMissing(true);
-        dispatch({ type: "recordLoaded", record, draft: null });
+        const record = await api.getRecord(titleId);
+        try {
+          const draft = await api.inspectFolder(record.source.folder);
+          dispatch({ type: "recordLoaded", record, draft });
+        } catch {
+          setFolderMissing(true);
+          dispatch({ type: "recordLoaded", record, draft: null });
+        }
+      } finally {
+        dispatch({ type: "loading", what: "folder", on: false });
       }
     })();
   }, [titleId]);
+
+  const setFolderBusy = useCallback((on: boolean) => dispatch({ type: "loading", what: "folder", on }), []);
+  const setIconLoading = useCallback((on: boolean) => dispatch({ type: "loading", what: "icon", on }), []);
+  const waiting = (state.step === "folder" && state.loading.folder) || (state.step === "look" && state.loading.icon);
 
   const next = STEPS[index + 1];
   const previous = STEPS[index - 1];
@@ -74,7 +85,14 @@ export function WizardPage() {
           <h2>{t(`wizard.heading.${state.step}`)}</h2>
           {folderMissing && state.step === "folder" ? <Notice tone="warning">{t("wizard.folderMissing")}</Notice> : null}
 
-          {state.step === "folder" ? <FolderStep draft={state.draft} onDraft={(draft) => dispatch({ type: "draftLoaded", draft })} /> : null}
+          {state.step === "folder" ? (
+            <FolderStep
+              draft={state.draft}
+              busy={state.loading.folder}
+              onDraft={(draft) => dispatch({ type: "draftLoaded", draft })}
+              onBusy={setFolderBusy}
+            />
+          ) : null}
           {state.step === "launch" && state.draft ? (
             <LaunchStep
               draft={state.draft}
@@ -94,6 +112,7 @@ export function WizardPage() {
               executable={state.executable}
               company={state.draft?.executables.find((choice) => choice.info.path === state.executable)?.info.companyName ?? null}
               onChange={(metadata) => dispatch({ type: "metadata", metadata })}
+              onLoading={setIconLoading}
             />
           ) : null}
           {state.step === "controls" ? (
@@ -125,9 +144,12 @@ export function WizardPage() {
                 <span />
               )}
               {next ? (
-                <Button variant="primary" disabled={!canLeave(state, state.step)} onClick={() => dispatch({ type: "goTo", step: next })}>
-                  {t("common.next")}
-                </Button>
+                <div className={styles.footerNext}>
+                  {waiting ? <span className={styles.muted}>{t("wizard.waitLoading")}</span> : null}
+                  <Button variant="primary" disabled={!canLeave(state, state.step)} onClick={() => dispatch({ type: "goTo", step: next })}>
+                    {t("common.next")}
+                  </Button>
+                </div>
               ) : null}
             </div>
           ) : null}

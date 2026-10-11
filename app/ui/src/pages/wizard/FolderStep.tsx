@@ -6,45 +6,51 @@ import type { WizardDraft } from "@/shared/api/bindings/WizardDraft";
 import { Button } from "@/shared/ui/Button";
 import { Icon } from "@/shared/ui/Icon";
 import { Notice } from "@/shared/ui/Notice";
+import { Spinner } from "@/shared/ui/Spinner";
 import styles from "./WizardPage.module.css";
 
 type FolderStepProps = {
   draft: WizardDraft | null;
+  busy: boolean;
   onDraft: (draft: WizardDraft) => void;
+  onBusy: (busy: boolean) => void;
 };
 
-export function FolderStep({ draft, onDraft }: FolderStepProps) {
+export function FolderStep({ draft, busy, onDraft, onBusy }: FolderStepProps) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const pick = async () => {
     const folder = await open({ directory: true, multiple: false });
     if (typeof folder !== "string") {
       return;
     }
-    setBusy(true);
+    onBusy(true);
     setError(null);
     try {
       onDraft(await api.inspectFolder(folder));
     } catch (failure) {
       setError(isCommandError(failure) ? failure.code : "unknown");
     } finally {
-      setBusy(false);
+      onBusy(false);
     }
   };
 
   return (
     <div className={styles.stepBody}>
       <p className={styles.lead}>{t("folder.text")}</p>
-      <button type="button" className={styles.dropZone} onClick={() => void pick()} disabled={busy}>
-        <Icon name="folder" size={32} />
-        <span className={styles.dropTitle}>{draft ? draft.folder : t("folder.pick")}</span>
+      <button type="button" className={styles.dropZone} onClick={() => void pick()} disabled={busy} aria-busy={busy}>
+        {busy ? <Spinner size="large" /> : <Icon name="folder" size={32} />}
+        <span className={styles.dropTitle}>{busy ? t("folder.reading") : draft ? draft.folder : t("folder.pick")}</span>
         <span className={styles.muted}>
-          {draft ? t("folder.found", { count: draft.executables.length }) : t("folder.pickHint")}
+          {busy
+            ? t("folder.readingHint")
+            : draft
+              ? t("folder.found", { count: draft.executables.length })
+              : t("folder.pickHint")}
         </span>
       </button>
-      {draft ? (
+      {draft && !busy ? (
         <Button variant="ghost" onClick={() => void pick()}>
           {t("folder.change")}
         </Button>

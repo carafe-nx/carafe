@@ -30,6 +30,23 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+const downloadedArt = new Map<string, Promise<string>>();
+
+export function downloadArt(url: string): Promise<string> {
+  const known = downloadedArt.get(url);
+  if (known) {
+    return known;
+  }
+  const download = api.artDownload(url);
+  downloadedArt.set(url, download);
+  download.catch(() => {
+    if (downloadedArt.get(url) === download) {
+      downloadedArt.delete(url);
+    }
+  });
+  return download;
+}
+
 export async function sourceImage(icon: IconSource, folder: string | null, executable: string | null): Promise<string | null> {
   switch (icon.kind) {
     case "executable":
@@ -37,7 +54,7 @@ export async function sourceImage(icon: IconSource, folder: string | null, execu
     case "file":
       return api.readImage(icon.path);
     case "steamGridDb":
-      return api.artDownload(icon.url);
+      return downloadArt(icon.url);
   }
 }
 

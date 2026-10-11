@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCropper } from "@/features/icon-crop/IconCropper";
-import { renderIcon } from "@/features/icon-render/renderIcon";
+import { downloadArt, renderIcon } from "@/features/icon-render/renderIcon";
 import { usePreferences } from "@/features/preferences/usePreferences";
 import { ArtPicker } from "@/features/steamgriddb/ArtPicker";
 import type { Crop } from "@/shared/api/bindings/Crop";
@@ -13,6 +13,7 @@ import { Button } from "@/shared/ui/Button";
 import { Field } from "@/shared/ui/Field";
 import { Notice } from "@/shared/ui/Notice";
 import { Segmented } from "@/shared/ui/Segmented";
+import { Spinner } from "@/shared/ui/Spinner";
 import { TextInput } from "@/shared/ui/TextInput";
 import styles from "./WizardPage.module.css";
 import { iconChosen } from "./wizardState";
@@ -28,6 +29,7 @@ type LookStepProps = {
   executable: string | null;
   company: string | null;
   onChange: (metadata: Metadata) => void;
+  onLoading: (loading: boolean) => void;
 };
 
 function sourceKey(icon: IconSource): string {
@@ -51,7 +53,7 @@ function loadSource(key: string): Promise<string> | null {
     return api.readImage(value);
   }
   if (kind === "steamGridDb") {
-    return api.artDownload(value);
+    return downloadArt(value);
   }
   return null;
 }
@@ -60,7 +62,7 @@ function sameCrop(a: Crop, b: Crop): boolean {
   return a.x === b.x && a.y === b.y && a.size === b.size;
 }
 
-export function LookStep({ metadata, buildNumber, folder, executable, company, onChange }: LookStepProps) {
+export function LookStep({ metadata, buildNumber, folder, executable, company, onChange, onLoading }: LookStepProps) {
   const { t } = useTranslation();
   const { preferences, save } = usePreferences();
   const icon = metadata.icon;
@@ -68,14 +70,15 @@ export function LookStep({ metadata, buildNumber, folder, executable, company, o
   const [source, setSource] = useState<{ key: string; url: string } | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [exePreview, setExePreview] = useState<{ url: string; missing: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setSourceError(null);
     const load = loadSource(key);
     if (!load) {
       return;
     }
     let cancelled = false;
-    setSourceError(null);
     load
       .then((url) => {
         if (!cancelled) {
@@ -90,7 +93,15 @@ export function LookStep({ metadata, buildNumber, folder, executable, company, o
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, attempt]);
+
+  const waiting = icon.kind !== "executable" && iconChosen(icon) && source?.key !== key;
+
+  useLayoutEffect(() => {
+    onLoading(waiting);
+  }, [waiting, onLoading]);
+
+  useLayoutEffect(() => () => onLoading(false), [onLoading]);
 
   useEffect(() => {
     if (icon.kind !== "executable") {
@@ -209,7 +220,14 @@ export function LookStep({ metadata, buildNumber, folder, executable, company, o
             }
           />
         ) : null}
-        {sourceError && icon.kind !== "executable" ? <Notice tone="error">{t(`errors.${sourceError}`)}</Notice> : null}
+        {sourceError && icon.kind !== "executable" ? (
+          <Notice tone="error">
+            <span className={styles.noticeRow}>
+              {t(`errors.${sourceError}`)}
+              <Button onClick={() => setAttempt((count) => count + 1)}>{t("common.retry")}</Button>
+            </span>
+          </Notice>
+        ) : null}
         {iconChosen(icon) ? null : <Notice tone="info">{t("look.iconRequired")}</Notice>}
       </div>
       <div className={styles.preview}>
@@ -221,6 +239,11 @@ export function LookStep({ metadata, buildNumber, folder, executable, company, o
           </div>
         ) : croppable ? (
           <IconCropper key={key} src={croppable} initial={initialCrop} onChange={onCrop} />
+        ) : iconChosen(icon) && !sourceError ? (
+          <div className={`${styles.previewTile} ${styles.previewLoading}`} role="status">
+            <Spinner size="large" />
+            <span className={styles.muted}>{icon.kind === "file" ? t("look.readingImage") : t("look.downloadingArt")}</span>
+          </div>
         ) : (
           <div className={styles.previewTile}>
             <span className={styles.muted}>{icon.kind === "file" ? t("look.pickImage") : t("look.pickArt")}</span>

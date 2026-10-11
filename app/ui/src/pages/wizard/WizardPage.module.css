@@ -301,6 +301,29 @@
   border-top: 1px solid var(--border);
 }
 
+.footerNext {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.previewLoading {
+  height: 224px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-tile);
+  background: var(--track);
+  text-align: center;
+}
+
+.noticeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .hintAction {
   padding: 0;
   border: none;

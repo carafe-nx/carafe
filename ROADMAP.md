@@ -12,7 +12,6 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Automated game tests in an emulator: launch, controls, saves, build settings
 - [ ] `feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
-- [ ] `bug` Build wizard: show a loader while data loads and keep the step until it is ready; a slow SteamGridDB image now fails the build
 - [ ] `bug` A build is a task: one at a time, can be cancelled, its progress shown on the library screen like an update; now the same build can start twice and their stages mix
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
@@ -36,6 +35,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` Build wizard shows a loader while the folder or the cover loads and waits for it; the cover is downloaded once
 - [x] `bug` Saves and game settings survive a restart: committed while files are open, and on closing from the HOME menu
 - [x] `feature` Carafe updates itself from GitHub releases and offers to rebuild games made with an older runtime — v0.2.0
 - [x] `feature` Launch bitness in the build wizard: Auto from the chosen `.exe`, or 32/64 bit by hand under Advanced

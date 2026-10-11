@@ -10,8 +10,11 @@ import type { WizardDraft } from "@/shared/api/bindings/WizardDraft";
 export const STEPS = ["folder", "launch", "look", "controls", "graphics", "build"] as const;
 export type StepId = (typeof STEPS)[number];
 
+export type Loading = "folder" | "icon";
+
 export type WizardState = {
   step: StepId;
+  loading: Record<Loading, boolean>;
   reached: number;
   buildNumber: number;
   titleId: TitleId | null;
@@ -25,6 +28,7 @@ export type WizardState = {
 
 export type WizardAction =
   | { type: "goTo"; step: StepId }
+  | { type: "loading"; what: Loading; on: boolean }
   | { type: "draftLoaded"; draft: WizardDraft }
   | { type: "recordLoaded"; record: BuildRecord; draft: WizardDraft | null }
   | { type: "executable"; path: string }
@@ -33,9 +37,10 @@ export type WizardAction =
   | { type: "metadata"; metadata: Metadata }
   | { type: "settings"; settings: AutorunSettings };
 
-export function initialState(defaults: AutorunSettings): WizardState {
+export function initialState(defaults: AutorunSettings, rebuild = false): WizardState {
   return {
     step: "folder",
+    loading: { folder: rebuild, icon: false },
     reached: 0,
     buildNumber: 1,
     titleId: null,
@@ -54,6 +59,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       const index = STEPS.indexOf(action.step);
       return { ...state, step: action.step, reached: Math.max(state.reached, index) };
     }
+    case "loading":
+      if (state.loading[action.what] === action.on) {
+        return state;
+      }
+      return { ...state, loading: { ...state.loading, [action.what]: action.on } };
     case "draftLoaded": {
       const rebuild = state.titleId !== null;
       const keepExecutable = rebuild && action.draft.executables.some((choice) => choice.info.path === state.executable);
@@ -109,11 +119,11 @@ export function iconChosen(icon: IconSource): boolean {
 export function canLeave(state: WizardState, step: StepId): boolean {
   switch (step) {
     case "folder":
-      return state.draft !== null;
+      return state.draft !== null && !state.loading.folder;
     case "launch":
       return state.executable !== null;
     case "look":
-      return state.metadata.title.trim() !== "" && iconChosen(state.metadata.icon);
+      return state.metadata.title.trim() !== "" && iconChosen(state.metadata.icon) && !state.loading.icon;
     default:
       return true;
   }
