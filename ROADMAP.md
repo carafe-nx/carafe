@@ -9,6 +9,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
+- [ ] `feature` Automated game tests in an emulator: launch, controls, saves, build settings
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `feature` Buttons mapped by their labels, as on the Switch (A → A), with a choice to map them by position

@@ -11,6 +11,7 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/loading-screen/REPORT.md](research/loading-screen/REPORT.md) — the loading screen without black pauses.
 - [research/updates/REPORT.md](research/updates/REPORT.md) — updating Carafe from GitHub releases.
 - [research/save-commit/REPORT.md](research/save-commit/REPORT.md) — committing save data while files are open.
+- [research/automated-testing/REPORT.md](research/automated-testing/REPORT.md) — testing games in an emulator.
 
 ## Keeping it
 
