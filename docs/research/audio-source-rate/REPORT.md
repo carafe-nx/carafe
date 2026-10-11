@@ -73,11 +73,21 @@ NSPs are built from `app/crates/carafe-desktop/resources/carafe-runtime.bin`, wh
 runtime folder; a runtime rebuilt after the app started reaches an NSP only after `npm run pack`. Two earlier
 "patched" console runs used the unpatched archive for this reason.
 
-## Open
+## Padding above the buffer size
 
-With patch `0013` the verbose log still has five `GetBuffer failed: 88890006`, one or two at the start of each tone
-below 48 kHz. `winmm` retries 10 ms later and the tone plays in full. A padding above the reported buffer size would
-explain it, but the model never reaches that state; the cause is not verified.
+With the first version of patch `0013` the verbose log still had five `GetBuffer failed: 88890006`, one or two at the
+start of each tone below 48 kHz; `winmm` retried 10 ms later and the tone played in full.
+
+The size is rounded down to the game's frames and the padding up, so after a write that fills the buffer the padding
+can exceed the size. An exhaustive check of every full write over 4800-frame rings (`winmm` opens the stream with
+`AC_BUFLEN`, 100 ms, `dlls/winmm/waveform.c:65, 980-983`) finds it in 8 % of cases at 11025 Hz, 16 % at 22050 Hz and
+40 % at 44100 Hz, never at 48000 Hz. `WOD_PushData` computes `bufsize - pad` in `UINT32`, gets a huge number, and asks
+for the whole queue. It shows at the start of a tone, when the buffer is full and the mixer has not yet taken any of
+it. The model above missed it because its mixer takes a chunk before every write.
+
+Padding is now never reported above the size, so `winmm` sees no free space and does not ask.
+
+## Open
 
 The first tone starts about 2 s after the program does, before and after the patch: the first stream opens the
 console's audio output. Not investigated.

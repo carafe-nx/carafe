@@ -14,7 +14,8 @@ fraction of a frame per write, so the last block is never reported played
 - Patch `0013-audio-source-rate-frames` changes `horizon-wine/source/audio_unix.c`; the ring and the mixer stay in
   48 kHz frames.
 - Buffer size is the ring capacity less one frame, converted to the game's rate and rounded down; padding is the held
-  frames converted and rounded up. `GetBuffer` checks against the difference, so a write that passes always fits.
+  frames converted and rounded up, never above the size: `winmm` subtracts one from the other unsigned. `GetBuffer`
+  checks against the difference, so a write that passes always fits.
 - Writes are converted from the running total of frames written, so no fraction is lost and the resampler keeps its
   phase between writes.
 - The position is reported in the game's frames at the game's rate, never past what was written.
