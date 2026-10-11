@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { busyReason } from "@/features/build/busyReason";
+import { useBuildStatus } from "@/features/build/useBuildStatus";
 import { useRebuildStatus } from "@/features/rebuild/useRebuildStatus";
 import type { GameSummary } from "@/shared/api/bindings/GameSummary";
 import type { RebuildItem } from "@/shared/api/bindings/RebuildItem";
@@ -19,6 +21,7 @@ export function RebuildPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const status = useRebuildStatus();
+  const buildBusy = busyReason(t, useBuildStatus(), false);
   const [library, setLibrary] = useState<GameSummary[] | null>(null);
   const [runtime, setRuntime] = useState<string | null>(null);
   const [selected, setSelected] = useState<TitleId[]>([]);
@@ -139,11 +142,12 @@ export function RebuildPage() {
             ) : null}
             <Notice tone="info">{t("rebuild.reinstallHint")}</Notice>
             {error ? <Notice tone="error">{t(`errors.${error}`)}</Notice> : null}
+            {buildBusy ? <Notice tone="info">{buildBusy}</Notice> : null}
             <div className={styles.footer}>
               <Button variant="ghost" onClick={() => void navigate("/library")}>
                 {t("common.cancel")}
               </Button>
-              <Button variant="primary" disabled={selected.length === 0} onClick={start}>
+              <Button variant="primary" disabled={selected.length === 0 || buildBusy !== null} onClick={start}>
                 {t("rebuild.start", { count: selected.length })}
               </Button>
             </div>

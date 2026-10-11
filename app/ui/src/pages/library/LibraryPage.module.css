@@ -107,6 +107,15 @@
   outline-color: var(--accent);
 }
 
+.tileDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tileDisabled:hover .tileArt {
+  transform: none;
+}
+
 .outdatedDot {
   position: absolute;
   top: 8px;

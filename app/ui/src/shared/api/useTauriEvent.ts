@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
 import type { BuildFinished } from "./bindings/BuildFinished";
 import type { BuildProgress } from "./bindings/BuildProgress";
+import type { BuildState } from "./bindings/BuildState";
 import type { InstallEvent } from "./bindings/InstallEvent";
 import type { RebuildStatus } from "./bindings/RebuildStatus";
 import type { UpdateStatus } from "./bindings/UpdateStatus";
@@ -9,6 +10,7 @@ import type { UpdateStatus } from "./bindings/UpdateStatus";
 type EventMap = {
   "build://progress": BuildProgress;
   "build://finished": BuildFinished;
+  "build://status": BuildState;
   "install://progress": InstallEvent;
   "install://finished": InstallEvent;
   "update://status": UpdateStatus;

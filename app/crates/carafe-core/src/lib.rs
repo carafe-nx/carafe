@@ -4,6 +4,7 @@
 //! from [`ports`] or as arguments.
 
 pub mod autorun_files;
+pub mod cancel;
 pub mod dbi;
 pub mod disk_space;
 pub mod exe_icon;

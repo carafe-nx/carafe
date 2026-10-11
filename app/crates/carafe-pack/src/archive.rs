@@ -8,6 +8,7 @@ use std::fs::{self, File};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+use carafe_core::cancel::CancelToken;
 use carafe_core::ports::AdapterError;
 use carafe_core::runtime_files::{Damage, DamagedFile, describe};
 use flate2::Compression;
@@ -146,11 +147,13 @@ impl RuntimeArchive {
     /// # Errors
     ///
     /// [`AdapterError::RuntimeDamaged`] with the list of files that failed to unpack or did not match
-    /// the index; [`AdapterError::Io`] or [`AdapterError::Blocked`] if `dest` cannot be written to.
+    /// the index; [`AdapterError::Io`] or [`AdapterError::Blocked`] if `dest` cannot be written to;
+    /// [`AdapterError::Cancelled`] if `cancel` was cancelled before the last file.
     pub fn extract(
         &self,
         prefix: &str,
         dest: &Path,
+        cancel: &CancelToken,
         on_percent: &mut dyn FnMut(u8),
     ) -> Result<usize, AdapterError> {
         let entries: Vec<&ArchiveEntry> = self.under(prefix).collect();
@@ -161,6 +164,7 @@ impl RuntimeArchive {
         let mut done = 0u64;
         let mut reported = None;
         for entry in &entries {
+            cancel.check()?;
             let relative = &entry.path[prefix.len() + 1..];
             let target = relative
                 .split('/')
@@ -402,7 +406,9 @@ mod tests {
         let dest = temp("round-trip-out");
         let mut last = None;
         let extracted = archive
-            .extract("romfs", &dest, &mut |percent| last = Some(percent))
+            .extract("romfs", &dest, &CancelToken::new(), &mut |percent| {
+                last = Some(percent)
+            })
             .unwrap();
         assert_eq!(extracted, 2);
         assert_eq!(last, Some(100));
@@ -417,6 +423,24 @@ mod tests {
     }
 
     #[test]
+    fn a_cancelled_extract_stops_before_the_files() {
+        let source = runtime("cancel");
+        let archive_path = temp("cancel.bin");
+        write_archive(&source, &archive_path, &mut |_| {}).unwrap();
+        let archive = RuntimeArchive::open(&archive_path).unwrap();
+        let dest = temp("cancel-out");
+        let cancel = CancelToken::new();
+        cancel.cancel();
+        let result = archive.extract("romfs", &dest, &cancel, &mut |_| {});
+        let unpacked = dest.join("switch/wine/a.dll").exists();
+        fs::remove_dir_all(&source).unwrap();
+        let _ = fs::remove_dir_all(&dest);
+        fs::remove_file(&archive_path).unwrap();
+        assert_eq!(result, Err(AdapterError::Cancelled));
+        assert!(!unpacked);
+    }
+
+    #[test]
     fn corrupted_data_is_reported_as_damaged_runtime() {
         let source = runtime("corrupt");
         let archive_path = temp("corrupt.bin");
@@ -427,7 +451,7 @@ mod tests {
         fs::write(&archive_path, &bytes).unwrap();
         let archive = RuntimeArchive::open(&archive_path).unwrap();
         let dest = temp("corrupt-out");
-        let result = archive.extract("romfs", &dest, &mut |_| {});
+        let result = archive.extract("romfs", &dest, &CancelToken::new(), &mut |_| {});
         fs::remove_dir_all(&source).unwrap();
         let _ = fs::remove_dir_all(&dest);
         fs::remove_file(&archive_path).unwrap();

@@ -1,5 +1,6 @@
 //! Tauri shell of the Carafe builder: the composition root.
 
+mod builds;
 mod commands;
 mod error;
 mod preferences;
@@ -23,6 +24,7 @@ use carafe_steamgriddb::SteamGridDb;
 use tauri::path::PathResolver;
 use tauri::{Manager, RunEvent, Runtime};
 
+use crate::builds::Builds;
 use crate::preferences::PREFERENCES_FILE;
 use crate::rebuilds::Rebuilds;
 use crate::services::Services;
@@ -55,6 +57,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(services)
         .manage(Rebuilds::default())
+        .manage(Builds::default())
         .setup(|app| {
             app.manage(Updates::new(updates::enabled(app.handle())));
             let services = app.state::<Services>();
@@ -99,6 +102,9 @@ pub fn run() {
             commands::wizard::inspect_folder,
             commands::wizard::wizard_warnings,
             commands::wizard::start_build,
+            commands::wizard::build_status,
+            commands::wizard::cancel_build,
+            commands::wizard::dismiss_build,
             commands::icons::read_image,
             commands::icons::executable_icon,
             commands::icons::art_games,

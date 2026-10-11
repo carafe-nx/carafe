@@ -4,11 +4,13 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use carafe_core::TitleId;
+use carafe_core::cancel::CancelToken;
 use carafe_core::ports::{BuildProgress, BuildStage, PackTarget};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use ts_rs::TS;
 
+use crate::builds::Builds;
 use crate::error::{CommandError, ErrorCode};
 use crate::services::Services;
 use crate::updates;
@@ -127,6 +129,14 @@ pub fn start(app: &AppHandle, games: Vec<TitleId>) -> Result<(), CommandError> {
         })
         .collect();
     {
+        let builds = app.state::<Builds>();
+        let slot = builds.lock();
+        if slot.is_running() {
+            return Err(CommandError {
+                code: ErrorCode::Busy,
+                message: "a build is running".to_owned(),
+            });
+        }
         let rebuilds = app.state::<Rebuilds>();
         let mut status = rebuilds.lock();
         if status.running {
@@ -202,9 +212,13 @@ fn rebuild_one(
         percent: 0,
         log: None,
     });
-    services
-        .packer
-        .pack(&record, game.icon.as_ref(), target, &mut report)?;
+    services.packer.pack(
+        &record,
+        game.icon.as_ref(),
+        target,
+        &CancelToken::new(),
+        &mut report,
+    )?;
     Ok(())
 }
 

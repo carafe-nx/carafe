@@ -1,0 +1,71 @@
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--panel);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-panel);
+}
+
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--track);
+  color: var(--muted);
+}
+
+.busy {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.busy svg {
+  animation: spin 1.6s linear infinite;
+}
+
+.ok {
+  background: var(--accent-soft);
+  color: var(--ok);
+}
+
+.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.text {
+  flex: 1 1 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.text b {
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busy svg {
+    animation: none;
+  }
+}

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+use crate::cancel::CancelToken;
 use crate::dbi::InstallTarget;
 use crate::icon::IconJpeg;
 use crate::record::{Arch, BuildRecord};
@@ -45,6 +46,9 @@ pub enum AdapterError {
     /// The Switch is not connected or failed.
     #[error("device error: {0}")]
     Device(String),
+    /// The work was asked to stop and stopped.
+    #[error("cancelled")]
+    Cancelled,
 }
 
 /// NSP in the library folder.
@@ -267,12 +271,14 @@ pub trait Packer: Send + Sync {
     ///
     /// [`AdapterError::NoSpace`] if the library disk does not have enough space;
     /// [`AdapterError::PathTooLong`] if a path to a game file would be longer than the packer reads;
+    /// [`AdapterError::Cancelled`] if `cancel` was cancelled before the NSP was in the library;
     /// [`AdapterError`] of another kind for other errors. An unfinished NSP does not get into the library.
     fn pack(
         &self,
         record: &BuildRecord,
         icon: Option<&IconJpeg>,
         target: &PackTarget,
+        cancel: &CancelToken,
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<StoredGame, AdapterError>;
 

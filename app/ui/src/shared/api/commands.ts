@@ -5,6 +5,7 @@ import type { ArtImage } from "./bindings/ArtImage";
 import type { AutorunSettings } from "./bindings/AutorunSettings";
 import type { BuildRecord } from "./bindings/BuildRecord";
 import type { BuildRequest } from "./bindings/BuildRequest";
+import type { BuildState } from "./bindings/BuildState";
 import type { CommandError } from "./bindings/CommandError";
 import type { DeviceStatus } from "./bindings/DeviceStatus";
 import type { ExternalLink } from "./bindings/ExternalLink";
@@ -36,6 +37,9 @@ export const api = {
   wizardWarnings: (draft: WizardDraft, executable: string | null, archOverride: Arch | null) =>
     invoke<Warning[]>("wizard_warnings", { draft, executable, archOverride }),
   startBuild: (request: BuildRequest) => invoke<TitleId>("start_build", { request }),
+  buildStatus: () => invoke<BuildState>("build_status"),
+  cancelBuild: () => invoke<void>("cancel_build"),
+  dismissBuild: () => invoke<void>("dismiss_build"),
   readImage: (path: string) => invoke<string>("read_image", { path }),
   executableIcon: (folder: string, executable: string) =>
     invoke<string | null>("executable_icon", { folder, executable }),

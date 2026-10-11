@@ -25,10 +25,11 @@ function failureOf(error: unknown): Failure {
 type GameCardProps = {
   game: GameSummary;
   connected: boolean;
+  busyReason: string | null;
   onDeleted: () => void;
 };
 
-export function GameCard({ game, connected, onDeleted }: GameCardProps) {
+export function GameCard({ game, connected, busyReason, onDeleted }: GameCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [install, setInstall] = useState<Install>({ kind: "idle" });
@@ -113,7 +114,11 @@ export function GameCard({ game, connected, onDeleted }: GameCardProps) {
       </div>
 
       <div className={styles.actions}>
-        <Button onClick={() => navigate(`/rebuild/${game.titleId}`)}>
+        <Button
+          disabled={busyReason !== null}
+          title={busyReason ?? undefined}
+          onClick={() => navigate(`/rebuild/${game.titleId}`)}
+        >
           <Icon name="rebuild" size={16} />
           {t("card.rebuild")}
         </Button>
@@ -123,6 +128,7 @@ export function GameCard({ game, connected, onDeleted }: GameCardProps) {
         </Button>
       </div>
       {!connected ? <p className={styles.muted}>{t("card.needDevice")}</p> : null}
+      {busyReason ? <p className={styles.muted}>{busyReason}</p> : null}
 
       {install.kind === "running" ? (
         <div className={styles.progressBlock}>

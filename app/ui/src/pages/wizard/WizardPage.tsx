@@ -4,7 +4,10 @@ import { useParams } from "react-router";
 import { AdvancedEditor } from "@/features/autorun-settings/AdvancedEditor";
 import { GraphicsEditor } from "@/features/autorun-settings/GraphicsEditor";
 import { InputEditor } from "@/features/autorun-settings/InputEditor";
+import { busyReason } from "@/features/build/busyReason";
+import { useBuildStatus } from "@/features/build/useBuildStatus";
 import { usePreferences } from "@/features/preferences/usePreferences";
+import { useRebuildStatus } from "@/features/rebuild/useRebuildStatus";
 import { api } from "@/shared/api/commands";
 import { Button } from "@/shared/ui/Button";
 import { Notice } from "@/shared/ui/Notice";
@@ -25,6 +28,8 @@ export function WizardPage() {
     initialState(defaults, titleId !== undefined),
   );
   const [folderMissing, setFolderMissing] = useState(false);
+  const build = useBuildStatus();
+  const rebuildStatus = useRebuildStatus();
   const index = STEPS.indexOf(state.step);
   const rebuild = titleId !== undefined;
 
@@ -132,7 +137,14 @@ export function WizardPage() {
               />
             </div>
           ) : null}
-          {state.step === "build" ? <BuildStep request={toRequest(state)} rebuild={rebuild} /> : null}
+          {state.step === "build" ? (
+            <BuildStep
+              request={toRequest(state)}
+              rebuild={rebuild}
+              busyReason={busyReason(t, build, rebuildStatus?.running ?? false)}
+              cancelling={build?.state === "running" && build.cancelling}
+            />
+          ) : null}
 
           {state.step !== "build" ? (
             <div className={styles.footer}>

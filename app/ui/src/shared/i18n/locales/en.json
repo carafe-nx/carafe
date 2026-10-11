@@ -4,7 +4,26 @@
     "next": "Next",
     "cancel": "Cancel",
     "browse": "Browse…",
-    "retry": "Try again"
+    "retry": "Try again",
+    "close": "Close"
+  },
+  "buildTask": {
+    "running": "Building “{{title}}”",
+    "cancel": "Cancel build",
+    "keepBuilding": "Keep building",
+    "cancelTitle": "Cancel the build?",
+    "cancelText": "The unfinished files are deleted, and the game does not appear in the library.",
+    "cancelTextRebuild": "The unfinished files are deleted. The previous NSP of “{{title}}” stays as it was.",
+    "cancelling": "Cancelling the build of “{{title}}”…",
+    "cancellingHint": "Stopping the packing and removing the unfinished files",
+    "cancelled": "The build of “{{title}}” is cancelled",
+    "cancelledHint": "The unfinished files are removed",
+    "done": "“{{title}}” is built",
+    "doneHint": "The game is in the library and ready for the Switch",
+    "failed": "The build of “{{title}}” failed",
+    "busyBuild": "“{{title}}” is being built. A new build can start when it finishes.",
+    "busyRebuild": "Games are being rebuilt. A new build can start when it finishes.",
+    "toLibrary": "Show in the library"
   },
   "device": {
     "connected": "Switch connected · {{via}}",
@@ -56,6 +75,7 @@
     "icon": "Could not make the icon — see the build log for details.",
     "invalid": "The data did not pass validation.",
     "busy": "A build or a USB install is running — wait for it to finish.",
+    "cancelled": "The build is cancelled, and its unfinished files are removed.",
     "unknown": "Something went wrong."
   },
   "onboarding": {

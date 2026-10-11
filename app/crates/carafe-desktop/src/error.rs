@@ -37,6 +37,8 @@ pub enum ErrorCode {
     Invalid,
     /// A build or a USB install is running and must finish first.
     Busy,
+    /// The player cancelled the work.
+    Cancelled,
 }
 
 /// A command error: a code for translation and a text for the log.
@@ -74,6 +76,7 @@ impl From<AdapterError> for CommandError {
             AdapterError::Network(_) => ErrorCode::Network,
             AdapterError::Unauthorized(_) => ErrorCode::ApiKey,
             AdapterError::Unsupported(_) => ErrorCode::Unsupported,
+            AdapterError::Cancelled => ErrorCode::Cancelled,
         };
         Self {
             code,

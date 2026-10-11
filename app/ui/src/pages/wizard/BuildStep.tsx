@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { CancelBuildButton } from "@/features/build/CancelBuildButton";
+import { BUILD_STAGES as STAGES } from "@/features/build/overallPercent";
 import { renderIcon } from "@/features/icon-render/renderIcon";
 import { api, isCommandError } from "@/shared/api/commands";
 import type { BuildRequest } from "@/shared/api/bindings/BuildRequest";
@@ -10,9 +12,8 @@ import { Button } from "@/shared/ui/Button";
 import { Icon } from "@/shared/ui/Icon";
 import { Notice } from "@/shared/ui/Notice";
 import { ProgressBar } from "@/shared/ui/ProgressBar";
+import { Spinner } from "@/shared/ui/Spinner";
 import styles from "./WizardPage.module.css";
-
-const STAGES: BuildStage[] = ["runtime", "game", "metadata", "pack", "finish"];
 
 type Run =
   | { kind: "idle" }
@@ -23,12 +24,15 @@ type Run =
 type BuildStepProps = {
   request: BuildRequest | null;
   rebuild: boolean;
+  busyReason: string | null;
+  cancelling: boolean;
 };
 
-export function BuildStep({ request, rebuild }: BuildStepProps) {
+export function BuildStep({ request, rebuild, busyReason, cancelling }: BuildStepProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [run, setRun] = useState<Run>({ kind: "idle" });
+  const starting = useRef(false);
 
   useTauriEvent("build://progress", (progress) => {
     setRun((current) =>
@@ -52,9 +56,18 @@ export function BuildStep({ request, rebuild }: BuildStepProps) {
   });
 
   const start = async () => {
-    if (!request) {
+    if (!request || starting.current) {
       return;
     }
+    starting.current = true;
+    try {
+      await startOnce(request);
+    } finally {
+      starting.current = false;
+    }
+  };
+
+  const startOnce = async (request: BuildRequest) => {
     setRun({ kind: "running", stage: "runtime", percent: 0, log: [] });
     let icon: number[];
     try {
@@ -97,8 +110,12 @@ export function BuildStep({ request, rebuild }: BuildStepProps) {
         </dl>
       ) : null}
 
+      {run.kind === "idle" || run.kind === "failed" ? (
+        busyReason ? <Notice tone="info">{busyReason}</Notice> : null
+      ) : null}
+
       {run.kind === "idle" ? (
-        <Button variant="primary" onClick={() => void start()} disabled={!request}>
+        <Button variant="primary" onClick={() => void start()} disabled={!request || busyReason !== null}>
           {rebuild ? t("build.startRebuild") : t("build.start")}
         </Button>
       ) : null}
@@ -121,6 +138,24 @@ export function BuildStep({ request, rebuild }: BuildStepProps) {
         </>
       ) : null}
 
+      {run.kind === "running" && request ? (
+        cancelling ? (
+          <Notice tone="info">
+            <span className={styles.noticeRow}>
+              <Spinner />
+              {t("buildTask.cancelling", { title: request.metadata.title })}
+            </span>
+          </Notice>
+        ) : (
+          <div className={styles.buildActions}>
+            <Button variant="ghost" onClick={() => navigate("/library")}>
+              {t("buildTask.toLibrary")}
+            </Button>
+            <CancelBuildButton title={request.metadata.title} rebuild={rebuild} />
+          </div>
+        )
+      ) : null}
+
       {run.kind === "done" ? (
         <>
           <Notice tone="info">{rebuild ? t("build.doneRebuild") : t("build.done")}</Notice>
@@ -131,8 +166,10 @@ export function BuildStep({ request, rebuild }: BuildStepProps) {
       ) : null}
       {run.kind === "failed" ? (
         <>
-          <Notice tone="error">{t(`errors.${run.code}`)}</Notice>
-          <Button onClick={() => void start()}>{t("common.retry")}</Button>
+          <Notice tone={run.code === "cancelled" ? "info" : "error"}>{t(`errors.${run.code}`)}</Notice>
+          <Button onClick={() => void start()} disabled={busyReason !== null}>
+            {run.code === "cancelled" ? (rebuild ? t("build.startRebuild") : t("build.start")) : t("common.retry")}
+          </Button>
         </>
       ) : null}
     </div>

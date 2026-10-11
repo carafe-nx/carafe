@@ -17,6 +17,7 @@ use std::io::{self, BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 use carafe_core::BuildRecord;
+use carafe_core::cancel::CancelToken;
 use carafe_core::icon::IconJpeg;
 use carafe_core::npdm::AddressSpace;
 use carafe_core::package::{GamePackage, ICON_FILE, RECORD_FILE, ROMFS_ICON_FILE, package};
@@ -73,6 +74,7 @@ impl HacBrewPacker {
         package: &GamePackage,
         target: &PackTarget,
         work: &Path,
+        cancel: &CancelToken,
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<StoredGame, AdapterError> {
         let input = work.join("in");
@@ -101,7 +103,7 @@ impl HacBrewPacker {
             .map_err(|error| AdapterError::Tool(format!("{RUNTIME_NPDM}: {error}")))?;
         write(&exefs.join("main.npdm"), &npdm)?;
         let logo = copy_logo(&runtime, &input)?;
-        let runtime_files = runtime.extract(RUNTIME_ROMFS, &romfs, &mut |percent| {
+        let runtime_files = runtime.extract(RUNTIME_ROMFS, &romfs, cancel, &mut |percent| {
             report(progress, BuildStage::Runtime, percent, None);
         })?;
         report(
@@ -123,10 +125,11 @@ impl HacBrewPacker {
                 package.game_dir
             )),
         );
-        game.copy_to(&romfs.join(&package.game_dir), &mut |percent| {
+        game.copy_to(&romfs.join(&package.game_dir), cancel, &mut |percent| {
             report(progress, BuildStage::Game, percent, None);
         })?;
 
+        cancel.check()?;
         report(progress, BuildStage::Metadata, 0, None);
         for file in &package.romfs_files {
             let path = romfs.join(&file.path);
@@ -172,12 +175,23 @@ impl HacBrewPacker {
 
         let nca_dir = work.join("nca");
         let romfs_files = runtime_files + game.file_count() + package.romfs_files.len() + 1;
-        self.run_tool(&input, logo, work, &nca_dir, target, romfs_files, progress)?;
+        cancel.check()?;
+        self.run_tool(
+            &input,
+            logo,
+            work,
+            &nca_dir,
+            target,
+            romfs_files,
+            cancel,
+            progress,
+        )?;
 
+        cancel.check()?;
         report(progress, BuildStage::Finish, 0, None);
         let file_name = format!("{}.nsp", record.title_id);
         let library = Path::new(&target.library_dir);
-        let size_bytes = write_nsp(&nca_dir, record, icon, &library.join(&file_name))?;
+        let size_bytes = write_nsp(&nca_dir, record, icon, &library.join(&file_name), cancel)?;
         report(
             progress,
             BuildStage::Finish,
@@ -204,6 +218,7 @@ impl HacBrewPacker {
         nca_dir: &Path,
         target: &PackTarget,
         romfs_files: usize,
+        cancel: &CancelToken,
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<(), AdapterError> {
         let keys = Path::new(&target.keys_path);
@@ -243,7 +258,7 @@ impl HacBrewPacker {
         let mut written = 0usize;
         let mut percent = 0u8;
         let mut unreadable = None;
-        let result = tool::run(&self.tool, &args, &mut |line| {
+        let result = tool::run(&self.tool, &args, cancel, &mut |line| {
             if line.starts_with(ROMFS_WRITE_PREFIX) && line.contains("romfs") {
                 written += 1;
                 let share = written.min(romfs_files) * 95 / romfs_files.max(1);
@@ -276,8 +291,10 @@ impl Packer for HacBrewPacker {
         record: &BuildRecord,
         icon: Option<&IconJpeg>,
         target: &PackTarget,
+        cancel: &CancelToken,
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<StoredGame, AdapterError> {
+        cancel.check()?;
         let package = package(record).map_err(|error| AdapterError::Tool(error.to_string()))?;
         let library = Path::new(&target.library_dir);
         let work = service::build_dir(library, &record.title_id.to_string());
@@ -288,7 +305,7 @@ impl Packer for HacBrewPacker {
         create_dir(&work)?;
         service::hide(&library.join(service::SERVICE_DIR));
         let lock = service::BuildLock::acquire(&work)?;
-        let result = self.build(record, icon, &package, target, &work, progress);
+        let result = self.build(record, icon, &package, target, &work, cancel, progress);
         drop(lock);
         let _ = remove_dir(&work);
         result
@@ -352,6 +369,7 @@ fn write_nsp(
     record: &BuildRecord,
     icon: Option<&IconJpeg>,
     nsp: &Path,
+    cancel: &CancelToken,
 ) -> Result<u64, AdapterError> {
     let mut ncas = Vec::new();
     for entry in fs::read_dir(nca_dir).map_err(|error| io_error(nca_dir, &error))? {
@@ -391,24 +409,29 @@ fn write_nsp(
     let header = pfs0::header(&entries).map_err(|error| AdapterError::Tool(error.to_string()))?;
 
     let partial = nsp.with_extension("nsp.part");
-    let written = (|| -> io::Result<u64> {
-        let mut out = BufWriter::with_capacity(1 << 20, File::create(&partial)?);
-        out.write_all(&header)?;
+    let written = (|| -> Result<u64, AdapterError> {
+        let failed = |error: io::Error| io_error(nsp, &error);
+        let mut out = BufWriter::with_capacity(1 << 20, File::create(&partial).map_err(failed)?);
+        out.write_all(&header).map_err(failed)?;
         for (_, path, _) in &ncas {
-            io::copy(&mut File::open(path)?, &mut out)?;
+            cancel.check()?;
+            io::copy(&mut File::open(path).map_err(failed)?, &mut out).map_err(failed)?;
         }
         for (_, bytes) in &extras {
-            out.write_all(bytes)?;
+            out.write_all(bytes).map_err(failed)?;
         }
         out.into_inner()
-            .map_err(io::IntoInnerError::into_error)?
-            .sync_all()?;
-        fs::rename(&partial, nsp)?;
-        fs::metadata(nsp).map(|metadata| metadata.len())
+            .map_err(io::IntoInnerError::into_error)
+            .and_then(|file| file.sync_all())
+            .map_err(failed)?;
+        cancel.check()?;
+        fs::rename(&partial, nsp).map_err(failed)?;
+        fs::metadata(nsp)
+            .map(|metadata| metadata.len())
+            .map_err(failed)
     })();
-    written.map_err(|error| {
+    written.inspect_err(|_| {
         let _ = fs::remove_file(&partial);
-        io_error(nsp, &error)
     })
 }
 
@@ -538,7 +561,7 @@ mod tests {
         fs::write(nca_dir.join("notes.txt"), b"skip").unwrap();
         let nsp = dir.join("056694dd13640000.nsp");
         let icon = IconJpeg::new(jpeg_256()).unwrap();
-        let size = write_nsp(&nca_dir, &record(), Some(&icon), &nsp).unwrap();
+        let size = write_nsp(&nca_dir, &record(), Some(&icon), &nsp, &CancelToken::new()).unwrap();
         let bytes = fs::read(&nsp).unwrap();
         fs::remove_dir_all(&dir).unwrap();
 
@@ -564,6 +587,23 @@ mod tests {
         let stored: BuildRecord = serde_json::from_slice(&json).unwrap();
         assert_eq!(stored, record());
         assert_eq!(entry(3), (ICON_FILE.to_owned(), jpeg_256()));
+    }
+
+    #[test]
+    fn a_cancelled_nsp_leaves_nothing_in_the_library() {
+        let dir = std::env::temp_dir().join(format!("carafe-pack-cancel-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let nca_dir = dir.join("nca");
+        fs::create_dir_all(&nca_dir).unwrap();
+        fs::write(nca_dir.join("a.nca"), b"program").unwrap();
+        let nsp = dir.join("056694dd13640000.nsp");
+        let cancel = CancelToken::new();
+        cancel.cancel();
+        let result = write_nsp(&nca_dir, &record(), None, &nsp, &cancel);
+        let left = (nsp.exists(), nsp.with_extension("nsp.part").exists());
+        fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(result, Err(AdapterError::Cancelled));
+        assert_eq!(left, (false, false));
     }
 
     fn jpeg_256() -> Vec<u8> {

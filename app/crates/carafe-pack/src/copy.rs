@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use carafe_core::cancel::CancelToken;
 use carafe_core::ports::AdapterError;
 
 use crate::io_error;
@@ -70,8 +71,13 @@ impl Tree {
     /// # Errors
     ///
     /// [`AdapterError::Blocked`] if the antivirus prevented reading the original; [`AdapterError::Io`] if a file
-    /// cannot be read or written.
-    pub fn copy_to(&self, dest: &Path, on_percent: &mut dyn FnMut(u8)) -> Result<(), AdapterError> {
+    /// cannot be read or written; [`AdapterError::Cancelled`] if `cancel` was cancelled before the last file.
+    pub fn copy_to(
+        &self,
+        dest: &Path,
+        cancel: &CancelToken,
+        on_percent: &mut dyn FnMut(u8),
+    ) -> Result<(), AdapterError> {
         fs::create_dir_all(dest).map_err(|error| io_error(dest, &error))?;
         for dir in &self.dirs {
             let target = dest.join(dir);
@@ -80,6 +86,7 @@ impl Tree {
         let mut done = 0u64;
         let mut reported = None;
         for (file, size) in &self.files {
+            cancel.check()?;
             let source = self.root.join(file);
             fs::copy(&source, dest.join(file)).map_err(|error| io_error(&source, &error))?;
             done += size;
@@ -142,8 +149,10 @@ mod tests {
         assert_eq!(tree.file_count(), 2);
         let dest = temp_dir("dest");
         let mut seen = Vec::new();
-        tree.copy_to(&dest, &mut |percent| seen.push(percent))
-            .unwrap();
+        tree.copy_to(&dest, &CancelToken::new(), &mut |percent| {
+            seen.push(percent)
+        })
+        .unwrap();
         assert_eq!(
             fs::read(dest.join("baseset/opengfx.tar")).unwrap().len(),
             300
@@ -152,6 +161,23 @@ mod tests {
         assert_eq!(seen.last(), Some(&100));
         fs::remove_dir_all(&root).unwrap();
         fs::remove_dir_all(&dest).unwrap();
+    }
+
+    #[test]
+    fn a_cancelled_copy_stops_before_the_files() {
+        let root = temp_dir("cancel-source");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"MZ").unwrap();
+        let tree = Tree::scan(&root).unwrap();
+        let dest = temp_dir("cancel-dest");
+        let cancel = CancelToken::new();
+        cancel.cancel();
+        let result = tree.copy_to(&dest, &cancel, &mut |_| {});
+        let copied = dest.join("game.exe").exists();
+        fs::remove_dir_all(&root).unwrap();
+        let _ = fs::remove_dir_all(&dest);
+        assert_eq!(result, Err(AdapterError::Cancelled));
+        assert!(!copied);
     }
 
     #[test]
