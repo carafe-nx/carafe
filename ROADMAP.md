@@ -9,7 +9,6 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
-- [ ] `bug` The build banner in the library has no way back to the running build's screen
 - [ ] `feature` Automated game tests in an emulator: launch, controls, saves, build settings
 - [ ] `feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
@@ -35,6 +34,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` The build banner in the library opens the running build's screen
 - [x] `bug` One build at a time, cancellable, with its progress and result in a banner on the library screen
 - [x] `bug` Build wizard shows a loader while the folder or the cover loads and waits for it; the cover is downloaded once
 - [x] `bug` Saves and game settings survive a restart: committed while files are open, and on closing from the HOME menu
