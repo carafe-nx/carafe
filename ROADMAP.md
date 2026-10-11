@@ -12,6 +12,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Automated game tests in an emulator: launch, controls, saves, build settings
 - [ ] `feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
+- [ ] `bug` Build wizard: show a loader while data loads and keep the step until it is ready; a slow SteamGridDB image now fails the build
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
