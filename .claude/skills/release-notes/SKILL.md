@@ -19,9 +19,13 @@ that draft by hand. Notes speak to players, not developers: what changed for the
 3. **Write** the notes in the format below, in English. Each item is one sentence on what changed for the
    player and, when it helps, one on how it was before. Link the issue or discussion that reported it;
    ask the user when the commits do not name one.
-4. **Runtime check.** If any placed commit touches `runtime/` or `external/`, the change lives inside each
+4. **Contributors.** The author of a merged pull request since the last tag (a commit whose subject ends with
+   `(#<n>)`) who has no commit before that tag goes into "New Contributors", even when the change is invisible
+   to players. The GitHub login comes from a `<id>+<login>@users.noreply.github.com` email or a `[bot]` name;
+   ask the user when neither gives it.
+5. **Runtime check.** If any placed commit touches `runtime/` or `external/`, the change lives inside each
    game's NSP: end that item with "Rebuild games made with <previous version> to get the fix."
-5. **Hand over.** Put the body on the Windows clipboard with `Set-Clipboard` and a single-quoted here-string.
+6. **Hand over.** Put the body on the Windows clipboard with `Set-Clipboard` and a single-quoted here-string.
    Show the user the title, the body and a Russian translation of both; the title goes into its own field
    of the release form, so it stays out of the clipboard.
 
@@ -41,6 +45,10 @@ Title: `Carafe <version>` (no `v`).
 - **<Short name>.** <What works now.> <How it was before.> ([#<n>](<link>))
 
 Tell others how a game ran in [Compatibility](https://github.com/carafe-nx/carafe/discussions/categories/compatibility), and report bugs in [Issues](https://github.com/carafe-nx/carafe/issues).
+
+## New Contributors
+
+* @<login> made their first contribution in https://github.com/carafe-nx/carafe/pull/<n>
 
 **Full Changelog**: https://github.com/carafe-nx/carafe/compare/<previous tag>...<new tag>
 ```
