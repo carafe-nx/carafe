@@ -53,9 +53,9 @@ What to expect:
    When the loading screen takes over, the carafe and the drop stay in the same place and at the same size.
 2. After 1–5 s comes a dark screen: the game's name, the stage ("Starting the Windows environment" → "Starting
    the game" → "The game's first picture"), the seconds and the megabytes read, and "Carafe" at the bottom.
-3. The loading screen goes away when the game shows its first picture. While it is up, buttons do not reach the
-   game.
-4. If nothing changes for 30 s, a yellow line "No progress for 30 s…" appears with a hint to press HOME. If the
+3. The loading screen goes away when the game shows its first picture, however long that takes. While it is up,
+   buttons do not reach the game.
+4. If nothing changes for 60 s, a yellow line "No progress for 60 s…" appears with a hint to press HOME. If the
    game hangs after it has taken the screen, the whole picture freezes, seconds included.
 
 In `logs/autorun_runtime.log`:
@@ -65,7 +65,7 @@ In `logs/autorun_runtime.log`:
   `no … in RomFS` or `… could not be decoded` means they were not;
 - `[CARAFE] loading screen drawn at N s, WxH`;
 - `[CARAFE] loading screen hidden after N s: <reason>`;
-- `[CARAFE] no progress for 30 s, reporting the threads` — followed by the threads' state, for a hang.
+- `[CARAFE] no progress for 60 s, reporting the threads` — followed by the threads' state, for a hang.
 
 ## Loader errors
 

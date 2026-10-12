@@ -25,7 +25,8 @@ stays black, and the player cannot tell a slow start from a hang.
   [docs/research/loading-screen/REPORT.md](../research/loading-screen/REPORT.md).
 - **When it leaves:** OpenGL — two checks in a row see bright pixels near the edges of the frame; Vulkan — after 30
   frames; without either — when the compositor shows at least 20 frames per second for two seconds; when the program
-  opens the keyboard; at the latest after 180 s.
+  opens the keyboard; at the latest after 180 s. The 180 s limit is replaced by
+  [decision 24](0024-loading-screen-without-time-limit.md).
 
 ## Rejected
 

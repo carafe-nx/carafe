@@ -18,8 +18,7 @@
 #include "carafe_overlay.h"
 #include "osk.h"
 
-#define STALL_SECONDS 30
-#define GIVE_UP_SECONDS 180
+#define STALL_SECONDS 60
 #define WINDOW_FRAMES_PER_SECOND 20
 #define WINDOW_CONFIRMATIONS 2
 #define VULKAN_FRAMES_SHOWN 30
@@ -255,10 +254,6 @@ static void finish(const char* reason) {
 static void checkFinish(u64 now, unsigned int gl, unsigned int vulkan) {
     if (__real_wine_nx_osk_visible()) {
         finish("the program opened the keyboard");
-        return;
-    }
-    if (secondsBetween(g_start_tick, now) >= GIVE_UP_SECONDS) {
-        finish("time limit");
         return;
     }
     if (vulkan != 0 && !g_vulkan_seen) {
