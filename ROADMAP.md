@@ -9,6 +9,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
+- [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
+- [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session

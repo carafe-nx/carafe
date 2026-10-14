@@ -3,6 +3,7 @@ include_guard(GLOBAL)
 set(CARAFE_OVERLAY_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_overlay.c")
 set(CARAFE_LOADING_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_loading.c")
 set(CARAFE_DIAG_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_diag.c")
+set(CARAFE_LOCK_BOOST_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_lock_boost.c")
 set(CARAFE_PATCH_DIR "${CMAKE_CURRENT_LIST_DIR}/../patches/autorun")
 set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_osk_visible
@@ -12,6 +13,7 @@ set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_threads_report_stalled
     wine_nx_compositor_cursor
     wine_nx_vk_reserve_window
+    svcArbitrateLock
 )
 
 function(carafe_patch_target_sources original copy)
@@ -87,7 +89,7 @@ function(carafe_add_overlay)
     endif()
     target_sources(
         wine-nx-runtime
-        PRIVATE "${CARAFE_OVERLAY_FILE}" "${CARAFE_LOADING_FILE}" "${CARAFE_DIAG_FILE}"
+        PRIVATE "${CARAFE_OVERLAY_FILE}" "${CARAFE_LOADING_FILE}" "${CARAFE_DIAG_FILE}" "${CARAFE_LOCK_BOOST_FILE}"
     )
     target_compile_definitions(wine-nx-runtime PRIVATE ${CARAFE_OVERLAY_DEFINITIONS})
     set_source_files_properties(
@@ -100,7 +102,7 @@ function(carafe_add_overlay)
         target_link_options(wine-nx-runtime PRIVATE "LINKER:--wrap=${symbol}")
     endforeach()
     carafe_apply_patches()
-    message(STATUS "Carafe overlay: overlay, loading screen and diagnostics added to wine-nx-runtime")
+    message(STATUS "Carafe overlay: overlay, loading screen, lock waits and diagnostics added to wine-nx-runtime")
 endfunction()
 
 cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL carafe_add_overlay)
