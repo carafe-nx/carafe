@@ -71,7 +71,7 @@ Dependencies point inward: `ui` → `carafe-desktop` commands → adapters → `
   a hook is `useWhat.ts`.
 - Styles are CSS Modules (`*.module.css`). Colours, radii, shadows and the font come only from the
   variables in `shared/theme/tokens.css`; the theme is the `data-theme` attribute on `<html>`.
-- Every UI string is an i18next key; a new key goes into both `ru.json` and `en.json`
+- Every UI string is an i18next key; a new key goes into `ru.json`, `en.json` and `zh-Hans.json`
   (`shared/i18n/locales/`).
 
 ## Driving the window

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit && node --test src/shared/i18n/*.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

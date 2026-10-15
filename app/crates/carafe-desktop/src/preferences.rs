@@ -25,6 +25,10 @@ pub enum Language {
     Ru,
     /// English.
     En,
+    /// Simplified Chinese.
+    #[serde(rename = "zh-Hans")]
+    #[ts(rename = "zh-Hans")]
+    ZhHans,
 }
 
 /// Interface theme.
@@ -101,6 +105,20 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
+
+    #[test]
+    fn simplified_chinese_preferences_round_trip() {
+        let preferences = Preferences {
+            language: Language::ZhHans,
+            ..Preferences::default()
+        };
+        let json = serde_json::to_string(&preferences).expect("serialized");
+        assert!(json.contains(r#""language":"zh-Hans""#));
+        assert_eq!(
+            serde_json::from_str::<Preferences>(&json).expect("parsed"),
+            preferences
+        );
+    }
 
     fn temp_dir(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!("carafe-preferences-{}-{name}", std::process::id()))

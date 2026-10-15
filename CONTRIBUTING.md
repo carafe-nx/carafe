@@ -68,7 +68,7 @@ They are written for AI coding agents and are just as useful for people.
 - `npm run check` passes: `cargo fmt`, `cargo clippy` with warnings as errors, all tests, the TypeScript check.
 - Public Rust items are documented with rustdoc: the contract, `# Errors`, `# Panics`. Function bodies have no
   comments.
-- Every UI string comes from the translations and goes into both `en.json` and `ru.json`.
+- Every UI string comes from the translations and goes into `en.json`, `ru.json` and `zh-Hans.json`.
 - Types the UI receives from Rust are generated; after changing them, run `npm run bindings` and commit the
   generated files.
 
