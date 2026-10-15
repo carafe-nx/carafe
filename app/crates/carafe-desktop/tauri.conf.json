@@ -29,7 +29,7 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["English", "Russian"],
+        "languages": ["English", "Russian", "SimpChinese"],
         "compression": "zlib"
       }
     }

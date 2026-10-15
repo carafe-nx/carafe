@@ -12,7 +12,8 @@ type LanguageOption = {
 
 const RUSSIAN: LanguageOption = { value: "ru", flag: "ru", name: "Русский" };
 const ENGLISH: LanguageOption = { value: "en", flag: "gb", name: "English" };
-const LANGUAGES = [RUSSIAN, ENGLISH] as const;
+const SIMPLIFIED_CHINESE: LanguageOption = { value: "zh-Hans", flag: "cn", name: "简体中文" };
+const LANGUAGES = [RUSSIAN, ENGLISH, SIMPLIFIED_CHINESE] as const;
 
 export function LanguageSwitch() {
   const { t, i18n } = useTranslation();
