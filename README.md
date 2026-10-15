@@ -52,10 +52,10 @@ Get the installer from the [latest release](https://github.com/carafe-nx/carafe/
 - `x64-setup.exe` — most Windows PCs;
 - `arm64-setup.exe` — Windows on Arm, such as laptops with Snapdragon chips.
 
-The installer speaks English and Russian and installs Carafe for your Windows account, without administrator
-rights. From then on Carafe updates itself: when a new version is out, a button appears in the library. If you
-have Carafe 0.1, the installer removes it first: confirm removing the old version and allow the administrator
-prompt once. Your settings and library stay.
+The installer speaks English, Russian and Simplified Chinese and installs Carafe for your Windows account,
+without administrator rights. From then on Carafe updates itself: when a new version is out, a button appears in
+the library. If you have Carafe 0.1, the installer removes it first: confirm removing the old version and allow
+the administrator prompt once. Your settings and library stay.
 
 The installer is not signed yet, so Windows may warn about an unknown publisher. Choose **More info** →
 **Run anyway** to continue.

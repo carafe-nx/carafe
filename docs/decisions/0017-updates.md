@@ -6,6 +6,8 @@ Replaces the MSI installers of [0016](0016-releases-and-licenses.md), "the runti
 [0010](0010-library-and-carafe-json.md) and [0016](0016-releases-and-licenses.md), and the "reqwest" line of
 [0013](0013-desktop-app.md). Research: [research/updates/REPORT.md](../research/updates/REPORT.md).
 
+The installer languages are replaced by [0026](0026-simplified-chinese-interface.md).
+
 ## Context
 
 Players install Carafe by hand from GitHub and learn about new versions only by going back there. Fixes in the runtime

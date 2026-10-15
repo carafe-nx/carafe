@@ -2,7 +2,8 @@
 
 Date: 2026-10-05 – 2026-10-07
 
-The rejection of `reqwest` is replaced by [0017](0017-updates.md).
+The rejection of `reqwest` is replaced by [0017](0017-updates.md). The languages are replaced by
+[0026](0026-simplified-chinese-interface.md).
 
 ## Context
 

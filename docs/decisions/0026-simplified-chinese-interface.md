@@ -1,4 +1,8 @@
-# Simplified Chinese interface
+# 26. Simplified Chinese interface
+
+Date: 2026-10-15
+
+Replaces the languages of [0013](0013-desktop-app.md) and the installer languages of [0017](0017-updates.md).
 
 ## Context
 

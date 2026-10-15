@@ -19,7 +19,6 @@ export function applyLanguage(language: Language) {
   const lng = language === "system" ? systemLanguage(navigator.language) : language;
   document.documentElement.lang = lng;
   if (i18n.language !== lng) {
-    console.debug(`【国际化】切换界面语言：preference=${language}, resolved=${lng}`);
     void i18n.changeLanguage(lng);
   }
 }
