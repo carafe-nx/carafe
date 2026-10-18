@@ -217,7 +217,11 @@ mod tests {
 
     #[test]
     fn argv_points_at_the_executable_like_the_scripts() {
-        let record = record("C:\\Games\\openttd-15.3-windows-win32\\", "openttd.exe", &[]);
+        let record = record(
+            "C:\\Games\\openttd-15.3-windows-win32\\",
+            "openttd.exe",
+            &[],
+        );
         let package = package(&record).unwrap();
         assert_eq!(
             package.game_dir,
