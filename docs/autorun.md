@@ -212,6 +212,9 @@ newlib and libnx details the overlay has to respect:
 - Carafe's loading screen (`runtime/overlay/carafe_loading.c`) draws through this layer by wrapping the keyboard
   picture. Keeping it on screen until the game's first frame takes patches `0008`–`0011`; see
   [research/loading-screen/REPORT.md](research/loading-screen/REPORT.md).
+- The OpenGL screen's buffers keep the layer's last picture where the game does not draw, such as around a 1024×768
+  game on the 1280×720 screen. Patch `0014` clears each buffer to black after the swap while the layer is shown and
+  for 8 swaps after it leaves.
 
 ## Game exit
 

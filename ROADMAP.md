@@ -9,6 +9,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
+- [ ] `bug` A game at another resolution, such as 4:3, sits in the top-left corner and goes past the bottom edge instead of being fitted and centred
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing
@@ -36,6 +37,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` The loading screen stays visible around a game whose picture doesn't fill the screen
 - [x] `bug` Sound in games that play audio below 48 kHz (#14)
 - [x] `bug` The build banner in the library opens the running build's screen
 - [x] `bug` One build at a time, cancellable, with its progress and result in a banner on the library screen
