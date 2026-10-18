@@ -216,6 +216,20 @@ newlib and libnx details the overlay has to respect:
   game on the 1280×720 screen. Patch `0014` clears each buffer to black after the swap while the layer is shown and
   for 8 swaps after it leaves.
 
+## Screen size
+
+- Autorun's display driver reports one 1280×720 mode (`dlls/win32u/winnx_drv.c`, `UpdateDisplayDevices`). A game
+  that asks for another mode, such as 1024×768, gets it emulated by win32u: patch `0015` turns mode emulation on by
+  default, and win32u fits the emulated screen into the real one, keeping its proportions and centring it
+  (`map_monitor_rect` in `sysparams.c`). The mouse needs nothing more: the server keeps the cursor in the real
+  screen's coordinates and win32u maps them for the game.
+- An OpenGL window under mode emulation draws into win32u's own framebuffer. Patch `0016` presents it where its
+  window is on the real screen, scaled, with black around it; a scaled picture is drawn as a texture, because a
+  scaled `glBlitFramebuffer` to the window came out upside down in Eden.
+- A game in a window gets the same: patch `0017` sets the emulated screen to the client size of the game's main
+  window (the largest visible one without an owner, at least 640×400) and moves the window so its client is in the
+  corner. `[NXSCREEN]` lines in the log name the windows it looked at and what it did.
+
 ## Game exit
 
 - When a program ends, Autorun restarts itself into its launcher: `[EXIT] starting this program again for the
