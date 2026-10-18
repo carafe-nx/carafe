@@ -1,0 +1,37 @@
+Carafe: every file of the RomFS is copied in buffers of up to 100 MB. The buffer size used to shrink to the
+tail of the first small file and stay that small, so the rest of the RomFS was copied a few bytes at a time.
+GPL-2.0, as the file it changes.
+
+--- a/romfs.c
++++ b/romfs.c
+@@ -443,24 +443,25 @@
+         uint64_t offset = 0;
+         while (offset < cur_file->size)
+         {
+-            if (cur_file->size - offset < read_size)
++            uint64_t chunk_size = read_size;
++            if (cur_file->size - offset < chunk_size)
+             {
+-                read_size = cur_file->size - offset;
++                chunk_size = cur_file->size - offset;
+             }
+ 
+-            if (fread(buffer, 1, read_size, f_in) != read_size)
++            if (fread(buffer, 1, chunk_size, f_in) != chunk_size)
+             {
+                 fprintf(stderr, "Failed to read from %s!\n", cur_file->sum_path.char_path);
+                 exit(EXIT_FAILURE);
+             }
+ 
+-            if (fwrite(buffer, 1, read_size, f_out) != read_size)
++            if (fwrite(buffer, 1, chunk_size, f_out) != chunk_size)
+             {
+                 fprintf(stderr, "Failed to write to output!\n");
+                 exit(EXIT_FAILURE);
+             }
+ 
+-            offset += read_size;
++            offset += chunk_size;
+         }
+ 
+         os_fclose(f_in);

@@ -18,6 +18,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
+- [ ] `bug` With verbose traces a 32-bit game does not start: the address space search at start-up logs each of ~3000 tries
 - [ ] `feature` Buttons mapped by their labels, as on the Switch (A → A), with a choice to map them by position
 - [ ] `feature` Back up and restore game saves over USB
 - [ ] `research` Smaller save data on the console: measure what games really write
@@ -37,6 +38,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` NSP builds 2–3 times faster: hacBrewPack copied the game's files a few bytes at a time (#37)
 - [x] `bug` A game at another resolution, such as 4:3, in a window or full screen, is fitted and centred with black bars
 - [x] `bug` The loading screen stays visible around a game whose picture doesn't fill the screen
 - [x] `bug` Sound in games that play audio below 48 kHz (#14)

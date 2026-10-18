@@ -12,7 +12,8 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
   - `overlay/` — Carafe's code compiled into Autorun's runtime (LGPL-2.1-or-later);
   - `patches/autorun/` — changes to Autorun's sources, one file per patch (LGPL-2.1-or-later);
   - `Makefile` — builds the runtime into `app/crates/carafe-desktop/resources/runtime/`.
-- `tools/hacbrewpack/` — builds hacBrewPack, the program the app runs to pack NSPs.
+- `tools/hacbrewpack/` — builds hacBrewPack, the program the app runs to pack NSPs, with Carafe's changes from
+  `tools/hacbrewpack/patches/`.
 - `external/` — third-party code as git submodules pinned to exact commits. It is never edited:
   changes to Autorun go into `runtime/patches/autorun/`.
 - `docker/`, `compose.yaml` — the build containers.

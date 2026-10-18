@@ -5,6 +5,7 @@ OUT ?= $(ROOT)/app/crates/carafe-desktop/binaries
 
 ARCHES := aarch64 x86_64
 EXES := $(foreach arch,$(ARCHES),$(OUT)/hacbrewpack-$(arch)-pc-windows-msvc.exe)
+PATCHES := $(sort $(wildcard $(CURDIR)/patches/*.patch))
 
 .PHONY: all fetch clean
 
@@ -13,10 +14,12 @@ all: $(EXES)
 fetch:
 	git -C $(ROOT) submodule update --init --depth 1 external/hacbrewpack
 
-$(OUT)/hacbrewpack-%-pc-windows-msvc.exe: hacbrewpack.manifest manifest.rc | fetch
+$(OUT)/hacbrewpack-%-pc-windows-msvc.exe: hacbrewpack.manifest manifest.rc $(PATCHES) | fetch
 	rm -rf $(BUILD)/$*
 	mkdir -p $(BUILD)/$* $(OUT)
 	cp -r $(SRC)/. $(BUILD)/$*/
+	rm -f $(BUILD)/$*/.git
+	for patch in $(PATCHES); do git -C $(BUILD)/$* apply $$patch || exit 1; done
 	cp hacbrewpack.manifest manifest.rc $(BUILD)/$*/
 	cd $(BUILD)/$* && $*-w64-mingw32-windres manifest.rc -O coff -o manifest.o
 	printf 'CC = %s\nCFLAGS = -O2 -Wall -Wextra -std=gnu11\nLDFLAGS = manifest.o -static -lmbedtls -lmbedx509 -lmbedcrypto\n' \

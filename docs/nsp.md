@@ -26,6 +26,13 @@ app. The output is a Program NCA (ExeFS + RomFS), a Control NCA and a Meta NCA.
 - The NSP is named `<titleid>.nsp` (`main.c:382`).
 - For every RomFS file it prints `Writing <file> to <romfs>` (`romfs.c:441`); the builder counts progress by these
   lines. A file that fails to open gives `Failed to open <path>!` on stderr (`romfs.c:437`).
+- The NCA header's second signature uses RSA-PSS with a random salt, so two builds of the same game differ in
+  `0x100–0x1FF` of the Program NCA's header, and in the Meta NCA that holds its hash; everything else is the same byte
+  for byte.
+- Carafe applies its own patches from `tools/hacbrewpack/patches/` when it builds hacBrewPack, as it does for
+  Autorun. `0001`: the RomFS copy buffer shrank to the tail of the first small file and never grew back
+  (`romfs.c:446-449`), so the RomFS was copied a few bytes at a time. With it, hacBrewPack packs a 2.2 GB RomFS in
+  27 s instead of 120 s, with the same output.
 
 ### Paths up to 259 bytes on Windows
 
