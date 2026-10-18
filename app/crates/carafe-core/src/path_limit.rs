@@ -61,7 +61,7 @@ pub fn check<'a>(
 mod tests {
     use super::*;
 
-    const ROOT: &str = r"D:\Carafe\.carafe\build\0556710511f9c000\in\romfs";
+    const ROOT: &str = r"C:\Library\.carafe\build\0100000000001000\in\romfs";
 
     #[test]
     fn a_path_of_exactly_the_limit_fits() {

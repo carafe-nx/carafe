@@ -292,7 +292,7 @@ mod tests {
 
     fn report(executables: Vec<ExecutableInfo>) -> FolderReport {
         FolderReport {
-            folder: "D:\\Game\\openttd-15.3-windows-win32\\".to_owned(),
+            folder: "C:\\Games\\openttd-15.3-windows-win32\\".to_owned(),
             executables,
             has_steam_api: false,
         }
@@ -398,7 +398,7 @@ mod tests {
         BuildRequest {
             title_id,
             source: GameSource {
-                folder: "D:\\Game\\openttd".to_owned(),
+                folder: "C:\\Games\\openttd".to_owned(),
                 executable: "openttd.exe".to_owned(),
                 arch: Arch::X86,
                 arch_override: None,

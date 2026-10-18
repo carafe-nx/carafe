@@ -37,8 +37,8 @@ Checked on Windows: full paths of 258 and 259 bytes build, 260 and 270 fail with
 path with 50 Cyrillic letters (280 bytes of UTF-8) fails too. The limit counts UTF-8 bytes, not characters.
 
 Carafe checks every RomFS path before the build and stops with `pathTooLong` instead of failing halfway
-(`app/crates/carafe-core/src/path_limit.rs`). For a library in `D:\Carafe` the prefix up to the game folder is
-`D:\Carafe\.carafe\build\<Title ID>\in\romfs\switch\wine\drive_c\Games\` — 76 characters.
+(`app/crates/carafe-core/src/path_limit.rs`). For a library in `C:\Library` the prefix up to the game folder is
+`C:\Library\.carafe\build\<Title ID>\in\romfs\switch\wine\drive_c\Games\` — 77 characters.
 
 On macOS and Linux `MAX_PATH` is not defined and the buffer is 4095; macOS also limits paths to `PATH_MAX` of 1024
 bytes. Not verified.

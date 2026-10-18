@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn argv_points_at_the_executable_like_the_scripts() {
-        let record = record("D:\\Game\\openttd-15.3-windows-win32\\", "openttd.exe", &[]);
+        let record = record("C:\\Games\\openttd-15.3-windows-win32\\", "openttd.exe", &[]);
         let package = package(&record).unwrap();
         assert_eq!(
             package.game_dir,
@@ -279,7 +279,7 @@ mod tests {
     fn executable_must_stay_inside_the_folder() {
         for bad in ["..\\game.exe", "C:\\game.exe", "/game.exe", "bin//game.exe"] {
             assert_eq!(
-                package(&record("D:\\Game\\x", bad, &[])),
+                package(&record("C:\\Games\\x", bad, &[])),
                 Err(PackageError::ExecutableOutside(bad.to_owned()))
             );
         }
@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn multiline_arguments_are_rejected() {
         assert_eq!(
-            package(&record("D:\\Game\\x", "game.exe", &["a\nb"])),
+            package(&record("C:\\Games\\x", "game.exe", &["a\nb"])),
             Err(PackageError::MultilineArgument("a\nb".to_owned()))
         );
     }

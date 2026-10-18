@@ -117,7 +117,7 @@ mod tests {
             build_number,
             runtime_version: "0.1.0".to_owned(),
             source: GameSource {
-                folder: "D:\\Game\\openttd".to_owned(),
+                folder: "C:\\Games\\openttd".to_owned(),
                 executable: "openttd.exe".to_owned(),
                 arch: Arch::X86,
                 arch_override: None,
