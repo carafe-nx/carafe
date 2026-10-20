@@ -11,6 +11,7 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
   - `loader/` — the loader, the NSP's first code (ISC, based on nx-hbloader);
   - `overlay/` — Carafe's code compiled into Autorun's runtime (LGPL-2.1-or-later);
   - `patches/autorun/` — changes to Autorun's sources, one file per patch (LGPL-2.1-or-later);
+  - `patches/fex/`, `fex/` — changes to FEX and the build of its WoW64 module from them (MIT, decision 29);
   - `Makefile` — builds the runtime into `app/crates/carafe-desktop/resources/runtime/`.
 - `tools/hacbrewpack/` — builds hacBrewPack, the program the app runs to pack NSPs, with Carafe's changes from
   `tools/hacbrewpack/patches/`.

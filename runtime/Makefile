@@ -14,8 +14,11 @@ SAVE_SIZE ?= 0x10000000
 SAVE_JOURNAL_SIZE ?= 0x4000000
 
 OVERLAY_OBJECTS := $(SWITCH)/CMakeFiles/wine-nx-runtime.dir$(CURDIR)/overlay
+FEX_SRC := $(BUILD)/fex-src
+FEX_BUILD := $(BUILD)/fex-wow64
+FEX_PATCHES := $(sort $(wildcard $(CURDIR)/patches/fex/*.patch))
 
-.PHONY: all fetch check-image headers wine loader layout clean
+.PHONY: all fetch check-image headers wine fex loader layout clean
 
 all: layout
 
@@ -60,10 +63,13 @@ wine: headers $(SWITCH)/build.ninja
 	python3 $(WINE)/tools/package-amd64.py --build $(SWITCH) --fex --vulkan --dxvk --vkd3d \
 		--stage-output $(SWITCH)/stage
 
+fex: fetch
+	JOBS=$(JOBS) sh $(CURDIR)/fex/build-fex.sh $(AUTORUN) $(FEX_SRC) $(FEX_BUILD) $(FEX_PATCHES)
+
 loader: fetch
 	$(MAKE) -B -C loader
 
-layout: wine loader
+layout: wine fex loader
 	rm -rf $(OUT) $(NPDM)
 	mkdir -p $(OUT)/exefs $(OUT)/control $(OUT)/logo $(OUT)/symbols $(OUT)/romfs/switch \
 		$(OUT)/romfs/carafe/loading $(NPDM)
@@ -79,6 +85,8 @@ layout: wine loader
 	cp $(DEVKITPRO)/libnx/default_icon.jpg $(OUT)/control/icon_AmericanEnglish.dat
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif $(OUT)/logo/
 	cp -r $(AUTORUN)/horizon-dlls/switch/. $(OUT)/romfs/switch/
+	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 libwow64fex.dll \
+		$(FEX_BUILD)/Bin/libwow64fex.dll
 	cp -r $(SWITCH)/stage/switch/. $(OUT)/romfs/switch/
 	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif \

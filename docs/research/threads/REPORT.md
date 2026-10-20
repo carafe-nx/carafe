@@ -164,6 +164,25 @@ before them. Whether the console is as slow is not verified.
   `Thread synchronization = Standard`, where the pool is off.
 - 41 threads ending at once therefore compile their way out one lock at a time, and every free they make stops all
   compiling. FEX comes prebuilt from Autorun's DLL repository (`horizon-dlls`); changing this means building FEX.
+
+## FEX built with Carafe's patches
+
+- The runtime build now builds FEX's WoW64 module itself (decision 29). Without Carafe's patches the DLL is
+  Autorun's to the byte, apart from the time stamp and padding.
+- FEX `0001`: memory that meets no executable interval is freed without the invalidation lock. With it the
+  invalidation lock was gone from the probe's stall reports, and DXVK found a place 2.1 s after asking, as soon as
+  the probe's threads let go (run `2026-10-20_04-32-43`), where it had waited 13–16 s.
+- Three runtimes in turn, all with the faster stall report: Autorun's FEX, FEX with `0001`, and FEX with `0001` and
+  a second patch that let the decoder's buffer pool allocate outside its mutex. With `0001` alone DXVK found a place
+  1.3–1.9 s after asking and made its device in 2–3 s, 3 runs of 4; with Autorun's FEX it waited 12.8 s; with the
+  second patch the device was not made within 180 s in 3 runs of 3, though OpenTTD started at 27–28 s against
+  39–48 s. The second patch was dropped.
+- The first stall report with native callers looked an image up for every stack word, under `virtual_mutex`; a
+  creation waiting for a place stood 67 s in it. `0029` now looks only at words after a call in executable memory.
+- A game without `NX_COMPAT` runs with DEP off, and FEX then counts every readable page as executable, so `0001`
+  skips nothing for it; the probe has the flag.
+- `Threads probe churn` still stands at the invalidation lock with both patches, with no writer among the threads
+  the report reads.
 - With the wait at 20 s (`0028`) `Threads probe` passed 3 of 4 and 2 of 4. Of the failures one was a refusal after
   20 s; in the others the probe was still making its second device when Lab looked: it took 89 s once without any
   thread waiting for a place (run `2026-10-20_02-13-56`). The process stood still in FEX, not at the limit.
