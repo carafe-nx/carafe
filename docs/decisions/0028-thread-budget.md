@@ -41,6 +41,10 @@ needed would save little. 83 % of OpenTTD's server requests are `GET_HANDLE_FD`,
 
 ## Rejected
 
+- Fewer DXVK compiler threads when places run short: DXVK starts them with the device, before a game is near the
+  limit, and with about 80 places a game has room for them; fewer of them would only stutter more.
+- A reserve of places for audio, the screen and the server: the runtime's threads start before the program, and the
+  server pool keeps two spare workers from the first client on, so they never queue for a place behind the program.
 - Waiting for a place with no time limit: a thread that asks for one inside the loader lock, as in a DLL's
   `DllMain`, would then stop the program for good, since ending threads take that lock too.
 - Patching the kernel for more threads, as Autorun's own Mesosphère patch does: it is a change to the console's

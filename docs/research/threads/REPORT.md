@@ -157,6 +157,11 @@ before them. Whether the console is as slow is not verified.
     first, and the writer is `InvalidationTracker::InvalidateAlignedInterval`, called from `wow64`'s
     `NtFreeVirtualMemory` as an ending thread frees its memory. Each such free waits for every block being
     compiled and holds up every new one.
+- `Threads probe churn` (run `2026-10-20_03-59-14`): 82 threads at start, and letting them go took 180 s, one
+  of them more than 10 s; 62 of the threads the stall report read stood in `CompileBlock` at the code invalidation
+  lock. The churn hang seen before is this, and it ends.
+- With all the patches, the probe holds 77 threads with a Direct3D 9 device under Box64 as under FEX, and 37 with
+  `Thread synchronization = Standard`, where the pool is off.
 - 41 threads ending at once therefore compile their way out one lock at a time, and every free they make stops all
   compiling. FEX comes prebuilt from Autorun's DLL repository (`horizon-dlls`); changing this means building FEX.
 - With the wait at 20 s (`0028`) `Threads probe` passed 3 of 4 and 2 of 4. Of the failures one was a refusal after
