@@ -17,8 +17,11 @@ OVERLAY_OBJECTS := $(SWITCH)/CMakeFiles/wine-nx-runtime.dir$(CURDIR)/overlay
 FEX_SRC := $(BUILD)/fex-src
 FEX_BUILD := $(BUILD)/fex-wow64
 FEX_PATCHES := $(sort $(wildcard $(CURDIR)/patches/fex/*.patch))
+DXVK_SRC := $(BUILD)/dxvk-src
+DXVK_BUILD := $(BUILD)/dxvk
+DXVK_PATCHES := $(sort $(wildcard $(CURDIR)/patches/dxvk/*.patch))
 
-.PHONY: all fetch check-image headers wine fex loader layout clean
+.PHONY: all fetch check-image headers wine fex dxvk loader layout clean
 
 all: layout
 
@@ -66,10 +69,13 @@ wine: headers $(SWITCH)/build.ninja
 fex: fetch
 	JOBS=$(JOBS) sh $(CURDIR)/fex/build-fex.sh $(AUTORUN) $(FEX_SRC) $(FEX_BUILD) $(FEX_PATCHES)
 
+dxvk: fetch
+	JOBS=$(JOBS) sh $(CURDIR)/dxvk/build-dxvk.sh $(AUTORUN) $(DXVK_SRC) $(DXVK_BUILD) $(DXVK_PATCHES)
+
 loader: fetch
 	$(MAKE) -B -C loader
 
-layout: wine fex loader
+layout: wine fex dxvk loader
 	rm -rf $(OUT) $(NPDM)
 	mkdir -p $(OUT)/exefs $(OUT)/control $(OUT)/logo $(OUT)/symbols $(OUT)/romfs/switch \
 		$(OUT)/romfs/carafe/loading $(NPDM)
@@ -87,6 +93,7 @@ layout: wine fex loader
 	cp -r $(AUTORUN)/horizon-dlls/switch/. $(OUT)/romfs/switch/
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 libwow64fex.dll \
 		$(FEX_BUILD)/Bin/libwow64fex.dll
+	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
 	cp -r $(SWITCH)/stage/switch/. $(OUT)/romfs/switch/
 	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif \
