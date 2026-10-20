@@ -27,8 +27,9 @@ needed would save little. 83 % of OpenTTD's server requests are `GET_HANDLE_FD`,
   without waiting for any that has not (`0026`, `0027`).
 - The runtime reports its budget: `[BUDGET]` (threads against the limit, Windows threads, server threads, refusals,
   waits) and `[SERVED]` (what the client threads serve) every 30 s and on a refusal (`0019`). A creation that has
-  waited 5 s writes where it was called from and where the other threads stand, and the stall report names a
-  Windows thread's native callers (`0028`, `0029`).
+  waited 5 s writes where it was called from and has the stall watch write where the other threads stand, and the
+  stall report names a Windows thread's native callers (`0028`, `0029`, `0030`). The waiting thread does not read
+  the others itself: that kept it from seeing a place come free for up to a minute.
 - Requests that only look something up or change it without waiting are served on the calling thread, as the waits
   already are with Horizon sync; `GET_HANDLE_FD` first (`0021`, `0022`).
 - With Horizon sync the per-client server threads give way to a pool that takes requests as their pipes fill; a
