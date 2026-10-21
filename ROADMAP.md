@@ -12,6 +12,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
+- [ ] `research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
