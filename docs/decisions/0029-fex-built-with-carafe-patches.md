@@ -25,6 +25,10 @@ in FEX's source, which Carafe did not build.
   padding.
 - `0001`: memory that meets no executable interval is freed or flushed without the invalidation lock; FEX decodes
   guest code only from those intervals and drops a range's code when it stops being executable.
+- `0002`: a thread's call-return stack is 512 KB, not 4 MB. It only predicts where a guest `ret` goes, and its
+  guard page resets it when it runs over; in a 32-bit game it took 4 MB of the game's 4 GB per thread, committed.
+  With 77 threads the probe had 1259 MB of address space free, against 899 MB before, and the churn phases no
+  longer ran out of it.
 
 ## Rejected
 
