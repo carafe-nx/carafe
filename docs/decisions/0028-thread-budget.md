@@ -37,6 +37,8 @@ needed would save little. 83 % of OpenTTD's server requests are `GET_HANDLE_FD`,
   thread per client, which also turns the pool off.
 - At the limit a thread-local page holder gives its place to the new thread, since every page is full then
   (`0024`, `0025`).
+- The runtime notes every native thread kind it starts and every Mesa queue it makes (`[NATIVE]` lines,
+  `runtime/overlay/carafe_diag.c`, `carafe_mesa.c`).
 - Every step comes as its own patch and passes Carafe Lab's threads checks and the games, A/B against the runtime
   before it, before the next one.
 
@@ -56,6 +58,9 @@ needed would save little. 83 % of OpenTTD's server requests are `GET_HANDLE_FD`,
 - Running several Windows threads on one Horizon thread: the thread-local register is the kernel's, and Wine, FEX and
   Mesa keep their state behind it. Kept as a later step if the ones above are not enough.
 - Starting a client's server thread lazily: every thread asks the server at start.
+- Starting Mesa's shader disk cache queues (`disk$`, four threads, three of them) with one thread and adding more
+  as writes pile up (`UTIL_QUEUE_INIT_SCALE_THREADS`): the first shaders a game compiles bring each back to four,
+  and Need for Speed Underground used 45 of the 96 either way.
 - Folding the runtime's timer threads into one. Each stands alone so that one stuck does not stop the others: the
   stall watch pauses other threads to read where they stand, the log flusher writes the log, the registry and the
   held-back card writes, the shared data clock ticks every millisecond, the input thread presents. Together they

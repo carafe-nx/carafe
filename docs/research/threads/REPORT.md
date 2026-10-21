@@ -61,6 +61,14 @@ with every thread the probe could take, 96:
   flusher and the save commit.
 - With `Thread synchronization = Standard` the probe also held 31 threads with a device open, the same as with Horizon
   (run `2026-10-19_16-48-10`): both modes start a server thread for every Windows thread.
+- The runtime now notes the start routine of every native thread it starts (`[NATIVE]` lines, `runtime/overlay/
+  carafe_diag.c`). In Need for Speed Underground and OpenTTD (run `2026-10-20_22-13-40`): Mesa's `u_thread`
+  queue workers 8–15, the server pool 2 and its bootstrap thread 1, then one each for the shared data clock, input,
+  the log flusher and the compositor; Windows threads (`spawn_thread`) 16–31 in NFSU and 32–63 in OpenTTD over a
+  run. Mesa is the largest native group: three shader disk cache queues (`disk$`, four threads each, one per driver
+  that opens a cache) and a `gl` queue of one thread for each OpenGL context (five in a run). Starting the disk
+  cache queues with one thread changed nothing: the first shader writes bring them back to four, and NFSU used 45
+  of the 96 places either way (run `2026-10-20_23-07-02`).
 
 ## What the server threads serve
 
@@ -188,6 +196,50 @@ before them. Whether the console is as slow is not verified.
   thread waiting for a place (run `2026-10-20_02-13-56`). The process stood still in FEX, not at the limit.
 - The same picture, threads waiting in the native `RtlWaitOnAddress` while a few compile, is OpenTTD's start-up
   stall in Carafe's roadmap.
+
+## Suspending and ending another thread
+
+- Before `0031`–`0034` the lifecycle probe (`Threads probe lifecycle`) showed the same on Carafe and on v0.2.4: a
+  suspended thread went on counting, and a terminated one was still running 5 s later with exit code 259. Exit codes
+  and user APCs worked.
+- A 32-bit thread under FEX sleeps in the kernel (`NtDelayExecution` calls `svcSleepThread`) and, while FEX
+  suspends it, spins in FEX's own code; the server's only safe point was a wait in the server. FEX then read the
+  thread's registers through the server, which waits for that safe point, and wrote its x86 context, which the
+  runtime answered for the calling thread only.
+- With the patches (decision 31, run `2026-10-20_18-12-34`): `SuspendThread` returns in 5 ms and the counter stops,
+  `GetThreadContext` gives an x86 `Eip` in ntdll and a stack pointer, `ResumeThread` lets it count again,
+  `TerminateThread` ends it in 30 ms with exit code 77. The peak check holds 77 threads; OpenTTD and Need for Speed
+  Underground pass.
+
+## Each thread costs a 32-bit game address space
+
+- A 32-bit game runs in a 32-bit address space, and each of its threads takes part of it on top of its own stack:
+  a 64-bit stack of 256 KB, FEX's lookup cache (about 5.5 MB: page pointers, a 4 MB second-level backing and the
+  first level) and FEX's call-return stack (4 MB, committed).
+- `Threads probe churn` holds 82 threads at a time, again and again. With the 4 MB call-return stack the address
+  space ran out after the first release (`[VA] out of address space: 16384 KB`, the runtime retrying code mappings
+  with `0xd401`), threads could neither start nor end, and one of them held the loader lock for minutes (run
+  `2026-10-20_21-27-53`).
+- FEX `0002` makes the call-return stack 512 KB (decision 29). At 77 threads with a Direct3D 9 device the probe then
+  had 1259 MB free and a largest free range of 1084 MB, against 899 MB and 638 MB (runs `2026-10-20_21-45-59`,
+  `2026-10-20_21-54-18`). The churn probe went through all seven ceilings of 81–82 threads and its three rounds of
+  300 short threads with nothing refused; free space settled at about 840 MB and did not shrink further (run
+  `2026-10-20_21-57-01`).
+- It then stood still while making its Direct3D 9 device: a thread took an exception inside FEX's `CompileBlock`
+  and kept looking up unwind information in ntdll (`RtlLookupFunctionEntry` from `dispatch_exception`) without end,
+  holding the compile lock in shared mode; the main thread, loading `winevulkan.dll`, waited for the same lock in
+  `ImageTracker::HandleImageMap`. Open in the roadmap.
+
+## A crash in the thread-local page holders
+
+- Since 2026-10-17 eight launches in Lab ended the same way: a write fault in libnx's `_waiterNodeRemove`
+  (`wait.h:73`, from `waitObjects`) at an address 40 KB above the faulting stack, in memory that had been the stack
+  of a holder already ended. All of them fell in the holders' waits: at start-up, right after
+  `[THREAD] create failed … 96/96` and before the `[TLS] … placeholder threads` line, and once when a holder gave
+  its place. The main thread then waited for that holder for good, so the game never drew a frame (OpenTTD
+  2026-10-17, the threads probe, Need for Speed Underground, Heroes of Might and Magic IV run `2026-10-20_18-12-34`).
+- Up to 96 holders wait on one libnx `UEvent`, each with a node on its own stack in the event's list. `0035` makes
+  them wait with `svcWaitForAddress` on a word each, so no node is left anywhere.
 
 ## The crash
 
