@@ -9,12 +9,10 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
-- [ ] **`bug` Games run out of threads: the runtime spends two of the Switch's 96 on each game thread (#31)**
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
 - [ ] `feature` Offer the lock-wait fix to Autorun
-- [ ] **`feature` When a game crashes, show what crashed it, such as a DLL from the game folder, instead of just closing**
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
@@ -41,6 +39,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `feature` When a game fails, an error screen shows what failed and offers to restart it or exit — v0.3.0
+- [x] `bug` Games get about 80 of the Switch's 96 threads and wait at the limit instead of closing (#31) — v0.3.0
 - [x] `bug` NSP builds 2–3 times faster: hacBrewPack copied the game's files a few bytes at a time (#37)
 - [x] `bug` A game at another resolution, such as 4:3, in a window or full screen, is fitted and centred with black bars
 - [x] `bug` The loading screen stays visible around a game whose picture doesn't fill the screen
