@@ -78,7 +78,7 @@ loader: fetch
 layout: wine fex dxvk loader
 	rm -rf $(OUT) $(NPDM)
 	mkdir -p $(OUT)/exefs $(OUT)/control $(OUT)/logo $(OUT)/symbols $(OUT)/romfs/switch \
-		$(OUT)/romfs/carafe/loading $(NPDM)
+		$(OUT)/romfs/carafe/loading $(OUT)/romfs/carafe/fonts $(NPDM)
 	python3 -c 'import json, sys; src, dst, tid, space = sys.argv[1:]; n = json.load(open(src)); \
 		t = "0x" + tid; n["name"] = "Application"; \
 		n["title_id"] = n["title_id_range_min"] = n["title_id_range_max"] = t; \
@@ -98,6 +98,8 @@ layout: wine fex dxvk loader
 	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif \
 		$(OUT)/romfs/carafe/loading/
+	cp $(CURDIR)/overlay/fonts/*.ttf $(OUT)/romfs/carafe/fonts/
+	cp $(CURDIR)/overlay/fonts/OFL.txt $(OUT)/romfs/switch/wine/licenses/MPLUS1p-OFL-1.1.txt
 	@echo "runtime: $$(find $(OUT)/romfs -type f | wc -l) files in romfs, $$(du -sh $(OUT) | cut -f1) in $(OUT)"
 
 clean:

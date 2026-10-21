@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 
 #include <switch.h>
@@ -11,6 +12,8 @@
 #define ROMFS_RUNTIME_PREFIX "/switch/wine/"
 #define ROMFS_ARGV "/carafe/argv"
 #define RUN_NEXT_PATH "/switch/wine/run-next.txt"
+#define ERROR_REPORT_PATH "/switch/carafe/%016lx/carafe-error.txt"
+#define ERROR_FLAG "--carafe-error"
 #define HEAP_RESERVE 0x6000000ULL
 
 enum {
@@ -269,6 +272,25 @@ static bool runNextPending(void) {
     return pending;
 }
 
+static void showErrorScreenIfReported(void) {
+    u64 program_id = 0;
+    svcGetInfo(&program_id, InfoType_ProgramId, CUR_PROCESS_HANDLE, 0);
+
+    char path[FS_MAX_PATH];
+    snprintf(path, sizeof(path), ERROR_REPORT_PATH, program_id);
+
+    FsFileSystem sd;
+    if (R_FAILED(fsOpenSdCardFileSystem(&sd))) {
+        return;
+    }
+    FsDirEntryType type;
+    bool reported = R_SUCCEEDED(fsFsGetEntryType(&sd, path, &type)) && type == FsDirEntryType_File;
+    fsFsClose(&sd);
+    if (reported && strlen(g_nextArgv) + sizeof(" " ERROR_FLAG) <= sizeof(g_nextArgv)) {
+        strcat(g_nextArgv, " " ERROR_FLAG);
+    }
+}
+
 static bool isBareRuntimeRestart(void) {
     return strcmp(g_nextNroPath, RUNTIME_NRO) == 0 && strcmp(g_nextArgv, RUNTIME_NRO) == 0;
 }
@@ -445,6 +467,7 @@ int main(void) {
     setupHeap();
     setDefaultLaunch();
     fixedImageClaim(g_nextArgv);
+    showErrorScreenIfReported();
     smExit();
     getOwnProcessHandle();
     getCodeMemoryCapability();
