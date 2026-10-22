@@ -21,6 +21,6 @@
     "check": "cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace --quiet && npm run check --workspace ui"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.12.2"
+    "@tauri-apps/cli": "^2.12.3"
   }
 }
