@@ -35,6 +35,10 @@
 #define COMMIT_EARLY_BYTES (CARAFE_SAVE_JOURNAL_SIZE / 2)
 #define USERS_DIR "/drive_c/users/"
 #define DXVK_CACHE_DIR "/AppData/Local/dxvk"
+#define EARLIEST_FILE_TIME 946684800
+#define TIMES_DIR RW_DEVICE ":/carafe"
+#define TIMES_PATH TIMES_DIR "/file-times"
+#define TIMES_BUCKETS 4096
 
 typedef enum {
     RouteBase,
@@ -98,6 +102,17 @@ static bool g_thread_running;
 static bool g_installed;
 static u64 g_bytes_read;
 static bool g_game_opened;
+typedef struct FileTime {
+    struct FileTime* next;
+    time_t time;
+    char key[];
+} FileTime;
+
+static FileTime* g_times[TIMES_BUCKETS];
+static Mutex g_times_mutex;
+static bool g_times_dirty;
+static time_t g_wall_start = EARLIEST_FILE_TIME;
+static u64 g_wall_tick;
 
 static void logLine(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
@@ -300,6 +315,216 @@ static bool resolve(struct _reent* r, const char* path, Resolved* out) {
     return canonicalize(r, rel, canonical, sizeof(canonical))
         && format(out->rw, sizeof(out->rw), RW_DEVICE ":" WINE_ROOT "%s", canonical)
         && format(out->ro, sizeof(out->ro), RO_DEVICE ":" WINE_ROOT "%s", canonical);
+}
+
+static time_t nowFileTime(void) {
+    u64 seconds = armTicksToNs(armGetSystemTick() - g_wall_tick) / 1000000000ULL;
+    return g_wall_start + (time_t)seconds;
+}
+
+static bool timeKey(const char* rw_path, char* out, size_t size) {
+    const char* separator = strchr(rw_path, ':');
+    const char* path = separator != NULL ? separator + 1 : rw_path;
+    size_t len = strlen(path);
+    if (len == 0 || len >= size) {
+        return false;
+    }
+    for (size_t i = 0; i <= len; i++) {
+        out[i] = (char)tolower((unsigned char)path[i]);
+    }
+    return true;
+}
+
+static FileTime** timeSlot(const char* key) {
+    FileTime** slot = &g_times[hashLower(key, strlen(key)) & (TIMES_BUCKETS - 1)];
+    while (*slot != NULL && strcmp((*slot)->key, key) != 0) {
+        slot = &(*slot)->next;
+    }
+    return slot;
+}
+
+static void timeSet(const char* key, time_t time) {
+    FileTime** slot = timeSlot(key);
+    if (*slot == NULL) {
+        size_t len = strlen(key);
+        FileTime* entry = malloc(sizeof(*entry) + len + 1);
+        if (entry == NULL) {
+            return;
+        }
+        entry->next = NULL;
+        memcpy(entry->key, key, len + 1);
+        *slot = entry;
+    }
+    (*slot)->time = time;
+    g_times_dirty = true;
+}
+
+static void timeSetParent(const char* key, time_t time) {
+    size_t len = strlen(key);
+    while (len > 0 && key[len - 1] != '/') {
+        len--;
+    }
+    if (len <= 1 || len > PATH_SIZE) {
+        return;
+    }
+    char parent[PATH_SIZE];
+    memcpy(parent, key, len - 1);
+    parent[len - 1] = '\0';
+    timeSet(parent, time);
+}
+
+static void touchPath(const char* rw_path, bool entry_changed) {
+    char key[PATH_SIZE];
+    if (!timeKey(rw_path, key, sizeof(key))) {
+        return;
+    }
+    time_t now = nowFileTime();
+    mutexLock(&g_times_mutex);
+    timeSet(key, now);
+    if (entry_changed) {
+        timeSetParent(key, now);
+    }
+    mutexUnlock(&g_times_mutex);
+}
+
+static void forgetPath(const char* rw_path) {
+    char key[PATH_SIZE];
+    if (!timeKey(rw_path, key, sizeof(key))) {
+        return;
+    }
+    time_t now = nowFileTime();
+    mutexLock(&g_times_mutex);
+    FileTime** slot = timeSlot(key);
+    if (*slot != NULL) {
+        FileTime* entry = *slot;
+        *slot = entry->next;
+        free(entry);
+    }
+    timeSetParent(key, now);
+    g_times_dirty = true;
+    mutexUnlock(&g_times_mutex);
+}
+
+static bool underKey(const char* key, const char* prefix, size_t prefix_len) {
+    return strncmp(key, prefix, prefix_len) == 0 && (key[prefix_len] == '\0' || key[prefix_len] == '/');
+}
+
+static void movePath(const char* from_path, const char* to_path) {
+    char from[PATH_SIZE];
+    char to[PATH_SIZE];
+    if (!timeKey(from_path, from, sizeof(from)) || !timeKey(to_path, to, sizeof(to))) {
+        return;
+    }
+    size_t from_len = strlen(from);
+    size_t to_len = strlen(to);
+    time_t now = nowFileTime();
+    mutexLock(&g_times_mutex);
+    FileTime* moved = NULL;
+    for (size_t bucket = 0; bucket < TIMES_BUCKETS; bucket++) {
+        FileTime** slot = &g_times[bucket];
+        while (*slot != NULL) {
+            FileTime* entry = *slot;
+            if (underKey(entry->key, from, from_len)) {
+                *slot = entry->next;
+                entry->next = moved;
+                moved = entry;
+            } else {
+                slot = &entry->next;
+            }
+        }
+    }
+    while (moved != NULL) {
+        FileTime* entry = moved;
+        moved = entry->next;
+        char renamed[PATH_SIZE];
+        const char* rest = entry->key + from_len;
+        if (to_len + strlen(rest) < sizeof(renamed)) {
+            memcpy(renamed, to, to_len);
+            strcpy(renamed + to_len, rest);
+            timeSet(renamed, entry->time);
+        }
+        free(entry);
+    }
+    timeSetParent(from, now);
+    timeSetParent(to, now);
+    g_times_dirty = true;
+    mutexUnlock(&g_times_mutex);
+}
+
+static time_t storedTime(const char* rw_path) {
+    char key[PATH_SIZE];
+    time_t found = g_wall_start;
+    if (rw_path != NULL && timeKey(rw_path, key, sizeof(key))) {
+        mutexLock(&g_times_mutex);
+        FileTime** slot = timeSlot(key);
+        if (*slot != NULL) {
+            found = (*slot)->time;
+        }
+        mutexUnlock(&g_times_mutex);
+    }
+    return found;
+}
+
+static void giveFileTimes(struct stat* st, const char* rw_path) {
+    if (st->st_mtime >= EARLIEST_FILE_TIME && st->st_atime >= EARLIEST_FILE_TIME
+        && st->st_ctime >= EARLIEST_FILE_TIME) {
+        return;
+    }
+    time_t time = storedTime(rw_path);
+    if (st->st_mtime < EARLIEST_FILE_TIME) {
+        st->st_mtime = time;
+    }
+    if (st->st_atime < EARLIEST_FILE_TIME) {
+        st->st_atime = time;
+    }
+    if (st->st_ctime < EARLIEST_FILE_TIME) {
+        st->st_ctime = time;
+    }
+}
+
+static void loadFileTimes(void) {
+    FILE* file = fopen(TIMES_PATH, "r");
+    if (file == NULL) {
+        return;
+    }
+    char line[PATH_SIZE + 32];
+    size_t count = 0;
+    while (fgets(line, sizeof(line), file) != NULL) {
+        char* tab = strchr(line, '\t');
+        if (tab == NULL) {
+            continue;
+        }
+        *tab = '\0';
+        char* key = tab + 1;
+        key[strcspn(key, "\r\n")] = '\0';
+        long long value = strtoll(line, NULL, 10);
+        if (key[0] == '/' && value >= EARLIEST_FILE_TIME) {
+            timeSet(key, (time_t)value);
+            count++;
+        }
+    }
+    fclose(file);
+    g_times_dirty = false;
+    logLine("file times: %zu loaded", count);
+}
+
+static void saveFileTimes(void) {
+    mutexLock(&g_times_mutex);
+    if (g_times_dirty) {
+        mkdir(TIMES_DIR, 0777);
+        FILE* file = fopen(TIMES_PATH, "w");
+        if (file != NULL) {
+            for (size_t bucket = 0; bucket < TIMES_BUCKETS; bucket++) {
+                for (FileTime* entry = g_times[bucket]; entry != NULL; entry = entry->next) {
+                    fprintf(file, "%lld\t%s\n", (long long)entry->time, entry->key);
+                }
+            }
+            if (fclose(file) == 0) {
+                g_times_dirty = false;
+            }
+        }
+    }
+    mutexUnlock(&g_times_mutex);
 }
 
 static int devStat(struct _reent* r, const devoptab_t* dev, const char* path, struct stat* st) {
@@ -522,20 +747,24 @@ static int overlayOpen(struct _reent* r, void* file_struct, const char* path, in
     if (!wantsWrite(flags)) {
         bool in_rw = rwExists(p.rw);
         file->dev = in_rw ? g_rw : g_ro;
+        format(file->rw_path, sizeof(file->rw_path), "%s", in_rw ? p.rw : "");
         return openInner(r, file->dev, in_rw ? p.rw : p.ro, flags, mode, &file->state);
     }
 
-    if ((flags & O_CREAT) && (flags & O_EXCL) && devExists(r, g_ro, p.ro, NULL)) {
+    bool in_ro = devExists(r, g_ro, p.ro, NULL);
+    if ((flags & O_CREAT) && (flags & O_EXCL) && in_ro) {
         return fail(r, EEXIST);
     }
 
     markChanged();
     int ret = 0;
+    bool created = false;
     if (!rwExists(p.rw)) {
-        if (!(flags & O_TRUNC) && devExists(r, g_ro, p.ro, NULL)) {
+        if (!(flags & O_TRUNC) && in_ro) {
             ret = copyUp(r, p.ro, p.rw);
         } else {
             mkdirParents(r, p.rw);
+            created = !in_ro;
         }
     }
     if (ret == 0) {
@@ -548,6 +777,9 @@ static int overlayOpen(struct _reent* r, void* file_struct, const char* path, in
 
     file->writer = true;
     rememberWriter(file, p.rw, flags);
+    if (created || (flags & O_TRUNC)) {
+        touchPath(p.rw, created);
+    }
     return 0;
 }
 
@@ -588,6 +820,7 @@ static ssize_t overlayWrite(struct _reent* r, void* fd, const char* ptr, size_t 
     unlockFile(file);
     if (ret > 0 && file->writer) {
         noteWrite((u64)ret);
+        touchPath(file->rw_path, false);
     }
     return ret;
 }
@@ -637,6 +870,9 @@ static int overlayFstat(struct _reent* r, void* fd, struct stat* st) {
         leave(r, saved);
     }
     unlockFile(file);
+    if (ret == 0 && file->dev != g_base) {
+        giveFileTimes(st, file->dev == g_rw ? file->rw_path : NULL);
+    }
     return ret;
 }
 
@@ -657,6 +893,7 @@ static int overlayFtruncate(struct _reent* r, void* fd, off_t len) {
     unlockFile(file);
     if (ret == 0 && file->writer) {
         noteWrite(0);
+        touchPath(file->rw_path, false);
     }
     return ret;
 }
@@ -685,10 +922,12 @@ static int overlayStat(struct _reent* r, const char* path, struct stat* st) {
     if (p.route != RouteUnion) {
         return devStat(r, g_base, p.base, st);
     }
-    if (rwExists(p.rw)) {
-        return devStat(r, g_rw, p.rw, st);
+    bool in_rw = rwExists(p.rw);
+    int ret = in_rw ? devStat(r, g_rw, p.rw, st) : devStat(r, g_ro, p.ro, st);
+    if (ret == 0) {
+        giveFileTimes(st, in_rw ? p.rw : NULL);
     }
-    return devStat(r, g_ro, p.ro, st);
+    return ret;
 }
 
 static int overlayMkdir(struct _reent* r, const char* path, int mode) {
@@ -710,6 +949,7 @@ static int overlayMkdir(struct _reent* r, const char* path, int mode) {
     int ret = devMkdir(r, g_rw, p.rw, mode);
     if (ret == 0) {
         markChanged();
+        touchPath(p.rw, true);
     }
     return ret;
 }
@@ -735,6 +975,7 @@ static int removePath(struct _reent* r, const char* path, bool directory) {
     leave(r, saved);
     if (ret == 0 && dev == g_rw) {
         markChanged();
+        forgetPath(target);
     }
     return ret;
 }
@@ -781,6 +1022,7 @@ static int overlayRename(struct _reent* r, const char* old_name, const char* new
     leave(r, saved);
     if (ret == 0 && dev == g_rw) {
         markChanged();
+        movePath(old_target, new_target);
     }
     return ret;
 }
@@ -1020,8 +1262,7 @@ static DIR_ITER* overlayDiropen(struct _reent* r, DIR_ITER* dir_state, const cha
     return dir_state;
 }
 
-static int overlayDirnext(struct _reent* r, DIR_ITER* dir_state, char* filename, struct stat* st) {
-    OverlayDir* dir = dir_state->dirStruct;
+static int nextOverlayEntry(struct _reent* r, OverlayDir* dir, char* filename, struct stat* st) {
     if (!dir->first_done) {
         int saved_errno = r->_errno;
         if (nextSubDir(r, &dir->first, filename, st) == 0) {
@@ -1045,6 +1286,17 @@ static int overlayDirnext(struct _reent* r, DIR_ITER* dir_state, char* filename,
         }
     }
     return -1;
+}
+
+static int overlayDirnext(struct _reent* r, DIR_ITER* dir_state, char* filename, struct stat* st) {
+    OverlayDir* dir = dir_state->dirStruct;
+    int ret = nextOverlayEntry(r, dir, filename, st);
+    if (ret == 0 && dir->union_dir) {
+        char entry[PATH_SIZE];
+        bool named = format(entry, sizeof(entry), "%s/%s", dir->rw_path, filename);
+        giveFileTimes(st, named ? entry : NULL);
+    }
+    return ret;
 }
 
 static int overlayDirreset(struct _reent* r, DIR_ITER* dir_state) {
@@ -1129,6 +1381,7 @@ static void commitNow(const char* reason) {
         return;
     }
 
+    saveFileTimes();
     suspendWriters(r, offsets, count);
     Result rc = fsdevCommitDevice(RW_DEVICE);
     int lost = resumeWriters(r, offsets, count);
@@ -1412,6 +1665,7 @@ __attribute__((constructor(101))) static void carafeOverlayInstall(void) {
     u64 index_ms = armTicksToNs(armGetSystemTick() - index_start) / 1000000;
 
     mutexInit(&g_commit_mutex);
+    mutexInit(&g_times_mutex);
     g_started = armGetSystemTick();
     g_base = devoptab_list[device];
     buildOverlay();
@@ -1421,6 +1675,10 @@ __attribute__((constructor(101))) static void carafeOverlayInstall(void) {
     openLog();
     char started[32] = "unknown";
     time_t now = time(NULL);
+    g_wall_tick = armGetSystemTick();
+    if (now >= EARLIEST_FILE_TIME) {
+        g_wall_start = now;
+    }
     struct tm* local = localtime(&now);
     if (local != NULL) {
         strftime(started, sizeof(started), "%Y-%m-%d %H:%M:%S", local);
@@ -1429,6 +1687,7 @@ __attribute__((constructor(101))) static void carafeOverlayInstall(void) {
     logLine("program 0x%016lx, volatile root %s", program_id, g_volatile_root);
     logLine("devices: base %s, read-only %s, writable %s", g_base->name, g_ro->name, g_rw->name);
     logLine("romfs index: %zu entries in %lu ms", g_index_count, index_ms);
+    loadFileTimes();
 
     if (atexit(carafeOverlayShutdown) != 0) {
         logLine("not started: exit handler is not registered");
