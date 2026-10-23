@@ -9,6 +9,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
+- [ ] **`game` Need for Speed Carbon crashes at start-up: 32-bit games get addresses only up to 2 GB (#47)**
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock

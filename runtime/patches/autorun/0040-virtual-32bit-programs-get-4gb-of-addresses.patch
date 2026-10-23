@@ -1,0 +1,43 @@
+Carafe: every 32-bit program gets addresses up to 4 GB, as if its image had the large-address-aware flag.
+On the Switch a 32-bit program without the flag has to fit below 2 GB together with the native window
+and, in a 32-bit address space, with the part of the kernel's heap region that lands there. A heavy game
+then runs out of contiguous address space while memory is still free: NFS Carbon asked for 132 MB and
+found no range that large. The image keeps its own flag, so GlobalMemoryStatus still reports at most
+2 GB to it. Nothing changes for 64-bit programs.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -4957,6 +4957,23 @@
+     return data;
+ }
+ 
++#ifdef __SWITCH__
++static BOOL wow64_large_address_aware(void)
++{
++    char msg[96];
++
++    snprintf( msg, sizeof(msg), "[VA] the 32-bit program gets addresses up to 4 GB; its own flag is %s",
++              main_image_info.ImageCharacteristics & IMAGE_FILE_LARGE_ADDRESS_AWARE ? "set" : "not set" );
++    if (&wine_nx_runtime_trace) wine_nx_runtime_trace( msg );
++    return TRUE;
++}
++#else
++static inline BOOL wow64_large_address_aware(void)
++{
++    return !!(main_image_info.ImageCharacteristics & IMAGE_FILE_LARGE_ADDRESS_AWARE);
++}
++#endif
++
+ /* enable use of a large address space when allowed by the application */
+ static void set_large_address_space(void)
+ {
+@@ -4979,7 +4996,7 @@
+             if (use_aslr()) free_reserved_memory( 0, (char *)0x7ffe0000 );
+ #endif
+         }
+-        else if (main_image_info.ImageCharacteristics & IMAGE_FILE_LARGE_ADDRESS_AWARE)
++        else if (wow64_large_address_aware())
+         {
+             user_space_wow_limit = limit_4g - 1;
+             /* reserve space for top-down allocations; some apps break if the entire high 2G is available */

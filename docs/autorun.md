@@ -176,6 +176,12 @@ newlib and libnx details the overlay has to respect:
 - Carafe solves this with a 32-bit process and patches `0006` and `0007` in `runtime/patches/autorun/`; the
   investigation is in [research/fixed-base/REPORT.md](research/fixed-base/REPORT.md). The builder picks the NPDM
   address space from the `.exe` header (`app/crates/carafe-core/src/pe.rs`, `npdm.rs`).
+- A 32-bit program without the large-address-aware flag gets addresses only below 2 GB (`set_large_address_space`,
+  `dlls/ntdll/unix/virtual.c:4961-4996`; WoW64 takes the limit from `SystemEmulationBasicInformation`). In a 32-bit
+  process it shares them with the native window `[0x18140000, 0x40000000)` and with the part of the 2 GB heap
+  region that lands below 2 GB. NFS Carbon (#47) asked for 132 MB in one piece and found none while about 1.1 GB
+  below 4 GB was free; with the heap at 1 GB only about 400 MB were left to it. Patch `0040` gives every 32-bit
+  program addresses up to 4 GB; the image keeps its flag, so `GlobalMemoryStatus` still reports at most 2 GB.
 - Where the kernel puts the heap is decided at process creation (ASLR). Rarely it lands inside the low 4 GB; then
   early guest reservations shrink to about 600 MB and the start fails. Ordinary Autorun likely has the same; not
   verified.
