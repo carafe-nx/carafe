@@ -1626,6 +1626,12 @@ void carafeOverlayLog(const char* line) {
     logLine("%s", line);
 }
 
+void carafeOverlayCommit(const char* reason) {
+    if (g_installed) {
+        commitIfDue(reason);
+    }
+}
+
 static void carafeOverlayShutdown(void) {
     if (!g_installed) {
         return;

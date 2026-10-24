@@ -5,6 +5,7 @@ use std::path::Path;
 use carafe_core::library;
 use carafe_core::ports::{AdapterError, KeysReport};
 use carafe_core::settings::AutorunSettings;
+use carafe_core::settings_catalog::{Catalog, catalog};
 use tauri::State;
 
 use crate::error::CommandError;
@@ -46,6 +47,12 @@ pub async fn save_preferences(
 #[tauri::command]
 pub async fn recommended_settings() -> AutorunSettings {
     AutorunSettings::default()
+}
+
+/// Returns the catalog of every per-game setting: what the settings screens show.
+#[tauri::command]
+pub async fn settings_catalog() -> Catalog {
+    catalog().clone()
 }
 
 /// Checks whether the file contains the keys needed for packing.

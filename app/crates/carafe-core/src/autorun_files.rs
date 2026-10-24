@@ -1,4 +1,4 @@
-//! Converting settings into the `<exe>.keys.txt` and `<exe>.wine-nx.txt` files for RomFS.
+//! Converting settings into the `<exe>.keys.txt`, `<exe>.wine-nx.txt` and `<exe>.box64.txt` files for RomFS.
 
 use std::fmt::Write as _;
 
@@ -6,6 +6,7 @@ use crate::settings::{
     AutorunSettings, Binding, CpuEmulator, Direct3d, DxvkHud, DxvkSource, InputMode, LsfgFlow,
     SyncMode, Upscaling, WindowOutput,
 };
+use crate::settings_catalog::{self, SettingFile, Storage};
 
 /// Autorun settings files placed in RomFS next to the game's `.exe`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,22 +19,56 @@ pub struct AutorunFiles {
     pub program_name: String,
     /// Contents of the program settings file.
     pub program: String,
+    /// Name of the Box64 settings file: `<.exe name without extension>.box64.txt`.
+    pub box64_name: String,
+    /// Contents of the Box64 settings file; empty when every Box64 option has its default value.
+    pub box64: String,
 }
 
 impl AutorunFiles {
-    /// Creates both files for a game whose executable is `executable`.
+    /// Creates the files for a game whose executable is `executable`.
     ///
-    /// Every value is written explicitly, so the result does not depend on Autorun defaults.
+    /// Every typed value and every FEX option is written explicitly, so the result does not depend on Autorun
+    /// defaults. DXVK options are written only when they differ from "Default", so DXVK's own profile for the game
+    /// stays in force; Box64 options only when they differ from their default.
     #[must_use]
     pub fn render(executable: &str, settings: &AutorunSettings) -> Self {
         let stem = executable_stem(executable);
+        let mut program = render_program(settings);
+        program.push_str(&render_options(
+            settings,
+            SettingFile::Program,
+            "{key} = {text}",
+        ));
         Self {
             keys_name: format!("{stem}.keys.txt"),
             keys: render_keys(settings),
             program_name: format!("{stem}.wine-nx.txt"),
-            program: render_program(settings),
+            program,
+            box64_name: format!("{stem}.box64.txt"),
+            box64: render_options(settings, SettingFile::Box64, "{key}={text}"),
         }
     }
+}
+
+fn render_options(settings: &AutorunSettings, file: SettingFile, form: &str) -> String {
+    let mut out = String::new();
+    for setting in settings_catalog::catalog().settings() {
+        if setting.storage != Storage::Option || setting.file != file {
+            continue;
+        }
+        let index = settings.options.index(setting);
+        let skip_default =
+            file == SettingFile::Box64 || setting.values.iter().any(|v| v.text.is_none());
+        if skip_default && index == setting.default {
+            continue;
+        }
+        if let Some(text) = setting.values[index].text.as_deref() {
+            out.push_str(&form.replace("{key}", &setting.key).replace("{text}", text));
+            out.push('\n');
+        }
+    }
+    out
 }
 
 pub(crate) fn executable_stem(executable: &str) -> &str {
@@ -417,6 +452,51 @@ mod tests {
         });
         assert_eq!(value(&keys, "key.A"), Some("0x10c"));
         assert_eq!(value(&keys, "key.B"), Some("0x11+0x10+0x12+0x5a"));
+    }
+
+    #[test]
+    fn every_fex_option_is_written_with_autorun_defaults() {
+        let program = program_with(|_| {});
+        assert_eq!(
+            program.lines().filter(|l| l.starts_with("FEX_")).count(),
+            19
+        );
+        assert_eq!(value(&program, "FEX_TSOENABLED"), Some("0"));
+        assert_eq!(value(&program, "FEX_MAXINST"), Some("1000"));
+        assert_eq!(value(&program, "FEX_SMCCHECKS"), Some("none"));
+        assert_eq!(value(&program, "FEX_DISABLEL2CACHE"), Some("1"));
+        assert_eq!(value(&program, "FEX_X87REDUCEDPRECISION"), Some("1"));
+        let reliable = program_with(|s| s.options.set("fex-tso", Some("1")));
+        assert_eq!(value(&reliable, "FEX_TSOENABLED"), Some("1"));
+    }
+
+    #[test]
+    fn dxvk_options_are_written_only_when_changed() {
+        let program = program_with(|_| {});
+        assert!(
+            !program
+                .lines()
+                .any(|l| l.starts_with("dxvk.") || (l.starts_with("d3d") && l.contains('.')))
+        );
+        assert_eq!(value(&program, "dxvk-version"), None);
+        let changed = program_with(|s| {
+            s.options.set("d3d9-maxAvailableMemory", Some("1024"));
+            s.options.set("d3d9-forceAspectRatio", Some("\"16:9\""));
+        });
+        assert_eq!(value(&changed, "d3d9.maxAvailableMemory"), Some("1024"));
+        assert_eq!(value(&changed, "d3d9.forceAspectRatio"), Some("\"16:9\""));
+    }
+
+    #[test]
+    fn box64_file_holds_only_changed_options() {
+        let files = AutorunFiles::render("bin\\Game.exe", &AutorunSettings::default());
+        assert_eq!(files.box64_name, "Game.box64.txt");
+        assert_eq!(files.box64, "");
+        let mut settings = AutorunSettings::default();
+        settings.options.set("box64-strongmem", Some("3"));
+        settings.options.set("box64-forward", Some("128"));
+        let files = AutorunFiles::render("game.exe", &settings);
+        assert_eq!(files.box64, "BOX64_DYNAREC_STRONGMEM=3\n");
     }
 
     #[test]

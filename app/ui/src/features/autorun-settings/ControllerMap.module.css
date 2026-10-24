@@ -6,7 +6,7 @@
 }
 
 .wide {
-  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr) minmax(220px, 270px);
+  grid-template-columns: minmax(200px, 230px) minmax(0, 1fr) minmax(200px, 230px);
 }
 
 .narrow {

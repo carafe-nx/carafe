@@ -15,6 +15,7 @@
 #include <switch.h>
 
 #include "carafe_loading.h"
+#include "carafe_menu.h"
 #include "carafe_overlay.h"
 #include "osk.h"
 
@@ -63,6 +64,9 @@ typedef struct {
     const char* details;
     const char* stall;
     const char* hint;
+    const char* keyboard;
+    const char* stick;
+    const char* settings;
 } Strings;
 
 static const Strings STRINGS_EN = {
@@ -71,6 +75,9 @@ static const Strings STRINGS_EN = {
     "%u s  ·  %llu MB read",
     "No progress for %u s: the game may have stopped responding.",
     "Press HOME and close the software to quit.",
+    "keyboard",
+    "R-stick",
+    "settings",
 };
 
 static const Strings STRINGS_RU = {
@@ -79,6 +86,9 @@ static const Strings STRINGS_RU = {
     "%u с  ·  %llu МБ прочитано",
     "Нет прогресса %u с: игра, возможно, не отвечает.",
     "Нажмите HOME и закройте программу, чтобы выйти.",
+    "клавиатура",
+    "R-стик",
+    "настройки",
 };
 
 extern unsigned int wine_nx_gl_swaps __attribute__((weak));
@@ -196,6 +206,7 @@ static bool g_cursor_hidden;
 static FontSlot g_fonts[FONT_SLOTS];
 static int g_font_next;
 static bool g_font_failed;
+static bool g_menu_available;
 
 static __thread bool t_gl_probe;
 static u64 g_probe_tick;
@@ -551,6 +562,67 @@ static void drawMarker(Picture* picture, int cx, int cy, int radius, int thickne
     }
 }
 
+static void drawPill(Picture* picture, int x, int y, int w, int h, uint32_t fill, uint32_t edge) {
+    int radius = h / 2;
+    for (int py = 0; py < h; py++) {
+        for (int px = 0; px < w; px++) {
+            int cx = px < radius ? radius : px >= w - radius ? w - radius - 1 : px;
+            int dx = px - cx;
+            int dy = py - radius;
+            int d2 = dx * dx + dy * dy;
+            if (d2 > radius * radius) {
+                continue;
+            }
+            uint32_t color = d2 > (radius - 2) * (radius - 2) ? edge : fill;
+            fillRect(picture, x + px, y + py, 1, 1, color);
+        }
+    }
+}
+
+static int drawChord(Picture* picture, const char* const* keys, int count, int x, int y, int size) {
+    int w = picture->width;
+    int height = scaled(30, w);
+    for (int i = 0; i < count; i++) {
+        TTF_Font* font = fontAt(size);
+        int tw = 0;
+        int th = 0;
+        if (font != NULL) {
+            TTF_SizeUTF8(font, keys[i], &tw, &th);
+        }
+        int pill = tw + scaled(18, w) < height ? height : tw + scaled(18, w);
+        drawPill(picture, x, y, pill, height, 0xFF231B20u, 0xFF4A3D49u);
+        drawText(picture, keys[i], size, x + (pill - tw) / 2, y + (height - th) / 2, pill, COLOR_TITLE);
+        x += pill;
+        if (i + 1 < count) {
+            int pw = 0;
+            int ph = 0;
+            if (font != NULL) {
+                TTF_SizeUTF8(font, "+", &pw, &ph);
+            }
+            drawText(picture, "+", size, x + scaled(5, w), y + (height - ph) / 2, pw + 2, COLOR_STEP_LATER);
+            x += pw + scaled(10, w);
+        }
+    }
+    return x;
+}
+
+static void drawHints(Picture* picture) {
+    const char* const KEYBOARD[] = { "−", g_strings->stick };
+    static const char* const SETTINGS[] = { "−", "+", "L", "R" };
+    int w = picture->width;
+    int x = scaled(LAYOUT_MARGIN, w);
+    int size = w * 15 / 1280;
+    int line = scaled(40, w);
+    int y = scaled(600, w);
+    int end = drawChord(picture, KEYBOARD, 2, x, y, size);
+    drawText(picture, g_strings->keyboard, w * 16 / 1280, end + scaled(12, w), y + scaled(5, w), w, COLOR_TEXT);
+    if (g_menu_available) {
+        end = drawChord(picture, SETTINGS, 4, x, y + line, size);
+        drawText(picture, g_strings->settings, w * 16 / 1280, end + scaled(12, w), y + line + scaled(5, w), w,
+            COLOR_TEXT);
+    }
+}
+
 static void drawGame(Picture* picture) {
     int w = picture->width;
     int left = scaled(LAYOUT_MARGIN, w);
@@ -586,6 +658,7 @@ static void drawGame(Picture* picture) {
         y += drawText(picture, g_status.stall, small, text_x, y, max_width, COLOR_WARN) + w * 4 / 1000;
         drawText(picture, g_strings->hint, small, text_x, y, max_width, COLOR_WARN);
     }
+    drawHints(picture);
 }
 
 static bool pictureStale(const Picture* picture, int w, int h) {
@@ -738,6 +811,9 @@ static void probeGlFrame(int w, int h) {
 }
 
 int __wrap_wine_nx_osk_visible(void) {
+    if (carafeMenuVisible()) {
+        return 1;
+    }
     if (!loadingActive()) {
         return __real_wine_nx_osk_visible();
     }
@@ -746,7 +822,7 @@ int __wrap_wine_nx_osk_visible(void) {
 }
 
 unsigned int __wrap_wine_nx_osk_generation(void) {
-    unsigned int real = __real_wine_nx_osk_generation();
+    unsigned int real = __real_wine_nx_osk_generation() + carafeMenuGeneration();
     if (!g_enabled) {
         return real;
     }
@@ -763,6 +839,17 @@ unsigned int __wrap_wine_nx_osk_generation(void) {
 int __wrap_wine_nx_osk_frame(int screen_width, int screen_height, struct wine_nx_osk_frame* frame) {
     bool probe = t_gl_probe;
     t_gl_probe = false;
+    if (carafeMenuVisible()) {
+        if (loadingActive() && probe) {
+            probeGlFrame(screen_width, screen_height);
+        }
+        frame->x = 0;
+        frame->y = 0;
+        frame->width = screen_width;
+        frame->height = screen_height;
+        frame->generation = carafeMenuGeneration() | 0x80000000u;
+        return 1;
+    }
     if (!loadingActive()) {
         return __real_wine_nx_osk_frame(screen_width, screen_height, frame);
     }
@@ -790,6 +877,12 @@ int __wrap_wine_nx_osk_frame(int screen_width, int screen_height, struct wine_nx
 }
 
 unsigned int __wrap_wine_nx_osk_copy(int screen_width, int screen_height, void* pixels, int stride, int rgba) {
+    if (carafeMenuVisible()) {
+        unsigned int copied = carafeMenuCopy(screen_width, screen_height, pixels, stride, rgba);
+        if (copied != 0) {
+            return copied;
+        }
+    }
     if (!loadingActive()) {
         return __real_wine_nx_osk_copy(screen_width, screen_height, pixels, stride, rgba);
     }
@@ -828,7 +921,7 @@ void __wrap_wine_nx_compositor_cursor(int x, int y, int visible) {
     g_cursor_y = y;
     g_cursor_visible = visible;
     g_cursor_known = true;
-    g_cursor_hidden = loadingActive();
+    g_cursor_hidden = loadingActive() || carafeMenuVisible();
     __real_wine_nx_compositor_cursor(x, y, g_cursor_hidden ? 0 : visible);
     pthread_mutex_unlock(&g_cursor_lock);
 }
@@ -854,10 +947,11 @@ static void reportStall(void) {
 }
 
 void carafeLoadingTick(void) {
+    carafeSettingsTick();
     if (loadingActive()) {
         wine_nx_compositor_redraw();
         reportStall();
-    } else if (g_enabled) {
+    } else if (g_enabled && !carafeMenuVisible()) {
         restoreCursor();
     }
 }
@@ -1240,6 +1334,8 @@ __attribute__((constructor(102))) static void carafeLoadingInstall(void) {
     }
 
     chooseLanguage();
+    char menu[16];
+    g_menu_available = carafeOverlayReadRomfsText("/carafe/menu.txt", menu, sizeof(menu));
     snprintf(g_title, sizeof(g_title), "%s", g_strings->title);
     loadIcon();
     loadSplash("/carafe/loading/NintendoLogo.png", &g_splash);

@@ -24,6 +24,8 @@ pub mod rebuild;
 pub mod record;
 pub mod runtime_files;
 pub mod settings;
+pub mod settings_catalog;
+pub mod settings_menu;
 pub mod title_id;
 pub mod update;
 pub mod version;

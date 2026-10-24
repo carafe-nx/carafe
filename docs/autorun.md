@@ -221,6 +221,15 @@ newlib and libnx details the overlay has to respect:
 - The OpenGL screen's buffers keep the layer's last picture where the game does not draw, such as around a 1024×768
   game on the 1280×720 screen. Patch `0014` clears each buffer to black after the swap while the layer is shown and
   for 8 swaps after it leaves.
+- The settings menu ([settings-menu.md](settings-menu.md)) is the same layer, half-transparent. Each path copies the
+  layer without blending, so patches `0042`–`0046` add a way to blend it on the GPU: when `wine_nx_osk_translucent`
+  says so, the Vulkan path uploads the layer into a texture once per change and a render pass blends it over the image
+  about to be shown (swapchain images get `COLOR_ATTACHMENT` for that); the OpenGL path draws the layer's texture over
+  the back buffer with a small program instead of blitting it; the compositor draws the layer's quad with alpha
+  blending. The game's frame never comes back to the CPU, so the menu costs the game almost nothing.
+- Patch `0041` hands the held buttons to `wine_nx_menu_poll` on every poll, which opens and closes the menu on −, +,
+  L and R together. While it is open `wine_nx_osk_visible` is true, so the game gets no buttons, and Carafe wraps
+  `wine_nx_osk_input` to take them. The same patch keeps + and − held from quitting while L or R is held.
 
 ## Screen size
 

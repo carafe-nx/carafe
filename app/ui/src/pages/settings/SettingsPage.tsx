@@ -2,9 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AdvancedEditor } from "@/features/autorun-settings/AdvancedEditor";
-import { GraphicsEditor } from "@/features/autorun-settings/GraphicsEditor";
-import { InputEditor } from "@/features/autorun-settings/InputEditor";
+import { SettingsEditor } from "@/features/autorun-settings/SettingsEditor";
 import { LanguageSwitch } from "@/features/preferences/LanguageSwitch";
 import { usePreferences } from "@/features/preferences/usePreferences";
 import { UpdateSettings } from "@/features/updates/UpdateSettings";
@@ -21,13 +19,10 @@ import { Segmented } from "@/shared/ui/Segmented";
 import { TextInput } from "@/shared/ui/TextInput";
 import styles from "./SettingsPage.module.css";
 
-type DefaultsTab = "controls" | "graphics";
-
 export function SettingsPage() {
   const { t } = useTranslation();
   const { preferences, save } = usePreferences();
   const [keys, setKeys] = useState<KeysReport | null>(null);
-  const [tab, setTab] = useState<DefaultsTab>("controls");
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [artKey, setArtKey] = useState(preferences.steamGridDbKey ?? "");
   const [confirmReset, setConfirmReset] = useState(false);
@@ -132,29 +127,8 @@ export function SettingsPage() {
               <h2>{t("settings.defaults")}</h2>
               <p className={styles.muted}>{t("settings.defaultsHint")}</p>
             </div>
-            <Segmented<DefaultsTab>
-              label={t("settings.defaults")}
-              value={tab}
-              options={[
-                { value: "controls", label: t("wizard.step.controls") },
-                { value: "graphics", label: t("wizard.step.graphics") },
-              ]}
-              onChange={setTab}
-            />
           </div>
-          {tab === "controls" ? (
-            <InputEditor value={defaults.input} onChange={(input) => update({ defaults: { ...defaults, input } })} />
-          ) : (
-            <>
-              <GraphicsEditor value={defaults.graphics} onChange={(graphics) => update({ defaults: { ...defaults, graphics } })} />
-              <AdvancedEditor
-                system={defaults.system}
-                debug={defaults.debug}
-                onSystemChange={(system) => update({ defaults: { ...defaults, system } })}
-                onDebugChange={(debug) => update({ defaults: { ...defaults, debug } })}
-              />
-            </>
-          )}
+          <SettingsEditor value={defaults} onChange={(next) => update({ defaults: next })} />
           {confirmReset ? (
             <Notice tone="warning">
               <p className={styles.resetText}>{t("settings.resetConfirm")}</p>

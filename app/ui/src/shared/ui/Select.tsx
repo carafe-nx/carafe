@@ -2,15 +2,17 @@ import styles from "./controls.module.css";
 
 type SelectProps<T extends string | number> = {
   id?: string;
+  disabled?: boolean;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
 };
 
-export function Select<T extends string | number>({ id, value, options, onChange }: SelectProps<T>) {
+export function Select<T extends string | number>({ id, disabled, value, options, onChange }: SelectProps<T>) {
   return (
     <select
       id={id}
+      disabled={disabled}
       className={styles.select}
       value={String(value)}
       onChange={(event) => {

@@ -7,6 +7,7 @@
 
 pub mod archive;
 mod copy;
+pub mod menu_texts;
 pub mod service;
 mod tool;
 pub mod verify;
@@ -23,7 +24,7 @@ use carafe_core::npdm::AddressSpace;
 use carafe_core::package::{GamePackage, ICON_FILE, RECORD_FILE, ROMFS_ICON_FILE, package};
 use carafe_core::pfs0::{self, Pfs0Entry};
 use carafe_core::ports::{AdapterError, BuildProgress, BuildStage, PackTarget, Packer, StoredGame};
-use carafe_core::{disk_space, npdm, path_limit, pe};
+use carafe_core::{disk_space, npdm, path_limit, pe, settings_menu};
 
 use crate::archive::RuntimeArchive;
 use crate::copy::Tree;
@@ -295,7 +296,12 @@ impl Packer for HacBrewPacker {
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<StoredGame, AdapterError> {
         cancel.check()?;
-        let package = package(record).map_err(|error| AdapterError::Tool(error.to_string()))?;
+        let mut package = package(record).map_err(|error| AdapterError::Tool(error.to_string()))?;
+        let apis = direct3d(Path::new(&record.source.folder), &record.source.executable);
+        let menu = settings_menu::file(&apis, &menu_texts::lookup).map_err(|error| {
+            AdapterError::Tool(format!("{}: {error}", settings_menu::MENU_FILE))
+        })?;
+        package.romfs_files.push(menu);
         let library = Path::new(&target.library_dir);
         let work = service::build_dir(library, &record.title_id.to_string());
         if service::is_busy(&work) {
@@ -460,6 +466,20 @@ fn address_space(game_folder: &Path, executable: &str) -> Result<AddressSpace, A
     let mut read = |offset: u64, len: usize| read_at(&mut file, size, offset, len);
     pe::required_address_space(&mut read)
         .map_err(|error| AdapterError::Tool(format!("{}: {error}", path.display())))
+}
+
+fn direct3d(game_folder: &Path, executable: &str) -> Vec<carafe_core::settings_catalog::Api> {
+    let path = executable
+        .split(['/', '\\'])
+        .fold(game_folder.to_path_buf(), |path, part| path.join(part));
+    let Ok(mut file) = File::open(&path) else {
+        return Vec::new();
+    };
+    let Ok(size) = file.metadata().map(|metadata| metadata.len()) else {
+        return Vec::new();
+    };
+    let mut read = |offset: u64, len: usize| read_at(&mut file, size, offset, len);
+    pe::direct3d_apis(&mut read).unwrap_or_default()
 }
 
 fn read_at(file: &mut File, size: u64, offset: u64, len: usize) -> Option<Vec<u8>> {

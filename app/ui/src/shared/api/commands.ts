@@ -6,6 +6,7 @@ import type { AutorunSettings } from "./bindings/AutorunSettings";
 import type { BuildRecord } from "./bindings/BuildRecord";
 import type { BuildRequest } from "./bindings/BuildRequest";
 import type { BuildState } from "./bindings/BuildState";
+import type { Catalog } from "./bindings/Catalog";
 import type { CommandError } from "./bindings/CommandError";
 import type { DeviceStatus } from "./bindings/DeviceStatus";
 import type { ExternalLink } from "./bindings/ExternalLink";
@@ -25,6 +26,7 @@ export const api = {
   savePreferences: (preferences: Preferences) => invoke<Preferences>("save_preferences", { preferences }),
   checkKeys: (path: string) => invoke<KeysReport>("check_keys", { path }),
   recommendedSettings: () => invoke<AutorunSettings>("recommended_settings"),
+  settingsCatalog: () => invoke<Catalog>("settings_catalog"),
   libraryDirFor: (picked: string) => invoke<string>("library_dir_for", { picked }),
   createLibraryDir: (path: string) => invoke<void>("create_library_dir", { path }),
   deviceStatus: () => invoke<DeviceStatus>("device_status"),

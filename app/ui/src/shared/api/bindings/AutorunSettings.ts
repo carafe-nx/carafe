@@ -2,6 +2,7 @@
 import type { DebugSettings } from "./DebugSettings";
 import type { GraphicsSettings } from "./GraphicsSettings";
 import type { InputSettings } from "./InputSettings";
+import type { OptionValues } from "./OptionValues";
 import type { SystemSettings } from "./SystemSettings";
 
 /**
@@ -25,4 +26,8 @@ system: SystemSettings,
 /**
  * Debugging.
  */
-debug: DebugSettings, };
+debug: DebugSettings, 
+/**
+ * Values of the catalog's settings without a typed field: FEX, DXVK and Box64 options.
+ */
+options: OptionValues, };

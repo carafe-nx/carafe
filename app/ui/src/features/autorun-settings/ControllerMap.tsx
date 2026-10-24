@@ -17,7 +17,7 @@ type ControllerMapProps = {
 type Leader = { row: string; d: string; ax: number; ay: number; rx: number; ry: number };
 type Editing = { button: SwitchButton; left: number; top: number };
 
-const WIDE_MIN = 900;
+const WIDE_MIN = 760;
 const NARROW_MIN = 560;
 
 type Layout = "wide" | "narrow" | "single";

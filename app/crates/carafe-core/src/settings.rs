@@ -1,8 +1,12 @@
 //! Autorun runtime settings: input, graphics, system, debugging.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
+
+use crate::settings_catalog::{self, Setting, Storage};
 
 /// All Autorun runtime settings that Carafe puts into the NSP.
 ///
@@ -19,6 +23,9 @@ pub struct AutorunSettings {
     pub system: SystemSettings,
     /// Debugging.
     pub debug: DebugSettings,
+    /// Values of the catalog's settings without a typed field: FEX, DXVK and Box64 options.
+    #[serde(default)]
+    pub options: OptionValues,
 }
 
 impl AutorunSettings {
@@ -29,7 +36,79 @@ impl AutorunSettings {
     /// The first [`SettingsError`] found.
     pub fn validate(&self) -> Result<(), SettingsError> {
         self.input.validate()?;
-        self.graphics.validate()
+        self.graphics.validate()?;
+        self.options.validate()
+    }
+}
+
+/// Chosen values of the catalog's settings kept by id ([`Storage::Option`]): a setting that is not here has its
+/// default value.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export, type = "Record<string, string>")]
+pub struct OptionValues(BTreeMap<String, String>);
+
+impl OptionValues {
+    /// Returns the file text chosen for a setting, or `None` when it has its default value.
+    #[must_use]
+    pub fn get(&self, id: &str) -> Option<&str> {
+        self.0.get(id).map(String::as_str)
+    }
+
+    /// Sets the file text of a setting; `None` gives it back its default value.
+    pub fn set(&mut self, id: &str, text: Option<&str>) {
+        match text {
+            Some(text) => {
+                self.0.insert(id.to_owned(), text.to_owned());
+            }
+            None => {
+                self.0.remove(id);
+            }
+        }
+    }
+
+    /// Returns the index of the value a catalog setting has.
+    ///
+    /// # Returns
+    ///
+    /// The default index when nothing is chosen or the chosen text is not one of the values.
+    #[must_use]
+    pub fn index(&self, setting: &Setting) -> usize {
+        self.get(&setting.id)
+            .and_then(|text| {
+                setting
+                    .values
+                    .iter()
+                    .position(|value| value.text.as_deref() == Some(text))
+            })
+            .unwrap_or(setting.default)
+    }
+
+    /// Returns the file text a catalog setting has: the chosen one or its default.
+    #[must_use]
+    pub fn text<'a>(&'a self, setting: &'a Setting) -> Option<&'a str> {
+        setting.values[self.index(setting)].text.as_deref()
+    }
+
+    /// Checks that every id is a catalog setting kept here and every text one of its values.
+    ///
+    /// # Errors
+    ///
+    /// [`SettingsError::Option`] with the first id that does not fit.
+    pub fn validate(&self) -> Result<(), SettingsError> {
+        let catalog = settings_catalog::catalog();
+        for (id, text) in &self.0 {
+            let fits = catalog.setting(id).is_some_and(|setting| {
+                setting.storage == Storage::Option
+                    && setting
+                        .values
+                        .iter()
+                        .any(|value| value.text.as_deref() == Some(text.as_str()))
+            });
+            if !fits {
+                return Err(SettingsError::Option(id.clone()));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -54,6 +133,9 @@ pub enum SettingsError {
     /// DXVK Sarek is incompatible with VKD3D.
     #[error("the DXVK Sarek build is incompatible with VKD3D")]
     SarekWithVkd3d,
+    /// An option that is not in the catalog, or a value it does not have.
+    #[error("option {0} has an unknown value")]
+    Option(String),
 }
 
 /// Maximum number of codes in one chord.
@@ -559,6 +641,73 @@ mod tests {
             ..GraphicsSettings::default()
         };
         assert_eq!(graphics.validate(), Err(SettingsError::SarekWithVkd3d));
+    }
+
+    const WRITTEN_BEFORE_OPTIONS: &str = r#"{
+        "input": {"mode": "keyboardMouse", "leftDeadzone": 8, "rightDeadzone": 5, "keyboardAuto": true,
+                  "keys": [{"button": "A", "codes": [32]}], "pad": [{"button": "A", "codes": [1]}]},
+        "graphics": {"direct3d": "dxvk", "dxvkSource": "official", "frameLimit": 30, "vsync": true,
+                     "upscaling": "fsr", "sharpness": 40, "hud": "off", "lsfg": false,
+                     "lsfgPerformance": true, "lsfgFlow": "quarter"},
+        "system": {"sync": "horizon", "cpu": "fex", "fourCores": true, "windows": "auto"},
+        "debug": {"verbose": false, "profile": false}
+    }"#;
+
+    #[test]
+    fn settings_written_before_options_still_read() {
+        let settings: AutorunSettings = serde_json::from_str(WRITTEN_BEFORE_OPTIONS).unwrap();
+        assert_eq!(settings.input.left_deadzone, 8);
+        assert_eq!(settings.graphics.frame_limit, 30);
+        assert_eq!(settings.options, OptionValues::default());
+    }
+
+    #[test]
+    fn options_round_trip_through_json() {
+        let mut settings = AutorunSettings::default();
+        settings.options.set("fex-tso", Some("1"));
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains(r#""options":{"fex-tso":"1"}"#));
+        let back: AutorunSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, settings);
+    }
+
+    #[test]
+    fn options_are_checked_against_the_catalog() {
+        let mut options = OptionValues::default();
+        options.set("fex-smc", Some("mtrack"));
+        options.set("d3d9-maxAvailableMemory", Some("1024"));
+        assert_eq!(options.validate(), Ok(()));
+        options.set("fex-smc", Some("sometimes"));
+        assert_eq!(
+            options.validate(),
+            Err(SettingsError::Option("fex-smc".to_owned()))
+        );
+        let mut unknown = OptionValues::default();
+        unknown.set("no-such-option", Some("1"));
+        assert_eq!(
+            unknown.validate(),
+            Err(SettingsError::Option("no-such-option".to_owned()))
+        );
+        let mut typed = OptionValues::default();
+        typed.set("vsync", Some("1"));
+        assert_eq!(
+            typed.validate(),
+            Err(SettingsError::Option("vsync".to_owned()))
+        );
+    }
+
+    #[test]
+    fn option_index_falls_back_to_the_default() {
+        let catalog = settings_catalog::catalog();
+        let maxinst = catalog.setting("fex-maxinst").unwrap();
+        let mut options = OptionValues::default();
+        assert_eq!(options.text(maxinst), Some("1000"));
+        options.set("fex-maxinst", Some("5000"));
+        assert_eq!(options.index(maxinst), 4);
+        options.set("fex-maxinst", None);
+        assert_eq!(options.index(maxinst), maxinst.default);
+        let budget = catalog.setting("dxvk-maxMemoryBudget").unwrap();
+        assert_eq!(options.text(budget), None);
     }
 
     #[test]

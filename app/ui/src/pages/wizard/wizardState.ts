@@ -7,7 +7,7 @@ import type { Metadata } from "@/shared/api/bindings/Metadata";
 import type { TitleId } from "@/shared/api/bindings/TitleId";
 import type { WizardDraft } from "@/shared/api/bindings/WizardDraft";
 
-export const STEPS = ["folder", "launch", "look", "controls", "graphics", "build"] as const;
+export const STEPS = ["folder", "launch", "look", "settings", "build"] as const;
 export type StepId = (typeof STEPS)[number];
 
 export type Loading = "folder" | "icon";

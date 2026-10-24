@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
-import { AdvancedEditor } from "@/features/autorun-settings/AdvancedEditor";
-import { GraphicsEditor } from "@/features/autorun-settings/GraphicsEditor";
-import { InputEditor } from "@/features/autorun-settings/InputEditor";
+import { SettingsEditor } from "@/features/autorun-settings/SettingsEditor";
 import { busyReason } from "@/features/build/busyReason";
 import { useBuildStatus } from "@/features/build/useBuildStatus";
 import { usePreferences } from "@/features/preferences/usePreferences";
@@ -68,7 +66,7 @@ export function WizardPage() {
         backTo="/library"
         backLabel={t("library.title")}
       />
-      <main className={state.step === "controls" ? `${styles.main} ${styles.mainWide}` : styles.main}>
+      <main className={state.step === "settings" ? `${styles.main} ${styles.mainWide}` : styles.main}>
         <nav className={styles.stepper} aria-label={t("wizard.steps")}>
           {STEPS.map((step, i) => (
             <button
@@ -120,22 +118,8 @@ export function WizardPage() {
               onLoading={setIconLoading}
             />
           ) : null}
-          {state.step === "controls" ? (
-            <InputEditor value={state.settings.input} onChange={(input) => dispatch({ type: "settings", settings: { ...state.settings, input } })} />
-          ) : null}
-          {state.step === "graphics" ? (
-            <div className={styles.stepBody}>
-              <GraphicsEditor
-                value={state.settings.graphics}
-                onChange={(graphics) => dispatch({ type: "settings", settings: { ...state.settings, graphics } })}
-              />
-              <AdvancedEditor
-                system={state.settings.system}
-                debug={state.settings.debug}
-                onSystemChange={(system) => dispatch({ type: "settings", settings: { ...state.settings, system } })}
-                onDebugChange={(debug) => dispatch({ type: "settings", settings: { ...state.settings, debug } })}
-              />
-            </div>
+          {state.step === "settings" ? (
+            <SettingsEditor value={state.settings} onChange={(settings) => dispatch({ type: "settings", settings })} />
           ) : null}
           {state.step === "build" ? (
             <BuildStep

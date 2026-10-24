@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::npdm::AddressSpace;
 use crate::record::Arch;
+use crate::settings_catalog::Api;
 
 const PE32: u16 = 0x10B;
 const PE32_PLUS: u16 = 0x20B;
@@ -13,7 +14,11 @@ const MACHINE_AMD64: u16 = 0x8664;
 const RELOCS_STRIPPED: u16 = 0x0001;
 const DYNAMIC_BASE: u16 = 0x0040;
 const LIMIT_4G: u64 = 1 << 32;
+const IMPORT_DIRECTORY: usize = 1;
 const RESOURCE_DIRECTORY: usize = 2;
+const DELAY_IMPORT_DIRECTORY: usize = 13;
+const MAX_IMPORTS: usize = 512;
+const NAME_BYTES: usize = 64;
 const RELOCATION_DIRECTORY: usize = 5;
 const SUBDIRECTORY: u32 = 0x8000_0000;
 const MAX_RESOURCE_BYTES: u32 = 16 << 20;
@@ -222,6 +227,8 @@ pub(crate) struct PeImage {
     relocations_size: u32,
     sections: Vec<Section>,
     resource_rva: Option<u32>,
+    import_rva: u32,
+    delay_import_rva: u32,
 }
 
 impl PeImage {
@@ -263,6 +270,8 @@ impl PeImage {
             }
         };
         let resource_rva = directory(RESOURCE_DIRECTORY, 0)?;
+        let import_rva = directory(IMPORT_DIRECTORY, 0)?;
+        let delay_import_rva = directory(DELAY_IMPORT_DIRECTORY, 0)?;
         let relocations_size = directory(RELOCATION_DIRECTORY, 4)?;
         let table_at = pe + 24 + optional_size as u64;
         let table = read(table_at, section_count * 40).ok_or(PeError::NotPe)?;
@@ -287,6 +296,8 @@ impl PeImage {
             relocations_size,
             sections,
             resource_rva: (resource_rva != 0).then_some(resource_rva),
+            import_rva,
+            delay_import_rva,
         })
     }
 
@@ -387,6 +398,88 @@ impl PeImage {
             .map(Some)
             .ok_or(PeError::BadResources)
     }
+}
+
+impl PeImage {
+    fn dll_names(
+        &self,
+        read: &mut ReadAt<'_>,
+        table: u32,
+        entry_size: u32,
+        name_at: usize,
+    ) -> Vec<String> {
+        let mut names = Vec::new();
+        if table == 0 {
+            return names;
+        }
+        for index in 0..MAX_IMPORTS as u32 {
+            let Some(entry) = table
+                .checked_add(index * entry_size)
+                .and_then(|rva| self.read_rva(read, rva, entry_size as usize))
+            else {
+                break;
+            };
+            if entry.iter().all(|&byte| byte == 0) {
+                break;
+            }
+            let Some(name_rva) = u32_at(&entry, name_at).filter(|&rva| rva != 0) else {
+                continue;
+            };
+            if let Some(name) = self.c_string(read, name_rva) {
+                names.push(name.to_ascii_lowercase());
+            }
+        }
+        names
+    }
+
+    fn c_string(&self, read: &mut ReadAt<'_>, rva: u32) -> Option<String> {
+        let bytes = [NAME_BYTES, 16, 8]
+            .iter()
+            .find_map(|&len| self.read_rva(read, rva, len))?;
+        let end = bytes
+            .iter()
+            .position(|&byte| byte == 0)
+            .unwrap_or(bytes.len());
+        std::str::from_utf8(&bytes[..end]).ok().map(str::to_owned)
+    }
+}
+
+/// Returns the DLLs an `.exe` imports, normal and delay-loaded, lower-cased, each once.
+///
+/// # Errors
+///
+/// [`PeError::NotPe`] if the file is not PE or its headers are cut off. An import table that cannot be read
+/// gives the names read before it.
+pub fn imported_dlls(read: &mut ReadAt<'_>) -> Result<Vec<String>, PeError> {
+    let image = PeImage::open(read)?;
+    let mut names = image.dll_names(read, image.import_rva, 20, 12);
+    names.extend(image.dll_names(read, image.delay_import_rva, 32, 4));
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+/// Returns the Direct3D versions an `.exe` imports, oldest first; empty when it imports none, which also happens
+/// when the game loads Direct3D itself at run time.
+///
+/// # Errors
+///
+/// [`PeError::NotPe`] as [`imported_dlls`].
+pub fn direct3d_apis(read: &mut ReadAt<'_>) -> Result<Vec<Api>, PeError> {
+    let mut apis: Vec<Api> = imported_dlls(read)?
+        .iter()
+        .filter_map(|name| match name.as_str() {
+            "d3d8.dll" => Some(Api::D3d8),
+            "d3d9.dll" => Some(Api::D3d9),
+            "d3d10.dll" | "d3d10_1.dll" | "d3d10core.dll" => Some(Api::D3d10),
+            "d3d11.dll" => Some(Api::D3d11),
+            "d3d12.dll" => Some(Api::D3d12),
+            _ => None,
+        })
+        .collect();
+    apis.sort();
+    apis.dedup();
+    Ok(apis)
 }
 
 fn subdirectory(offset: u32) -> Result<u32, PeError> {
@@ -696,6 +789,73 @@ mod tests {
             required_address_space(&mut reader(b"MZ")),
             Err(PeError::NotPe)
         );
+    }
+
+    fn with_imports(dlls: &[&str], delayed: &[&str]) -> Vec<u8> {
+        const SECTION: usize = 0x98 + 0xE0 + 40;
+        const IDATA_RVA: u32 = 0x3000;
+        const IDATA_RAW: usize = 0x800;
+        let mut file = exe(I386, &[]);
+        file[0x86..0x88].copy_from_slice(&2u16.to_le_bytes());
+        let mut idata = vec![0u8; 0x200];
+        let mut names = 0x100usize;
+        let mut name_of = |idata: &mut Vec<u8>, dll: &str| {
+            let at = names;
+            idata[at..at + dll.len()].copy_from_slice(dll.as_bytes());
+            names += dll.len() + 1;
+            IDATA_RVA + u32::try_from(at).unwrap()
+        };
+        for (i, dll) in dlls.iter().enumerate() {
+            let rva = name_of(&mut idata, dll);
+            idata[i * 20 + 12..i * 20 + 16].copy_from_slice(&rva.to_le_bytes());
+        }
+        let delay_at = 0x80;
+        for (i, dll) in delayed.iter().enumerate() {
+            let rva = name_of(&mut idata, dll);
+            let at = delay_at + i * 32;
+            idata[at..at + 4].copy_from_slice(&1u32.to_le_bytes());
+            idata[at + 4..at + 8].copy_from_slice(&rva.to_le_bytes());
+        }
+        let directories = 0x98 + 96;
+        file[directories + 8..directories + 12].copy_from_slice(&IDATA_RVA.to_le_bytes());
+        let delay = directories + DELAY_IMPORT_DIRECTORY * 8;
+        let delay_rva = IDATA_RVA + u32::try_from(delay_at).unwrap();
+        file[delay..delay + 4].copy_from_slice(&delay_rva.to_le_bytes());
+        let size = u32::try_from(idata.len()).unwrap().to_le_bytes();
+        file.resize(IDATA_RAW, 0);
+        file[SECTION..SECTION + 8].copy_from_slice(b".idata\0\0");
+        file[SECTION + 8..SECTION + 12].copy_from_slice(&size);
+        file[SECTION + 12..SECTION + 16].copy_from_slice(&IDATA_RVA.to_le_bytes());
+        file[SECTION + 16..SECTION + 20].copy_from_slice(&size);
+        file[SECTION + 20..SECTION + 24]
+            .copy_from_slice(&u32::try_from(IDATA_RAW).unwrap().to_le_bytes());
+        file.extend_from_slice(&idata);
+        file
+    }
+
+    #[test]
+    fn imports_are_read_from_both_tables() {
+        let file = with_imports(&["KERNEL32.dll", "d3d9.dll"], &["XInput1_3.dll"]);
+        assert_eq!(
+            imported_dlls(&mut reader(&file)),
+            Ok(vec![
+                "d3d9.dll".to_owned(),
+                "kernel32.dll".to_owned(),
+                "xinput1_3.dll".to_owned()
+            ])
+        );
+    }
+
+    #[test]
+    fn direct3d_versions_come_from_the_imports() {
+        let file = with_imports(&["D3D11.dll", "dxgi.dll", "d3d10_1.dll"], &["d3d9.dll"]);
+        assert_eq!(
+            direct3d_apis(&mut reader(&file)),
+            Ok(vec![Api::D3d9, Api::D3d10, Api::D3d11])
+        );
+        let none = with_imports(&["kernel32.dll"], &[]);
+        assert_eq!(direct3d_apis(&mut reader(&none)), Ok(Vec::new()));
+        assert_eq!(direct3d_apis(&mut reader(&exe(I386, &[]))), Ok(Vec::new()));
     }
 
     #[test]

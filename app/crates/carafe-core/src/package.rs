@@ -65,7 +65,8 @@ pub enum PackageError {
 ///
 /// The game folder in RomFS is named like the folder on the PC. The runtime gets the path to the `.exe` in
 /// `carafe/argv`, the title for the loading screen in `carafe/title`; next to the `.exe` go `<name>.keys.txt`,
-/// `<name>.wine-nx.txt` and, if there are arguments, `<name>.args.txt`.
+/// `<name>.wine-nx.txt`, `<name>.box64.txt` when a Box64 option is changed and, if there are arguments,
+/// `<name>.args.txt`. The console menu's `carafe/menu.txt` comes from [`crate::settings_menu::render`].
 ///
 /// # Errors
 ///
@@ -99,6 +100,12 @@ pub fn package(record: &BuildRecord) -> Result<GamePackage, PackageError> {
             contents: settings.program,
         },
     ];
+    if !settings.box64.is_empty() {
+        romfs_files.push(GeneratedFile {
+            path: format!("{exe_dir}/{}", settings.box64_name),
+            contents: settings.box64,
+        });
+    }
     if !source.arguments.is_empty() {
         let stem = executable_stem(&executable);
         romfs_files.push(GeneratedFile {
@@ -261,6 +268,27 @@ mod tests {
             file(&package, "carafe/argv")
                 .unwrap()
                 .ends_with("/Fallout 2/bin/Fallout2.exe\"")
+        );
+    }
+
+    #[test]
+    fn box64_file_comes_only_with_a_changed_option() {
+        let mut record = record("C:\\Games\\x", "game.exe", &[]);
+        let games = "switch/wine/drive_c/Games/x";
+        assert!(
+            file(
+                &package(&record).unwrap(),
+                &format!("{games}/game.box64.txt")
+            )
+            .is_none()
+        );
+        record.settings.options.set("box64-strongmem", Some("2"));
+        assert_eq!(
+            file(
+                &package(&record).unwrap(),
+                &format!("{games}/game.box64.txt")
+            ),
+            Some("BOX64_DYNAREC_STRONGMEM=2\n")
         );
     }
 

@@ -1,7 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { Direct3d } from "@/shared/api/bindings/Direct3d";
 import type { DxvkHud } from "@/shared/api/bindings/DxvkHud";
-import type { DxvkSource } from "@/shared/api/bindings/DxvkSource";
 import type { GraphicsSettings } from "@/shared/api/bindings/GraphicsSettings";
 import type { LsfgFlow } from "@/shared/api/bindings/LsfgFlow";
 import type { Upscaling } from "@/shared/api/bindings/Upscaling";
@@ -21,32 +19,10 @@ type GraphicsEditorProps = {
 export function GraphicsEditor({ value, onChange }: GraphicsEditorProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<GraphicsSettings>) => onChange({ ...value, ...patch });
-  const sourceOptions: { value: DxvkSource; label: string }[] = [
-    { value: "official", label: t("graphics.dxvkOfficial") },
-    { value: "gplasync", label: "GPL Async" },
-    ...(value.direct3d === "dxvkVkd3d" ? [] : [{ value: "sarek" as const, label: "Sarek" }]),
-  ];
 
   return (
     <div className={styles.stack}>
       <div className={styles.grid2}>
-        <Field label={t("graphics.direct3d")} htmlFor="direct3d" hint={t(`graphics.direct3dHints.${value.direct3d}`)}>
-          <Select<Direct3d>
-            id="direct3d"
-            value={value.direct3d}
-            options={[
-              { value: "dxvk", label: "DXVK" },
-              { value: "dxvkVkd3d", label: "DXVK + VKD3D" },
-              { value: "wine", label: t("graphics.wined3d") },
-            ]}
-            onChange={(direct3d) =>
-              set({ direct3d, dxvkSource: direct3d === "dxvkVkd3d" && value.dxvkSource === "sarek" ? "official" : value.dxvkSource })
-            }
-          />
-        </Field>
-        <Field label={t("graphics.dxvkSource")} htmlFor="dxvk-source" hint={t(`graphics.dxvkSourceHints.${value.dxvkSource}`)}>
-          <Select<DxvkSource> id="dxvk-source" value={value.dxvkSource} options={sourceOptions} onChange={(dxvkSource) => set({ dxvkSource })} />
-        </Field>
         <Field label={t("graphics.frameLimit")} htmlFor="frame-limit" hint={t("graphics.frameLimitHint")}>
           <Select<number>
             id="frame-limit"

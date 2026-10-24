@@ -1,34 +1,31 @@
-#include <SDL.h>
-#include <SDL_ttf.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <turbojpeg.h>
 
 #include <switch.h>
 
+#include "carafe_draw.h"
 #include "carafe_error.h"
+#include "carafe_menu.h"
 #include "carafe_overlay.h"
+#include "carafe_settings.h"
+#include "osk.h"
 
 #define ERROR_FILE "sdmc:/switch/carafe/%016lx/carafe-error.txt"
 #define PATH_SIZE 128
 #define ERROR_FLAG "--carafe-error"
 #define RUNTIME_NRO "sdmc:/switch/wine/wine-nx-runtime.nro"
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
-#define ICON_LIMIT (512 * 1024)
+#define SCREEN_WIDTH CARAFE_SCREEN_WIDTH
+#define SCREEN_HEIGHT CARAFE_SCREEN_HEIGHT
 #define ARGV_SIZE 2048
-#define FONT_SLOTS 12
 #define NAME_SIZE 96
 #define LINE_SIZE 160
-#define MAX_BUTTONS 2
+#define MAX_BUTTONS 3
 #define MAX_ROWS 4
-
-#define FONT_LIMIT (4 * 1024 * 1024)
+#define CHANGES_SIZE (64 * 1024)
 
 #define MARGIN 72
 #define TEXT_WIDTH 600
@@ -40,29 +37,11 @@
 #define BUTTON_PAD 30
 #define BUTTON_FOCUS_PAD 14
 #define GLYPH_SIZE 34
-#define FOCUS_GAP 4
-#define FOCUS_OUTER 7
 #define CARD_WIDTH 440
 #define CARD_X (SCREEN_WIDTH - MARGIN - CARD_WIDTH)
 #define CARD_RADIUS 24
 #define CARD_PAD_X 36
 #define CARD_PAD_Y 40
-
-#define COLOR_INK 0xFFFFF5F8u
-#define COLOR_TEXT 0xFFEBD6DDu
-#define COLOR_HINT 0xFFC9A6B3u
-#define COLOR_CHIP 0xFFF0A3B5u
-#define COLOR_FOCUS 0xFFDB6E87u
-#define COLOR_GAP 0xFF2A0D19u
-#define COLOR_PRIMARY_INK 0xFF3B0F20u
-#define COLOR_PANEL 0xFF12060Au
-#define COLOR_LABEL 0xFFB08C99u
-#define COLOR_VALUE 0xFFF4E4EAu
-#define COLOR_ACCENT 0xFF8E2846u
-#define COLOR_CENTER 0xFF5A1A30u
-#define COLOR_MIDDLE 0xFF2A0D19u
-#define COLOR_EDGE 0xFF140709u
-#define COLOR_WHITE 0xFFFFFFFFu
 
 typedef enum {
     KindCrash,
@@ -77,6 +56,10 @@ typedef enum {
     ChoiceNone,
     ChoiceRestart,
     ChoiceExit,
+    ChoiceSettings,
+    ChoiceRevert,
+    ChoiceKeep,
+    ChoiceRecommended,
 } Choice;
 
 typedef struct {
@@ -94,43 +77,24 @@ typedef struct {
     const char* module;
     const char* missing;
     const char* played;
+    const char* settings;
+    const char* revert;
+    const char* keep;
+    const char* recommended;
+    const char* trial_chip;
+    const char* again;
     KindText kinds[KindCount];
+    KindText trial;
 } Strings;
 
 typedef struct {
     Kind kind;
     unsigned int code;
     unsigned int seconds;
+    bool trial;
     char module[NAME_SIZE];
     char missing[NAME_SIZE];
 } Report;
-
-typedef struct {
-    uint32_t* pixels;
-    int width;
-    int height;
-} Image;
-
-typedef enum {
-    WeightRegular,
-    WeightBold,
-    WeightHeavy,
-    WeightCount,
-} Weight;
-
-typedef struct {
-    TTF_Font* font;
-    int size;
-    Weight weight;
-} FontSlot;
-
-typedef struct {
-    int size;
-    Weight weight;
-    int line_height;
-    uint32_t color;
-    bool centered;
-} TextStyle;
 
 typedef struct {
     Choice choice;
@@ -149,12 +113,19 @@ static const Strings STRINGS_EN = {
     "Module",
     "Missing",
     "Played",
+    "Settings",
+    "Bring back",
+    "Keep new",
+    "Recommended",
+    "Trial run failed",
+    "The game has failed more than once in a row. You can go back to the settings Carafe built it with.",
     {
         {
             "The game stopped working",
             "The game hit a problem it couldn't recover from and had to close. Anything the game saved before this "
             "is kept.",
-            "Try starting it again. If it keeps happening at the same spot, tell us about it.",
+            "Try starting it again. If it keeps happening at the same spot, look in the settings — they have tips "
+            "for this error.",
         },
         {
             "The game tried to do too much at once",
@@ -165,7 +136,8 @@ static const Strings STRINGS_EN = {
         {
             "The game ran out of memory",
             "It asked for more memory than this game can use on the Switch and had to close.",
-            "Lower the resolution or texture quality in the game's options, then start it again.",
+            "Lower the resolution or texture quality in the game's options, or look in the settings, then start it "
+            "again.",
         },
         {
             "Some of the game's files are missing",
@@ -178,6 +150,13 @@ static const Strings STRINGS_EN = {
             "Start the game again. If it happens every time, a newer version of Carafe may fix it.",
         },
     },
+    {
+        "The game crashed with the new settings",
+        "This was a trial run: the game closed with an error after its settings were changed. The settings it ran "
+        "with before are kept.",
+        "Bring them back to start the game as it worked before the change, or keep the new ones if the error does "
+        "not seem to be theirs.",
+    },
 };
 
 static const Strings STRINGS_RU = {
@@ -189,24 +168,32 @@ static const Strings STRINGS_RU = {
     "Модуль",
     "Нет файла",
     "В игре",
+    "Настройки",
+    "Вернуть прежние",
+    "Оставить новые",
+    "Рекомендованные",
+    "Пробный запуск не удался",
+    "Игра падает не первый раз подряд. Можно вернуть настройки, с которыми её собрал Carafe.",
     {
         {
             "Игра перестала работать",
             "Игра столкнулась с ошибкой, с которой не смогла справиться, и закрылась. Всё, что игра сохранила "
             "до этого, на месте.",
-            "Попробуйте запустить её снова. Если ошибка повторяется в одном и том же месте, сообщите нам.",
+            "Попробуйте запустить её снова. Если ошибка повторяется в одном и том же месте, загляните в настройки — "
+            "там есть советы для этой ошибки.",
         },
         {
             "Игра попыталась сделать слишком много сразу",
             "Switch разрешает игре ограниченное число одновременных задач. Этой игре понадобилась ещё одна, "
             "и ей пришлось закрыться.",
-            "Обычно помогает запустить игру ещё раз. Если ошибка повторяется каждый раз, её может исправить "
-            "новая версия Carafe.",
+            "Обычно помогает запустить игру ещё раз. Если ошибка повторяется каждый раз, загляните в настройки или "
+            "дождитесь новой версии Carafe.",
         },
         {
             "Игре не хватило памяти",
             "Она запросила больше памяти, чем этой игре доступно на Switch, и закрылась.",
-            "Уменьшите разрешение или качество текстур в настройках игры и запустите её снова.",
+            "Уменьшите разрешение или качество текстур в настройках самой игры или загляните в настройки Carafe и "
+            "запустите её снова.",
         },
         {
             "Не хватает файлов игры",
@@ -218,6 +205,13 @@ static const Strings STRINGS_RU = {
             "Часть Carafe, которая запускает Windows-игры на Switch, столкнулась с ошибкой, и игра закрылась.",
             "Запустите игру снова. Если ошибка повторяется каждый раз, её может исправить новая версия Carafe.",
         },
+    },
+    {
+        "Игра упала с новыми настройками",
+        "Это был пробный запуск: игра закрылась из-за ошибки после того, как её настройки поменяли. Прежние "
+        "настройки сохранены.",
+        "Верните прежние — игра запустится так, как работала до изменений. Или оставьте новые, если ошибка, похоже, "
+        "не связана с ними.",
     },
 };
 
@@ -243,7 +237,6 @@ static const struct {
 
 extern char __end__[];
 extern int wine_nx_image_at(const void* addr, void** base, char* name, size_t size) __attribute__((weak));
-extern int wine_nx_osk_font(const void** data, size_t* size);
 extern void wine_nx_runtime_trace(const char* msg) __attribute__((weak));
 int __real_main(int argc, char** argv);
 
@@ -259,10 +252,7 @@ static bool g_native_seen;
 static bool g_error_mode;
 
 static const Strings* g_strings = &STRINGS_EN;
-static FontSlot g_fonts[FONT_SLOTS];
-static int g_font_next;
-static bool g_font_failed;
-static Image g_icon;
+static CarafeImage g_icon;
 static char g_title[NAME_SIZE];
 
 static void trace(const char* line) {
@@ -405,17 +395,38 @@ static bool writeReport(unsigned int exit_code) {
     if (kind == KindSetup && g_missing[0] != '\0') {
         fprintf(file, "missing=%s\n", g_missing);
     }
+    if (carafeTrialActive()) {
+        fprintf(file, "trial=1\n");
+    }
     fclose(file);
+    unsigned int failures = carafeFailuresAdd();
 
     char line[LINE_SIZE];
-    snprintf(line, sizeof(line), "[CARAFE] the game failed (kind %d, code 0x%08x%s%s)", (int)kind, code,
-        module[0] != '\0' ? ", " : "", module);
+    snprintf(line, sizeof(line), "[CARAFE] the game failed (kind %d, code 0x%08x%s%s), %u in a row", (int)kind, code,
+        module[0] != '\0' ? ", " : "", module, failures);
     trace(line);
     return true;
 }
 
+static bool startGameNext(const char* own_nro) {
+    char argv[ARGV_SIZE];
+    if (!carafeGameArgv(argv, sizeof(argv))) {
+        return false;
+    }
+    return envHasNextLoad() && R_SUCCEEDED(envSetNextLoad(own_nro, argv));
+}
+
 bool carafeErrorRelaunch(const char* own_nro, unsigned int exit_code) {
+    if (carafeRestartRequested()) {
+        if (startGameNext(own_nro)) {
+            trace("[CARAFE] starting the game again with the new settings");
+            return true;
+        }
+        trace("[CARAFE] the game cannot be started again from here");
+        return false;
+    }
     if (!writeReport(exit_code)) {
+        carafeFailuresClear();
         return false;
     }
     char argv[ARGV_SIZE];
@@ -429,15 +440,16 @@ bool carafeErrorRelaunch(const char* own_nro, unsigned int exit_code) {
 }
 
 bool carafeErrorRestart(unsigned int exit_code) {
-    if (!writeReport(exit_code)) {
+    if (!carafeRestartRequested() && !writeReport(exit_code)) {
         return false;
     }
-    trace("[CARAFE] the loader cannot take the process back; restarting the application for the error screen");
+    trace(carafeRestartRequested()
+            ? "[CARAFE] the loader cannot take the process back; restarting the application with the new settings"
+            : "[CARAFE] the loader cannot take the process back; restarting the application for the error screen");
     Result rc = appletRestartProgram(NULL, 0);
     if (R_FAILED(rc)) {
         char line[LINE_SIZE];
-        snprintf(line, sizeof(line), "[CARAFE] the application cannot restart (rc=0x%08x); the error screen comes "
-            "with the next start", (unsigned int)rc);
+        snprintf(line, sizeof(line), "[CARAFE] the application cannot restart (rc=0x%08x)", (unsigned int)rc);
         trace(line);
     }
     return R_SUCCEEDED(rc);
@@ -474,23 +486,12 @@ static bool readReport(Report* report) {
             snprintf(report->module, sizeof(report->module), "%s", value);
         } else if (strcmp(line, "missing") == 0) {
             snprintf(report->missing, sizeof(report->missing), "%s", value);
+        } else if (strcmp(line, "trial") == 0) {
+            report->trial = atoi(value) != 0;
         }
     }
     fclose(file);
     return kind_seen;
-}
-
-static void chooseLanguage(void) {
-    if (R_FAILED(setInitialize())) {
-        return;
-    }
-    u64 code = 0;
-    SetLanguage language = SetLanguage_ENUS;
-    if (R_SUCCEEDED(setGetSystemLanguage(&code)) && R_SUCCEEDED(setMakeLanguage(code, &language))
-        && language == SetLanguage_RU) {
-        g_strings = &STRINGS_RU;
-    }
-    setExit();
 }
 
 static void loadTitle(void) {
@@ -504,255 +505,18 @@ static void loadTitle(void) {
     }
 }
 
-static void loadIcon(void) {
-    size_t size = 0;
-    unsigned char* data = carafeOverlayReadRomfsFile("/carafe/icon.jpg", ICON_LIMIT, &size);
-    if (data == NULL) {
-        return;
-    }
-    tjhandle decoder = tjInitDecompress();
-    int width = 0;
-    int height = 0;
-    int sampling = 0;
-    int space = 0;
-    if (decoder != NULL && tjDecompressHeader3(decoder, data, (unsigned long)size, &width, &height, &sampling, &space) == 0
-        && width > 0 && height > 0 && width <= 1024 && height <= 1024) {
-        uint32_t* pixels = malloc((size_t)width * height * 4);
-        if (pixels != NULL
-            && tjDecompress2(decoder, data, (unsigned long)size, (unsigned char*)pixels, width, 0, height, TJPF_BGRA, 0) == 0) {
-            g_icon.pixels = pixels;
-            g_icon.width = width;
-            g_icon.height = height;
-        } else {
-            free(pixels);
-        }
-    }
-    if (decoder != NULL) {
-        tjDestroy(decoder);
-    }
-    free(data);
-}
-
-static bool fontData(Weight weight, const void** data, size_t* bytes, bool* own) {
-    static const char* const FILES[WeightCount] = {
-        "/carafe/fonts/MPLUS1p-Regular.ttf",
-        "/carafe/fonts/MPLUS1p-Bold.ttf",
-        "/carafe/fonts/MPLUS1p-ExtraBold.ttf",
-    };
-    static void* loaded[WeightCount];
-    static size_t sizes[WeightCount];
-    static bool tried[WeightCount];
-    if (!tried[weight]) {
-        tried[weight] = true;
-        loaded[weight] = carafeOverlayReadRomfsFile(FILES[weight], FONT_LIMIT, &sizes[weight]);
-    }
-    if (loaded[weight] != NULL) {
-        *data = loaded[weight];
-        *bytes = sizes[weight];
-        *own = true;
-        return true;
-    }
-    *own = false;
-    return wine_nx_osk_font(data, bytes);
-}
-
-static TTF_Font* fontAt(int size, Weight weight) {
-    for (int i = 0; i < FONT_SLOTS; i++) {
-        if (g_fonts[i].font != NULL && g_fonts[i].size == size && g_fonts[i].weight == weight) {
-            return g_fonts[i].font;
-        }
-    }
-    if (g_font_failed) {
-        return NULL;
-    }
-    if (!TTF_WasInit() && TTF_Init() != 0) {
-        g_font_failed = true;
-        return NULL;
-    }
-    const void* data = NULL;
-    size_t bytes = 0;
-    bool own = false;
-    if (!fontData(weight, &data, &bytes, &own)) {
-        g_font_failed = true;
-        return NULL;
-    }
-    FontSlot* slot = &g_fonts[g_font_next++ % FONT_SLOTS];
-    if (slot->font != NULL) {
-        TTF_CloseFont(slot->font);
-    }
-    slot->font = TTF_OpenFontRW(SDL_RWFromConstMem(data, (int)bytes), 1, size);
-    slot->size = size;
-    slot->weight = weight;
-    if (slot->font != NULL && !own && weight != WeightRegular) {
-        TTF_SetFontStyle(slot->font, TTF_STYLE_BOLD);
-    }
-    return slot->font;
-}
-
-static uint32_t mix(uint32_t under, uint32_t color, unsigned int alpha) {
-    uint32_t r = ((under >> 16 & 0xFF) * (255 - alpha) + (color >> 16 & 0xFF) * alpha) / 255;
-    uint32_t g = ((under >> 8 & 0xFF) * (255 - alpha) + (color >> 8 & 0xFF) * alpha) / 255;
-    uint32_t b = ((under & 0xFF) * (255 - alpha) + (color & 0xFF) * alpha) / 255;
-    return 0xFF000000u | r << 16 | g << 8 | b;
-}
-
-static void blendPixel(Image* picture, int x, int y, uint32_t color, unsigned int alpha) {
-    if (alpha == 0 || x < 0 || y < 0 || x >= picture->width || y >= picture->height) {
-        return;
-    }
-    uint32_t* pixel = &picture->pixels[y * picture->width + x];
-    *pixel = alpha >= 255 ? color : mix(*pixel, color, alpha);
-}
-
-static void drawBackground(Image* picture) {
-    const float cx = SCREEN_WIDTH * 0.78f;
-    const float cy = SCREEN_HEIGHT * 0.46f;
-    const float reach = sqrtf(cx * cx + (SCREEN_HEIGHT - cy) * (SCREEN_HEIGHT - cy));
-    for (int y = 0; y < picture->height; y++) {
-        for (int x = 0; x < picture->width; x++) {
-            float t = sqrtf((x - cx) * (x - cx) + (y - cy) * (y - cy)) / reach;
-            unsigned int inner = (unsigned int)(t / 0.45f * 255.0f);
-            unsigned int outer = (unsigned int)(fminf(fmaxf((t - 0.45f) / 0.55f, 0.0f), 1.0f) * 255.0f);
-            picture->pixels[y * picture->width + x] =
-                t < 0.45f ? mix(COLOR_CENTER, COLOR_MIDDLE, inner) : mix(COLOR_MIDDLE, COLOR_EDGE, outer);
-        }
-    }
-}
-
-static float roundCoverage(float px, float py, int x, int y, int w, int h, int radius) {
-    float cx = px < x + radius ? x + radius : px > x + w - radius ? x + w - radius : px;
-    float cy = py < y + radius ? y + radius : py > y + h - radius ? y + h - radius : py;
-    float d = sqrtf((px - cx) * (px - cx) + (py - cy) * (py - cy));
-    float coverage = radius + 0.5f - d;
-    return coverage <= 0.0f ? 0.0f : coverage >= 1.0f ? 1.0f : coverage;
-}
-
-static void fillRound(Image* picture, int x, int y, int w, int h, int radius, uint32_t color, unsigned int alpha) {
-    for (int py = y; py < y + h; py++) {
-        for (int px = x; px < x + w; px++) {
-            float coverage = roundCoverage(px + 0.5f, py + 0.5f, x, y, w, h, radius);
-            blendPixel(picture, px, py, color, (unsigned int)(coverage * alpha));
-        }
-    }
-}
-
-static void strokeRound(Image* picture, int x, int y, int w, int h, int radius, int thickness, uint32_t color,
-    unsigned int alpha) {
-    int inner = radius > thickness ? radius - thickness : 0;
-    for (int py = y; py < y + h; py++) {
-        for (int px = x; px < x + w; px++) {
-            float outer = roundCoverage(px + 0.5f, py + 0.5f, x, y, w, h, radius);
-            float hole = roundCoverage(px + 0.5f, py + 0.5f, x + thickness, y + thickness, w - 2 * thickness,
-                h - 2 * thickness, inner);
-            float coverage = outer - hole;
-            if (coverage > 0.0f) {
-                blendPixel(picture, px, py, color, (unsigned int)(coverage * alpha));
-            }
-        }
-    }
-}
-
-static int textWidth(const char* text, int size, Weight weight) {
-    TTF_Font* font = fontAt(size, weight);
-    int w = 0;
-    int h = 0;
-    if (font == NULL || text[0] == '\0' || TTF_SizeUTF8(font, text, &w, &h) != 0) {
-        return 0;
-    }
-    return w;
-}
-
-static void drawText(Image* picture, const char* text, int size, Weight weight, int x0, int top, uint32_t color) {
-    TTF_Font* font = fontAt(size, weight);
-    if (font == NULL || text[0] == '\0') {
-        return;
-    }
-    SDL_Color white = { 255, 255, 255, 255 };
-    SDL_Surface* drawn = TTF_RenderUTF8_Blended(font, text, white);
-    if (drawn == NULL) {
-        return;
-    }
-    SDL_Surface* surface = SDL_ConvertSurfaceFormat(drawn, SDL_PIXELFORMAT_ARGB8888, 0);
-    SDL_FreeSurface(drawn);
-    if (surface == NULL) {
-        return;
-    }
-    for (int y = 0; y < surface->h; y++) {
-        const uint32_t* row = (const uint32_t*)((const uint8_t*)surface->pixels + y * surface->pitch);
-        for (int x = 0; x < surface->w; x++) {
-            blendPixel(picture, x0 + x, top + y, color, row[x] >> 24);
-        }
-    }
-    SDL_FreeSurface(surface);
-}
-
-static int lineTop(int top, int size, int line_height, Weight weight) {
-    TTF_Font* font = fontAt(size, weight);
-    int height = font != NULL ? TTF_FontHeight(font) : size;
-    return top + (line_height - height) / 2;
-}
-
-static void drawLine(Image* picture, const char* line, const TextStyle* style, int x, int top, int width) {
-    int left = style->centered ? x + (width - textWidth(line, style->size, style->weight)) / 2 : x;
-    drawText(picture, line, style->size, style->weight, left,
-        lineTop(top, style->size, style->line_height, style->weight), style->color);
-}
-
-static int drawWrapped(Image* picture, const char* text, const TextStyle* style, int x, int top, int width) {
-    char line[LINE_SIZE * 2];
-    size_t used = 0;
-    const char* word = text;
-    while (*word != '\0') {
-        const char* end = strchr(word, ' ');
-        size_t length = end != NULL ? (size_t)(end - word) : strlen(word);
-        char candidate[sizeof(line)];
-        int written = snprintf(candidate, sizeof(candidate), "%.*s%s%.*s", (int)used, line, used ? " " : "",
-            (int)length, word);
-        if (used && (written >= (int)sizeof(candidate) || textWidth(candidate, style->size, style->weight) > width)) {
-            line[used] = '\0';
-            drawLine(picture, line, style, x, top, width);
-            top += style->line_height;
-            used = (size_t)snprintf(line, sizeof(line), "%.*s", (int)length, word);
-        } else {
-            used = (size_t)snprintf(line, sizeof(line), "%s", candidate);
-        }
-        word += length;
-        while (*word == ' ') {
-            word++;
-        }
-    }
-    if (used) {
-        line[used] = '\0';
-        drawLine(picture, line, style, x, top, width);
-        top += style->line_height;
-    }
-    return top;
-}
-
-static int wrappedHeight(const char* text, const TextStyle* style, int width) {
-    Image none = { NULL, 0, 0 };
-    return drawWrapped(&none, text, style, 0, 0, width);
-}
-
-static void drawIcon(Image* picture, int left, int top) {
+static void drawIcon(CarafeImage* picture, int left, int top) {
     if (g_icon.pixels == NULL) {
-        fillRound(picture, left, top, ICON_SIZE, ICON_SIZE, ICON_RADIUS, COLOR_ACCENT, 255);
+        carafeDrawRound(picture, left, top, ICON_SIZE, ICON_SIZE, ICON_RADIUS, CARAFE_COLOR_ACCENT, 255);
         char initial[8] = "";
         const unsigned char* first = (const unsigned char*)g_title;
         size_t length = *first >= 0xF0 ? 4 : *first >= 0xE0 ? 3 : *first >= 0xC0 ? 2 : 1;
         snprintf(initial, sizeof(initial), "%.*s", (int)length, g_title);
-        TextStyle style = { 64, WeightHeavy, ICON_SIZE, COLOR_INK, true };
-        drawLine(picture, initial, &style, left, top, ICON_SIZE);
+        CarafeTextStyle style = { 64, CarafeHeavy, ICON_SIZE, CARAFE_COLOR_INK, true };
+        carafeDrawLine(picture, initial, &style, left, top, ICON_SIZE);
         return;
     }
-    for (int y = 0; y < ICON_SIZE; y++) {
-        const uint32_t* row = g_icon.pixels + (size_t)(y * g_icon.height / ICON_SIZE) * g_icon.width;
-        for (int x = 0; x < ICON_SIZE; x++) {
-            float coverage = roundCoverage(x + 0.5f, y + 0.5f, 0, 0, ICON_SIZE, ICON_SIZE, ICON_RADIUS);
-            blendPixel(picture, left + x, top + y, 0xFF000000u | row[x * g_icon.width / ICON_SIZE],
-                (unsigned int)(coverage * 255));
-        }
-    }
+    carafeDrawPicture(picture, &g_icon, left, top, ICON_SIZE, ICON_RADIUS);
 }
 
 static void codeText(const Report* report, char* out, size_t size) {
@@ -769,46 +533,67 @@ static void codeText(const Report* report, char* out, size_t size) {
     snprintf(out, size, report->code < 0x100 ? "%u" : "0x%08X", report->code);
 }
 
+static bool repeated(const Report* report) {
+    return !report->trial && report->kind != KindSetup && carafeFailures() >= 2 && carafeChangesExist();
+}
+
+static bool settingsAvailable(const Report* report) {
+    char probe[16];
+    return report->kind != KindSetup && carafeOverlayReadRomfsText("/carafe/menu.txt", probe, sizeof(probe));
+}
+
 static int layoutButtons(const Report* report, Button* buttons) {
     int count = 0;
-    if (report->kind != KindSetup) {
-        buttons[count++] = (Button){ ChoiceRestart, 0, 0, 0, g_strings->restart };
+    if (report->trial) {
+        buttons[count++] = (Button){ ChoiceRevert, 0, 0, 0, g_strings->revert };
+        buttons[count++] = (Button){ ChoiceKeep, 0, 0, 0, g_strings->keep };
+    } else if (repeated(report)) {
+        buttons[count++] = (Button){ ChoiceRecommended, 0, 0, 0, g_strings->recommended };
+        if (settingsAvailable(report)) {
+            buttons[count++] = (Button){ ChoiceSettings, 0, 0, 0, g_strings->settings };
+        }
+    } else {
+        if (report->kind != KindSetup) {
+            buttons[count++] = (Button){ ChoiceRestart, 0, 0, 0, g_strings->restart };
+        }
+        if (settingsAvailable(report)) {
+            buttons[count++] = (Button){ ChoiceSettings, 0, 0, 0, g_strings->settings };
+        }
     }
     buttons[count++] = (Button){ ChoiceExit, 0, 0, 0, g_strings->exit };
     int x = MARGIN;
     for (int i = 0; i < count; i++) {
         buttons[i].x = x;
         buttons[i].y = SCREEN_HEIGHT - MARGIN - BUTTON_HEIGHT;
-        buttons[i].width = BUTTON_FOCUS_PAD + GLYPH_SIZE + 12 + textWidth(buttons[i].label, 22, WeightBold)
+        buttons[i].width = BUTTON_FOCUS_PAD + GLYPH_SIZE + 12 + carafeTextWidth(buttons[i].label, 22, CarafeBold)
             + BUTTON_PAD;
         x += buttons[i].width + BUTTON_GAP;
     }
     return count;
 }
 
-static void drawButton(Image* picture, const Button* button, bool focused) {
-    TextStyle label = { 22, WeightBold, BUTTON_HEIGHT, focused ? COLOR_PRIMARY_INK : COLOR_INK, false };
+static void drawButton(CarafeImage* picture, const Button* button, bool focused) {
+    CarafeTextStyle label = { 22, CarafeBold, BUTTON_HEIGHT, focused ? CARAFE_COLOR_PRIMARY_INK : CARAFE_COLOR_INK,
+        false };
     if (!focused) {
-        fillRound(picture, button->x, button->y, button->width, BUTTON_HEIGHT, BUTTON_RADIUS, COLOR_WHITE, 18);
-        strokeRound(picture, button->x, button->y, button->width, BUTTON_HEIGHT, BUTTON_RADIUS, 2, COLOR_WHITE, 36);
+        carafeDrawRound(picture, button->x, button->y, button->width, BUTTON_HEIGHT, BUTTON_RADIUS, CARAFE_COLOR_WHITE,
+            18);
+        carafeDrawRoundStroke(picture, button->x, button->y, button->width, BUTTON_HEIGHT, BUTTON_RADIUS, 2,
+            CARAFE_COLOR_WHITE, 36);
         label.centered = true;
-        drawLine(picture, button->label, &label, button->x, button->y, button->width);
+        carafeDrawLine(picture, button->label, &label, button->x, button->y, button->width);
         return;
     }
-    fillRound(picture, button->x - FOCUS_OUTER, button->y - FOCUS_OUTER, button->width + 2 * FOCUS_OUTER,
-        BUTTON_HEIGHT + 2 * FOCUS_OUTER, BUTTON_RADIUS + FOCUS_OUTER, COLOR_FOCUS, 255);
-    fillRound(picture, button->x - FOCUS_GAP, button->y - FOCUS_GAP, button->width + 2 * FOCUS_GAP,
-        BUTTON_HEIGHT + 2 * FOCUS_GAP, BUTTON_RADIUS + FOCUS_GAP, COLOR_GAP, 255);
-    fillRound(picture, button->x, button->y, button->width, BUTTON_HEIGHT, BUTTON_RADIUS, COLOR_INK, 255);
+    carafeDrawFocusRing(picture, button->x, button->y, button->width, BUTTON_HEIGHT, BUTTON_RADIUS);
     int glyph_x = button->x + BUTTON_FOCUS_PAD;
     int glyph_y = button->y + (BUTTON_HEIGHT - GLYPH_SIZE) / 2;
-    fillRound(picture, glyph_x, glyph_y, GLYPH_SIZE, GLYPH_SIZE, GLYPH_SIZE / 2, COLOR_PRIMARY_INK, 255);
-    TextStyle glyph = { 19, WeightHeavy, GLYPH_SIZE, COLOR_INK, true };
-    drawLine(picture, "A", &glyph, glyph_x, glyph_y, GLYPH_SIZE);
-    drawLine(picture, button->label, &label, glyph_x + GLYPH_SIZE + 12, button->y, 0);
+    carafeDrawRound(picture, glyph_x, glyph_y, GLYPH_SIZE, GLYPH_SIZE, GLYPH_SIZE / 2, CARAFE_COLOR_PRIMARY_INK, 255);
+    CarafeTextStyle glyph = { 19, CarafeHeavy, GLYPH_SIZE, CARAFE_COLOR_INK, true };
+    carafeDrawLine(picture, "A", &glyph, glyph_x, glyph_y, GLYPH_SIZE);
+    carafeDrawLine(picture, button->label, &label, glyph_x + GLYPH_SIZE + 12, button->y, 0);
 }
 
-static void drawCard(Image* picture, const Report* report) {
+static void drawCard(CarafeImage* picture, const Report* report) {
     const char* labels[MAX_ROWS];
     char values[MAX_ROWS][NAME_SIZE];
     int rows = 0;
@@ -825,57 +610,58 @@ static void drawCard(Image* picture, const Report* report) {
     labels[rows] = g_strings->played;
     snprintf(values[rows++], NAME_SIZE, "%02u:%02u", report->seconds / 60, report->seconds % 60);
 
-    const TextStyle label_style = { 17, WeightRegular, 26, COLOR_LABEL, false };
-    const TextStyle value_style = { 17, WeightRegular, 26, COLOR_VALUE, false };
+    const CarafeTextStyle label_style = { 17, CarafeRegular, 26, CARAFE_COLOR_LABEL, false };
+    const CarafeTextStyle value_style = { 17, CarafeRegular, 26, CARAFE_COLOR_VALUE, false };
     const int inner_x = CARD_X + CARD_PAD_X;
     const int inner_width = CARD_WIDTH - 2 * CARD_PAD_X;
     int label_width = 0;
     for (int i = 0; i < rows; i++) {
-        int w = textWidth(labels[i], label_style.size, label_style.weight);
+        int w = carafeTextWidth(labels[i], label_style.size, label_style.weight);
         label_width = w > label_width ? w : label_width;
     }
     const int value_x = inner_x + label_width + 18;
     const int value_width = inner_width - label_width - 18;
     int details_height = 0;
     for (int i = 0; i < rows; i++) {
-        details_height += wrappedHeight(values[i], &value_style, value_width) + (i ? 6 : 0);
+        details_height += carafeWrappedHeight(values[i], &value_style, value_width) + (i ? 6 : 0);
     }
 
     const int card_y = MARGIN;
     const int card_height = SCREEN_HEIGHT - 2 * MARGIN;
-    fillRound(picture, CARD_X, card_y, CARD_WIDTH, card_height, CARD_RADIUS, COLOR_PANEL, 107);
-    strokeRound(picture, CARD_X, card_y, CARD_WIDTH, card_height, CARD_RADIUS, 1, COLOR_WHITE, 20);
+    carafeDrawRound(picture, CARD_X, card_y, CARD_WIDTH, card_height, CARD_RADIUS, CARAFE_COLOR_PANEL, 107);
+    carafeDrawRoundStroke(picture, CARD_X, card_y, CARD_WIDTH, card_height, CARD_RADIUS, 1, CARAFE_COLOR_WHITE, 20);
 
     int y = card_y + CARD_PAD_Y;
     drawIcon(picture, CARD_X + (CARD_WIDTH - ICON_SIZE) / 2, y);
     y += ICON_SIZE + 22;
-    const TextStyle name = { 26, WeightBold, 31, COLOR_INK, true };
-    y = drawWrapped(picture, g_title, &name, inner_x, y, inner_width) + 14;
-    const TextStyle chip = { 16, WeightBold, 34, COLOR_CHIP, true };
-    int chip_width = textWidth(g_strings->closed, chip.size, chip.weight) + 28;
+    const CarafeTextStyle name = { 26, CarafeBold, 31, CARAFE_COLOR_INK, true };
+    y = carafeDrawWrapped(picture, g_title, &name, inner_x, y, inner_width) + 14;
+    const char* chip_text = report->trial ? g_strings->trial_chip : g_strings->closed;
+    const CarafeTextStyle chip = { 16, CarafeBold, 34, CARAFE_COLOR_CHIP, true };
+    int chip_width = carafeTextWidth(chip_text, chip.size, chip.weight) + 28;
     int chip_x = CARD_X + (CARD_WIDTH - chip_width) / 2;
-    fillRound(picture, chip_x, y, chip_width, chip.line_height, chip.line_height / 2, COLOR_FOCUS, 41);
-    drawLine(picture, g_strings->closed, &chip, chip_x, y, chip_width);
+    carafeDrawRound(picture, chip_x, y, chip_width, chip.line_height, chip.line_height / 2, CARAFE_COLOR_FOCUS, 41);
+    carafeDrawLine(picture, chip_text, &chip, chip_x, y, chip_width);
 
     y = card_y + card_height - CARD_PAD_Y - details_height;
-    fillRound(picture, inner_x, y - 18, inner_width, 1, 0, COLOR_WHITE, 40);
+    carafeDrawRound(picture, inner_x, y - 18, inner_width, 1, 0, CARAFE_COLOR_WHITE, 40);
     for (int i = 0; i < rows; i++) {
-        drawLine(picture, labels[i], &label_style, inner_x, y, 0);
-        y = drawWrapped(picture, values[i], &value_style, value_x, y, value_width) + 6;
+        carafeDrawLine(picture, labels[i], &label_style, inner_x, y, 0);
+        y = carafeDrawWrapped(picture, values[i], &value_style, value_x, y, value_width) + 6;
     }
 }
 
-static void render(Image* picture, const Report* report, const Button* buttons, int count, int focus) {
-    const KindText* text = &g_strings->kinds[report->kind];
-    const TextStyle title = { 40, WeightHeavy, 46, COLOR_INK, false };
-    const TextStyle body = { 22, WeightRegular, 32, COLOR_TEXT, false };
-    const TextStyle hint = { 19, WeightRegular, 28, COLOR_HINT, false };
-    drawBackground(picture);
+static void render(CarafeImage* picture, const Report* report, const Button* buttons, int count, int focus) {
+    const KindText* text = report->trial ? &g_strings->trial : &g_strings->kinds[report->kind];
+    const CarafeTextStyle title = { 40, CarafeHeavy, 46, CARAFE_COLOR_INK, false };
+    const CarafeTextStyle body = { 22, CarafeRegular, 32, CARAFE_COLOR_TEXT, false };
+    const CarafeTextStyle hint = { 19, CarafeRegular, 28, CARAFE_COLOR_HINT, false };
+    carafeDrawBackground(picture, 255);
 
     int y = MARGIN;
-    y = drawWrapped(picture, text->title, &title, MARGIN, y, TEXT_WIDTH) + 18;
-    y = drawWrapped(picture, text->body, &body, MARGIN, y, TEXT_WIDTH) + 18;
-    drawWrapped(picture, text->hint, &hint, MARGIN, y, TEXT_WIDTH);
+    y = carafeDrawWrapped(picture, text->title, &title, MARGIN, y, TEXT_WIDTH) + 18;
+    y = carafeDrawWrapped(picture, text->body, &body, MARGIN, y, TEXT_WIDTH) + 18;
+    carafeDrawWrapped(picture, repeated(report) ? g_strings->again : text->hint, &hint, MARGIN, y, TEXT_WIDTH);
 
     for (int i = 0; i < count; i++) {
         drawButton(picture, &buttons[i], i == focus);
@@ -883,7 +669,7 @@ static void render(Image* picture, const Report* report, const Button* buttons, 
     drawCard(picture, report);
 }
 
-static void present(Framebuffer* framebuffer, const Image* picture) {
+static void present(Framebuffer* framebuffer, const CarafeImage* picture) {
     u32 stride = 0;
     uint32_t* out = framebufferBegin(framebuffer, &stride);
     if (out == NULL) {
@@ -894,7 +680,7 @@ static void present(Framebuffer* framebuffer, const Image* picture) {
         uint32_t* target = (uint32_t*)((uint8_t*)out + (size_t)y * stride);
         for (int x = 0; x < picture->width; x++) {
             uint32_t argb = row[x];
-            target[x] = (argb & 0xFF00FF00u) | (argb >> 16 & 0xFFu) | (argb & 0xFFu) << 16;
+            target[x] = 0xFF000000u | (argb & 0x0000FF00u) | (argb >> 16 & 0xFFu) | (argb & 0xFFu) << 16;
         }
     }
     framebufferEnd(framebuffer);
@@ -910,8 +696,97 @@ static int buttonAt(const Button* buttons, int count, int x, int y) {
     return -1;
 }
 
-static Choice waitForChoice(Framebuffer* framebuffer, Image* picture, const Report* report) {
-    Button buttons[MAX_BUTTONS];
+static unsigned int oskButtons(u64 held) {
+    static const struct {
+        u64 button;
+        unsigned int osk;
+    } MAP[] = {
+        { HidNpadButton_Up, OSK_UP }, { HidNpadButton_Down, OSK_DOWN }, { HidNpadButton_Left, OSK_LEFT },
+        { HidNpadButton_Right, OSK_RIGHT }, { HidNpadButton_A, OSK_A }, { HidNpadButton_B, OSK_B },
+        { HidNpadButton_X, OSK_X }, { HidNpadButton_Y, OSK_Y }, { HidNpadButton_L, OSK_L },
+        { HidNpadButton_R, OSK_R }, { HidNpadButton_ZL, OSK_ZL }, { HidNpadButton_ZR, OSK_ZR },
+        { HidNpadButton_Plus, OSK_PLUS }, { HidNpadButton_Minus, OSK_MINUS },
+        { HidNpadButton_StickL, OSK_STICKL }, { HidNpadButton_StickR, OSK_STICKR },
+    };
+    unsigned int bits = 0;
+    for (size_t i = 0; i < sizeof(MAP) / sizeof(MAP[0]); i++) {
+        if (held & MAP[i].button) {
+            bits |= MAP[i].osk;
+        }
+    }
+    return bits;
+}
+
+static CarafeFailure failureOf(Kind kind) {
+    switch (kind) {
+    case KindMemory:
+        return CarafeKindMemory;
+    case KindThreads:
+        return CarafeKindThreads;
+    case KindCrash:
+    case KindSystem:
+        return CarafeKindCrash;
+    default:
+        return CarafeKindNone;
+    }
+}
+
+static bool settingsLoop(Framebuffer* framebuffer, CarafeImage* picture, PadState* pad, const Report* report) {
+    if (!carafeMenuOpenError(failureOf(report->kind))) {
+        return false;
+    }
+    char* before = calloc(1, CHANGES_SIZE);
+    if (before != NULL) {
+        carafeReadChangesText(before, CHANGES_SIZE);
+    }
+    unsigned int drawn = 0;
+    bool restart = false;
+    while (appletMainLoop()) {
+        padUpdate(pad);
+        u64 held = padGetButtons(pad);
+        HidAnalogStickState stick = padGetStickPos(pad, 0);
+        unsigned int bits = oskButtons(held);
+        if (stick.y > 16000) {
+            bits |= OSK_UP;
+        } else if (stick.y < -16000) {
+            bits |= OSK_DOWN;
+        }
+        if (stick.x > 16000) {
+            bits |= OSK_RIGHT;
+        } else if (stick.x < -16000) {
+            bits |= OSK_LEFT;
+        }
+        HidTouchScreenState touch = { 0 };
+        bool touched = hidGetTouchScreenStates(&touch, 1) && touch.count > 0;
+        CarafeMenuAction action = carafeMenuInput(bits, touched, touched ? (int)touch.touches[0].x : 0,
+            touched ? (int)touch.touches[0].y : 0, armTicksToNs(armGetSystemTick()));
+        if (action == CarafeMenuBack) {
+            break;
+        }
+        if (action == CarafeMenuRestart) {
+            restart = true;
+            break;
+        }
+        unsigned int generation = carafeMenuGeneration();
+        if (generation != drawn) {
+            carafeMenuRender(picture);
+            drawn = generation;
+        }
+        present(framebuffer, picture);
+    }
+    carafeMenuClose();
+    char* after = calloc(1, CHANGES_SIZE);
+    if (restart && before != NULL && after != NULL) {
+        carafeReadChangesText(after, CHANGES_SIZE);
+        carafeTrialWrite(strcmp(before, after) != 0);
+    }
+    free(before);
+    free(after);
+    return restart;
+}
+
+static Choice waitForChoice(Framebuffer* framebuffer, CarafeImage* picture, const Report* report) {
+    Button buttons[MAX_BUTTONS + 1];
     int count = layoutButtons(report, buttons);
     int focus = 0;
     int drawn = -1;
@@ -925,8 +800,9 @@ static Choice waitForChoice(Framebuffer* framebuffer, Image* picture, const Repo
     while (appletMainLoop()) {
         padUpdate(&pad);
         u64 down = padGetButtonsDown(&pad);
+        Choice chosen = ChoiceNone;
         if (down & HidNpadButton_A) {
-            return buttons[focus].choice;
+            chosen = buttons[focus].choice;
         }
         if (down & (HidNpadButton_B | HidNpadButton_Plus)) {
             return ChoiceExit;
@@ -942,10 +818,21 @@ static Choice waitForChoice(Framebuffer* framebuffer, Image* picture, const Repo
         if (touched && !touching) {
             int hit = buttonAt(buttons, count, (int)touch.touches[0].x, (int)touch.touches[0].y);
             if (hit >= 0) {
-                return buttons[hit].choice;
+                chosen = buttons[hit].choice;
             }
         }
         touching = touched;
+        if (chosen == ChoiceSettings) {
+            if (settingsLoop(framebuffer, picture, &pad, report)) {
+                return ChoiceRestart;
+            }
+            drawn = -1;
+            touching = true;
+            continue;
+        }
+        if (chosen != ChoiceNone) {
+            return chosen;
+        }
         if (drawn != focus) {
             render(picture, report, buttons, count, focus);
             drawn = focus;
@@ -961,14 +848,24 @@ static Choice waitForChoice(Framebuffer* framebuffer, Image* picture, const Repo
 
 static void restartGame(void) {
     char argv[ARGV_SIZE];
-    if (!carafeOverlayReadRomfsText("/carafe/argv", argv, sizeof(argv))) {
+    if (!carafeGameArgv(argv, sizeof(argv))) {
         carafeOverlayLog("error screen: the game's arguments are not in RomFS; going back to the menu");
         return;
     }
-    argv[strcspn(argv, "\r\n")] = '\0';
+    carafeOverlayCommit("before starting the game again");
     if (R_FAILED(envSetNextLoad(RUNTIME_NRO, argv))) {
         carafeOverlayLog("error screen: the game cannot be started again; going back to the menu");
     }
+}
+
+static void bringBack(void) {
+    char* text = malloc(CHANGES_SIZE);
+    if (text != NULL && carafeTrialRead(text, CHANGES_SIZE)) {
+        carafeWriteChangesText(text);
+        carafeOverlayLog("error screen: the settings from before the trial run are back");
+    }
+    free(text);
+    carafeTrialClear();
 }
 
 static int errorScreen(void) {
@@ -982,13 +879,15 @@ static int errorScreen(void) {
         return 0;
     }
 
-    chooseLanguage();
+    if (carafeLanguage() == 0) {
+        g_strings = &STRINGS_RU;
+    }
     loadTitle();
-    loadIcon();
+    carafeLoadIcon(&g_icon);
 
-    char line[LINE_SIZE];
-    snprintf(line, sizeof(line), "error screen: kind %d, code 0x%08x, module %s", (int)report.kind, report.code,
-        report.module[0] != '\0' ? report.module : "-");
+    char line[LINE_SIZE * 2];
+    snprintf(line, sizeof(line), "error screen: kind %d, code 0x%08x, module %s%s", (int)report.kind, report.code,
+        report.module[0] != '\0' ? report.module : "-", report.trial ? ", after a trial run" : "");
     carafeOverlayLog(line);
 
     Framebuffer framebuffer;
@@ -998,7 +897,7 @@ static int errorScreen(void) {
         return 0;
     }
     framebufferMakeLinear(&framebuffer);
-    Image picture = { malloc((size_t)SCREEN_WIDTH * SCREEN_HEIGHT * 4), SCREEN_WIDTH, SCREEN_HEIGHT };
+    CarafeImage picture = { malloc((size_t)SCREEN_WIDTH * SCREEN_HEIGHT * 4), SCREEN_WIDTH, SCREEN_HEIGHT };
     Choice choice = ChoiceExit;
     if (picture.pixels != NULL) {
         choice = waitForChoice(&framebuffer, &picture, &report);
@@ -1006,11 +905,29 @@ static int errorScreen(void) {
     }
     framebufferClose(&framebuffer);
 
-    if (choice == ChoiceRestart) {
+    switch (choice) {
+    case ChoiceRestart:
         carafeOverlayLog("error screen: restart");
         restartGame();
-    } else {
+        break;
+    case ChoiceRevert:
+        bringBack();
+        restartGame();
+        break;
+    case ChoiceKeep:
+        carafeOverlayLog("error screen: the new settings stay");
+        carafeTrialClear();
+        restartGame();
+        break;
+    case ChoiceRecommended:
+        carafeOverlayLog("error screen: recommended settings");
+        carafeResetAll(NULL, false);
+        carafeFailuresClear();
+        restartGame();
+        break;
+    default:
         carafeOverlayLog("error screen: exit");
+        break;
     }
     return 0;
 }

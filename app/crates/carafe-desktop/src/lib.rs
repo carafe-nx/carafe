@@ -91,6 +91,7 @@ pub fn run() {
             commands::preferences::save_preferences,
             commands::preferences::check_keys,
             commands::preferences::recommended_settings,
+            commands::preferences::settings_catalog,
             commands::preferences::library_dir_for,
             commands::preferences::create_library_dir,
             commands::device::device_status,

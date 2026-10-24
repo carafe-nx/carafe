@@ -219,3 +219,8 @@
   background: var(--accent);
   transition: width 0.2s;
 }
+
+.select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
