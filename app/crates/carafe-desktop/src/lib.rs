@@ -20,6 +20,7 @@ use carafe_keys::FileKeysChecker;
 use carafe_library::DiskGameStore;
 use carafe_mtp::MtpDevice;
 use carafe_pack::HacBrewPacker;
+use carafe_regfiles::DiskRegistryFiles;
 use carafe_steamgriddb::SteamGridDb;
 use tauri::path::PathResolver;
 use tauri::{Manager, RunEvent, Runtime};
@@ -49,6 +50,7 @@ pub fn run() {
         Arc::new(FileKeysChecker),
         Arc::new(FileImageReader),
         Arc::new(SteamGridDb::new()),
+        Arc::new(DiskRegistryFiles),
         RUNTIME_VERSION,
         RuntimeCapabilities { stable_x64: false },
     );
@@ -127,6 +129,8 @@ pub fn run() {
             commands::rebuild::start_rebuild,
             commands::rebuild::stop_rebuild,
             commands::rebuild::rebuild_status,
+            commands::registry::import_registry,
+            commands::registry::export_registry,
         ])
         .build(tauri::generate_context!());
     match result {

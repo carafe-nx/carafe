@@ -809,5 +809,108 @@
       "failed": "失败",
       "skipped": "已跳过"
     }
+  },
+  "registry": {
+    "nav": "注册表",
+    "lead": "Carafe 写入此游戏 Windows 注册表的项。下面的菜单行会出现在 Switch 的 系统 › 游戏注册表 中，就像带值列表的普通设置。在那里也可以查看和修改游戏的整个注册表。",
+    "import": "导入 .reg…",
+    "add": "添加项",
+    "export": "导出 .reg…",
+    "mode": "写入游戏",
+    "modes": {
+      "once": "一次",
+      "everyStart": "每次启动"
+    },
+    "modeHints": {
+      "once": "首次启动时以及重新构建后。之后游戏或您所做的更改会保留。",
+      "everyStart": "每次启动都会恢复这些项，即使游戏更改了它们。"
+    },
+    "emptyTitle": "还没有项",
+    "emptyText": "导入 .reg 文件（例如游戏指南中的，或从电脑注册表导出的），或手动添加项。",
+    "entries": "注册表项",
+    "root": "根",
+    "path": "项",
+    "name": "名称",
+    "nameHint": "名称为空表示默认值 (@)。",
+    "type": "类型",
+    "value": "值",
+    "inMenu": "在菜单中",
+    "notInMenu": "否",
+    "types": {
+      "string": "字符串",
+      "expandString": "带 %…% 的字符串",
+      "multiString": "字符串列表",
+      "dword": "数字",
+      "qword": "64 位数字",
+      "binary": "数据",
+      "other": "其他类型",
+      "deleteValue": "删除",
+      "deleteKey": "删除项"
+    },
+    "valueHints": {
+      "string": "原样的文本。",
+      "expandString": "读取时会替换其中 %变量% 的文本。",
+      "multiString": "用分号分隔的字符串。",
+      "dword": "十进制数或 0x… — 0 到 4294967295。",
+      "qword": "十进制数或 0x… — 最大 18446744073709551615。",
+      "binary": "十六进制字节：de ad be ef。",
+      "other": "十六进制字节。",
+      "deleteValue": "从项中删除该值。",
+      "deleteKey": "删除该项及其中的全部内容。"
+    },
+    "invalid": {
+      "string": "字符串不合适。",
+      "expandString": "字符串不合适。",
+      "multiString": "列表不合适。",
+      "dword": "需要 0 到 4294967295 的数字或 0x…。",
+      "qword": "需要不超过 18446744073709551615 的数字或 0x…。",
+      "binary": "需要类似 01 ff 7a 的字节。",
+      "other": "需要类似 01 ff 7a 的字节。",
+      "deleteValue": "—",
+      "deleteKey": "—"
+    },
+    "makeRow": "设为菜单行",
+    "remove": "删除此项",
+    "menuTitle": "Switch 上的菜单行",
+    "menuText": "每一行同时更改一个或多个项",
+    "importTitle": "导入 {{name}}",
+    "importText": "勾选要放入游戏的内容。HKEY_CLASSES_ROOT 变为 HKLM\\Software\\Classes，Wow6432Node 会被去掉：游戏的 32 位和 64 位共用一个注册表。删除项也会一并导入。",
+    "replaces": "将替换",
+    "skipped_one": "{{count}} 行未导入",
+    "skipped_other": "{{count}} 行未导入",
+    "skipLine": "第 {{line}} 行：{{reason}}。",
+    "skipReasons": {
+      "unknownRoot": "游戏的注册表中没有这个根",
+      "noKey": "在第一个项之前的值",
+      "badValue": "无法读取该值"
+    },
+    "importCount_one": "导入 {{count}} 项",
+    "importCount_other": "导入 {{count}} 项",
+    "importErrors": {
+      "format": "这不是 Windows 注册表文件：第一行必须是“Windows Registry Editor Version 5.00”或“REGEDIT4”。",
+      "read": "无法读取该文件。"
+    },
+    "imported_one": "已从 {{name}} 导入 {{count}} 项。",
+    "imported_other": "已从 {{name}} 导入 {{count}} 项。",
+    "exported_one": "已导出 {{count}} 项。",
+    "exported_other": "已导出 {{count}} 项。",
+    "exportError": "文件未能写入。",
+    "newRow": "新行",
+    "unnamed": "未命名",
+    "rowSummary_one": "{{count}} 个选项 · {{names}}",
+    "rowSummary_other": "{{count}} 个选项 · {{names}}",
+    "addRow": "+ 菜单行",
+    "rowName": "菜单中的名称",
+    "preview": "在 Switch 上的样子",
+    "rowHint": "提示",
+    "fields": "此行写入的内容",
+    "addField": "+ 值",
+    "removeField": "移除此值",
+    "option": "选项",
+    "optionLabel": "显示为",
+    "addOption": "+ 选项",
+    "removeOption": "移除此选项",
+    "removeRow": "删除此行",
+    "noRows": "还没有菜单行。在表格中选择一项并点击“设为菜单行”，或在左侧添加一行。"
   }
 }

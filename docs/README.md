@@ -19,6 +19,8 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/game-speed/REPORT.md](research/game-speed/REPORT.md) — where CPU time goes in a translated game and how to win
   it back.
 - [research/in-game-menu/REPORT.md](research/in-game-menu/REPORT.md) — a settings menu over a running game.
+- [research/game-registry/REPORT.md](research/game-registry/REPORT.md) — a game's Windows registry: where it lives, laying
+  entries over it, `.reg` files.
 
 ## Keeping it
 

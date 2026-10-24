@@ -119,7 +119,11 @@ export function WizardPage() {
             />
           ) : null}
           {state.step === "settings" ? (
-            <SettingsEditor value={state.settings} onChange={(settings) => dispatch({ type: "settings", settings })} />
+            <SettingsEditor
+              value={state.settings}
+              onChange={(settings) => dispatch({ type: "settings", settings })}
+              withRegistry
+            />
           ) : null}
           {state.step === "build" ? (
             <BuildStep

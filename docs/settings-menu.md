@@ -75,3 +75,35 @@ RomFS, applies `changes.txt` to them and writes the result to the same paths und
 overlay puts them into save data and Autorun finds them. Values nobody changed on the console come from the package,
 so a game built again with a newer Carafe gets its defaults. "Recommended settings" in the menu removes
 `changes.txt`.
+
+## `carafe/registry.txt`
+
+The game's registry entries and the menu's "Game registry" rows ([decision 34](decisions/0034-game-registry.md)), in
+the package's RomFS when the game has any. UTF-8, a record per line, fields separated by a tab; an empty field is the
+key's default value.
+
+```
+carafe-registry	1
+mode	once
+set	HKCU	Software\Studio\Game	Width	4	00050000
+delete	HKCU	Software\Studio\Game	Old
+deletekey	HKLM	Software\Studio\Cache
+row	Language	Language of the game's text
+field	HKCU	Software\Studio\Game	Language	1
+option	Русский	720075000000
+option	English	65006e000000
+```
+
+- `mode once|always` — the entries are written once per package or at every start.
+- `set <root> <path> <name> <type> <hex>` — `<root>` is `HKCU` or `HKLM`, `<type>` the Windows type number, `<hex>` the
+  value's bytes as the registry stores them: strings in UTF-16LE with their terminating zero, numbers little-endian.
+- `delete <root> <path> <name>` and `deletekey <root> <path>` — remove a value, or a key with everything under it.
+- `row <name> <hint>`, then `field <root> <path> <name> <type>` for each value the row writes, then
+  `option <label> <hex>…` with one `<hex>` per field.
+
+When Autorun has read the registry and before the game reads it, Carafe lays the entries over it: in `once` mode only
+when `carafe/registry-applied` in save data does not hold the hash of this file, which it then writes. Then it applies
+`carafe/registry-pending.txt` from save data — the changes made in the menu, in the same `set`/`delete`/`deletekey` lines
+under the header `carafe-registry-pending	1` — and removes it. A trial run first keeps the values those changes replace
+in `sdmc:/switch/carafe/<program id>/registry-rollback.txt`; "Bring back" on the error screen makes them the pending
+changes. "Restore recommended" removes the pending changes and `registry-applied`.

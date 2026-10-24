@@ -22,6 +22,7 @@ pub mod pfs0;
 pub mod ports;
 pub mod rebuild;
 pub mod record;
+pub mod registry;
 pub mod runtime_files;
 pub mod settings;
 pub mod settings_catalog;

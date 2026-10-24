@@ -17,6 +17,7 @@ carafe-keys = { path = "crates/carafe-keys" }
 carafe-library = { path = "crates/carafe-library" }
 carafe-mtp = { path = "crates/carafe-mtp" }
 carafe-pack = { path = "crates/carafe-pack" }
+carafe-regfiles = { path = "crates/carafe-regfiles" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

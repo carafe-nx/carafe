@@ -16,6 +16,8 @@ import type { KeysReport } from "./bindings/KeysReport";
 import type { Preferences } from "./bindings/Preferences";
 import type { RebuildOffer } from "./bindings/RebuildOffer";
 import type { RebuildStatus } from "./bindings/RebuildStatus";
+import type { RegImport } from "./bindings/RegImport";
+import type { RegistryEntry } from "./bindings/RegistryEntry";
 import type { TitleId } from "./bindings/TitleId";
 import type { UpdateStatus } from "./bindings/UpdateStatus";
 import type { Warning } from "./bindings/Warning";
@@ -64,6 +66,8 @@ export const api = {
   startRebuild: (games: TitleId[]) => invoke<void>("start_rebuild", { games }),
   stopRebuild: () => invoke<void>("stop_rebuild"),
   rebuildStatus: () => invoke<RebuildStatus>("rebuild_status"),
+  importRegistry: (path: string) => invoke<RegImport>("import_registry", { path }),
+  exportRegistry: (path: string, entries: RegistryEntry[]) => invoke<void>("export_registry", { path, entries }),
 };
 
 export function isCommandError(value: unknown): value is CommandError {

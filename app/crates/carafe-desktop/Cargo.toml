@@ -21,6 +21,7 @@ carafe-keys.workspace = true
 carafe-library.workspace = true
 carafe-mtp.workspace = true
 carafe-pack.workspace = true
+carafe-regfiles.workspace = true
 carafe-steamgriddb.workspace = true
 serde.workspace = true
 serde_json.workspace = true

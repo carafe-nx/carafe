@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use carafe_core::ports::{
     AdapterError, ArtSearch, Device, FolderInspector, GameStore, ImageReader, KeysChecker, Packer,
-    StoredGame,
+    RegistryFiles, StoredGame,
 };
 use carafe_core::wizard::RuntimeCapabilities;
 
@@ -29,6 +29,8 @@ pub struct Services {
     pub images: Arc<dyn ImageReader>,
     /// Cover search on SteamGridDB.
     pub art: Arc<dyn ArtSearch>,
+    /// `.reg` files imported into a game and exported from it.
+    pub registry_files: Arc<dyn RegistryFiles>,
     /// Version of the runtime bundled with the application.
     pub runtime_version: String,
     /// What this runtime can do.
@@ -48,6 +50,7 @@ impl Services {
         keys: Arc<dyn KeysChecker>,
         images: Arc<dyn ImageReader>,
         art: Arc<dyn ArtSearch>,
+        registry_files: Arc<dyn RegistryFiles>,
         runtime_version: impl Into<String>,
         capabilities: RuntimeCapabilities,
     ) -> Self {
@@ -59,6 +62,7 @@ impl Services {
             keys,
             images,
             art,
+            registry_files,
             runtime_version: runtime_version.into(),
             capabilities,
             preferences: Mutex::new(Preferences::default()),

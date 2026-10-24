@@ -1,0 +1,407 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lead {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 760px;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.modeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.modeHint {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  max-width: 420px;
+}
+
+.empty {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r-panel);
+  padding: 40px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.empty h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.empty p {
+  margin: 0;
+  max-width: 520px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.emptyActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.table {
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr) 96px minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel-solid);
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.head {
+  cursor: default;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--track);
+}
+
+.row[aria-expanded="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.mono {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 9px;
+  background: var(--track);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.typeDelete {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.menuName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.noMenu {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.edit {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 2fr) minmax(0, 1.2fr) 170px;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--accent-soft);
+}
+
+.editWide {
+  grid-column: 1 / -1;
+}
+
+.editActions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.section {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.section h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.section span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.menu {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.menuItem strong {
+  font-weight: 600;
+}
+
+.menuItem small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.menuItem[aria-current="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.menuCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--panel-solid);
+}
+
+.menuHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 14px;
+  align-items: end;
+}
+
+.preview {
+  border-radius: 12px;
+  background: var(--console-panel);
+  padding: 10px;
+}
+
+.previewCaption {
+  margin: 0 0 6px 4px;
+  font-size: 11px;
+  color: var(--console-label);
+}
+
+.previewRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: var(--console-row);
+  color: var(--console-row-ink);
+  font-size: 14px;
+  box-shadow:
+    0 0 0 3px var(--console-panel),
+    0 0 0 5px var(--console-focus);
+}
+
+.previewRow span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid {
+  display: grid;
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.gridHead {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+
+.dialog {
+  width: min(780px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--panel-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-panel);
+}
+
+.dialog::backdrop {
+  background: rgba(15, 8, 12, 0.5);
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.dialog p {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.importList {
+  margin-top: 14px;
+  max-height: 46vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+}
+
+.importRow {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 96px minmax(0, 0.8fr);
+  gap: 12px;
+  align-items: center;
+  padding: 7px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.importRow:first-child {
+  border-top: 0;
+}
+
+.replaces {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 11.5px;
+}
+
+.skipped {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.skipped summary {
+  cursor: pointer;
+}
+
+.skipped ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@media (max-width: 760px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .edit,
+  .menu,
+  .menuHead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mode {
+    margin-left: 0;
+    align-items: flex-start;
+  }
+}

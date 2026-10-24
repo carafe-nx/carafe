@@ -377,3 +377,21 @@ pub trait KeysChecker: Send + Sync {
     /// [`AdapterError::NotFound`] or [`AdapterError::Io`] if the file cannot be read.
     fn check(&self, path: &str) -> Result<KeysReport, AdapterError>;
 }
+
+/// Windows registry files the player imports into a game and exports from it.
+pub trait RegistryFiles: Send + Sync {
+    /// Reads a `.reg` file.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::NotFound`] or [`AdapterError::Io`] if the file cannot be read;
+    /// [`AdapterError::Unsupported`] if it is too large to be a registry file for one game.
+    fn read(&self, path: &str) -> Result<Vec<u8>, AdapterError>;
+
+    /// Writes a `.reg` file, replacing one that is there.
+    ///
+    /// # Errors
+    ///
+    /// [`AdapterError::Io`] if the file cannot be written.
+    fn write(&self, path: &str, bytes: &[u8]) -> Result<(), AdapterError>;
+}

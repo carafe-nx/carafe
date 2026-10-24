@@ -3,6 +3,7 @@ import type { DebugSettings } from "./DebugSettings";
 import type { GraphicsSettings } from "./GraphicsSettings";
 import type { InputSettings } from "./InputSettings";
 import type { OptionValues } from "./OptionValues";
+import type { RegistrySettings } from "./RegistrySettings";
 import type { SystemSettings } from "./SystemSettings";
 
 /**
@@ -30,4 +31,8 @@ debug: DebugSettings,
 /**
  * Values of the catalog's settings without a typed field: FEX, DXVK and Box64 options.
  */
-options: OptionValues, };
+options: OptionValues, 
+/**
+ * Entries laid over the game's Windows registry and the console menu rows that change it.
+ */
+registry: RegistrySettings, };

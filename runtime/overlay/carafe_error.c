@@ -11,6 +11,7 @@
 #include "carafe_error.h"
 #include "carafe_menu.h"
 #include "carafe_overlay.h"
+#include "carafe_registry.h"
 #include "carafe_settings.h"
 #include "osk.h"
 
@@ -865,6 +866,7 @@ static void bringBack(void) {
         carafeOverlayLog("error screen: the settings from before the trial run are back");
     }
     free(text);
+    carafeRegistryBringBack();
     carafeTrialClear();
 }
 

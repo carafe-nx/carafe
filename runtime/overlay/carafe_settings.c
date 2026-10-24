@@ -9,6 +9,7 @@
 #include <switch.h>
 
 #include "carafe_overlay.h"
+#include "carafe_registry.h"
 #include "carafe_settings.h"
 #include "input_profile.h"
 
@@ -1184,6 +1185,7 @@ bool carafeUndoPending(CarafeCatalog* catalog) {
 }
 
 bool carafeResetAll(CarafeCatalog* catalog, bool live) {
+    carafeRegistryReset();
     g_change_count = 0;
     bool ok = carafeSaveChanges();
     if (catalog == NULL) {
@@ -1265,6 +1267,7 @@ void carafeTrialClear(void) {
     volatilePath("trial.txt", path, sizeof(path));
     remove(path);
     g_trial_done = true;
+    carafeRegistryTrialClear();
 }
 
 unsigned int carafeFailures(void) {

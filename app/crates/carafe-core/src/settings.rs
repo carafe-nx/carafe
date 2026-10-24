@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+use crate::registry::{RegistryError, RegistrySettings};
 use crate::settings_catalog::{self, Setting, Storage};
 
 /// All Autorun runtime settings that Carafe puts into the NSP.
@@ -26,6 +27,9 @@ pub struct AutorunSettings {
     /// Values of the catalog's settings without a typed field: FEX, DXVK and Box64 options.
     #[serde(default)]
     pub options: OptionValues,
+    /// Entries laid over the game's Windows registry and the console menu rows that change it.
+    #[serde(default)]
+    pub registry: RegistrySettings,
 }
 
 impl AutorunSettings {
@@ -37,7 +41,8 @@ impl AutorunSettings {
     pub fn validate(&self) -> Result<(), SettingsError> {
         self.input.validate()?;
         self.graphics.validate()?;
-        self.options.validate()
+        self.options.validate()?;
+        self.registry.validate().map_err(SettingsError::Registry)
     }
 }
 
@@ -136,6 +141,9 @@ pub enum SettingsError {
     /// An option that is not in the catalog, or a value it does not have.
     #[error("option {0} has an unknown value")]
     Option(String),
+    /// A registry entry or a console menu row that cannot go into the package.
+    #[error(transparent)]
+    Registry(RegistryError),
 }
 
 /// Maximum number of codes in one chord.

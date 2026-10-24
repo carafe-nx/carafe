@@ -25,6 +25,11 @@
   --warn-soft: rgba(184, 138, 30, 0.14);
   --danger: #b3261e;
   --danger-soft: rgba(179, 38, 30, 0.1);
+  --console-panel: #1c0b13;
+  --console-label: #b08c99;
+  --console-row: #fff5f8;
+  --console-row-ink: #3b0f20;
+  --console-focus: #db6e87;
   color-scheme: light;
 }
 

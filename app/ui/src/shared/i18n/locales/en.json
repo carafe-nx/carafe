@@ -748,5 +748,108 @@
       "failed": "Failed",
       "skipped": "Skipped"
     }
+  },
+  "registry": {
+    "nav": "Registry",
+    "lead": "Entries Carafe puts into this game's Windows registry. The menu rows below appear on the Switch in System › Game registry as ordinary settings with a list of values. The game's whole registry can be viewed and changed there too.",
+    "import": "Import .reg…",
+    "add": "Add an entry",
+    "export": "Export .reg…",
+    "mode": "Write into the game",
+    "modes": {
+      "once": "Once",
+      "everyStart": "At every start"
+    },
+    "modeHints": {
+      "once": "At the first start and after a new build. What the game or you change later stays.",
+      "everyStart": "The entries come back at every start, even if the game changed them."
+    },
+    "emptyTitle": "No entries yet",
+    "emptyText": "Import a .reg file — from the game's guide, say, or exported from the registry on a PC — or add an entry by hand.",
+    "entries": "Registry entries",
+    "root": "Root",
+    "path": "Key",
+    "name": "Name",
+    "nameHint": "An empty name is the default value (@).",
+    "type": "Type",
+    "value": "Value",
+    "inMenu": "In the menu",
+    "notInMenu": "no",
+    "types": {
+      "string": "String",
+      "expandString": "String with %…%",
+      "multiString": "List of strings",
+      "dword": "Number",
+      "qword": "Number 64",
+      "binary": "Data",
+      "other": "Other type",
+      "deleteValue": "Delete",
+      "deleteKey": "Delete key"
+    },
+    "valueHints": {
+      "string": "The text as it is.",
+      "expandString": "Text where %VARIABLES% are filled in when it is read.",
+      "multiString": "Strings separated by semicolons.",
+      "dword": "A decimal number or 0x… — from 0 to 4294967295.",
+      "qword": "A decimal number or 0x… — up to 18446744073709551615.",
+      "binary": "Bytes in hexadecimal: de ad be ef.",
+      "other": "Bytes in hexadecimal.",
+      "deleteValue": "The value is removed from the key.",
+      "deleteKey": "The key is removed with everything in it."
+    },
+    "invalid": {
+      "string": "The string does not fit.",
+      "expandString": "The string does not fit.",
+      "multiString": "The list does not fit.",
+      "dword": "A number from 0 to 4294967295 or 0x… is needed.",
+      "qword": "A number up to 18446744073709551615 or 0x… is needed.",
+      "binary": "Bytes like 01 ff 7a are needed.",
+      "other": "Bytes like 01 ff 7a are needed.",
+      "deleteValue": "—",
+      "deleteKey": "—"
+    },
+    "makeRow": "Make a menu row",
+    "remove": "Delete the entry",
+    "menuTitle": "Menu rows on the Switch",
+    "menuText": "Each row changes one or several entries at once",
+    "importTitle": "Import {{name}}",
+    "importText": "Tick what goes into the game. HKEY_CLASSES_ROOT becomes HKLM\\Software\\Classes and Wow6432Node is dropped: the game has one registry for 32 and 64 bits. Deletions come along too.",
+    "replaces": "replaces",
+    "skipped_one": "{{count}} line not imported",
+    "skipped_other": "{{count}} lines not imported",
+    "skipLine": "Line {{line}}: {{reason}}.",
+    "skipReasons": {
+      "unknownRoot": "the game's registry has no such root",
+      "noKey": "a value before the first key",
+      "badValue": "the value cannot be read"
+    },
+    "importCount_one": "Import {{count}} entry",
+    "importCount_other": "Import {{count}} entries",
+    "importErrors": {
+      "format": "This is not a Windows registry file: its first line must be “Windows Registry Editor Version 5.00” or “REGEDIT4”.",
+      "read": "The file cannot be read."
+    },
+    "imported_one": "{{count}} entry taken from {{name}}.",
+    "imported_other": "{{count}} entries taken from {{name}}.",
+    "exported_one": "{{count}} entry exported.",
+    "exported_other": "{{count}} entries exported.",
+    "exportError": "The file was not written.",
+    "newRow": "New row",
+    "unnamed": "Untitled",
+    "rowSummary_one": "{{count}} choice · {{names}}",
+    "rowSummary_other": "{{count}} choices · {{names}}",
+    "addRow": "+ Menu row",
+    "rowName": "Name in the menu",
+    "preview": "How it looks on the Switch",
+    "rowHint": "Hint",
+    "fields": "What the row writes",
+    "addField": "+ Value",
+    "removeField": "Remove the value",
+    "option": "Choice",
+    "optionLabel": "Shown as",
+    "addOption": "+ Choice",
+    "removeOption": "Remove the choice",
+    "removeRow": "Delete the row",
+    "noRows": "No menu rows yet. Pick an entry in the table and press “Make a menu row”, or add a row on the left."
   }
 }

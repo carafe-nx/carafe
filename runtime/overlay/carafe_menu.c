@@ -1,13 +1,16 @@
+#include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <switch.h>
 
 #include "carafe_menu.h"
 #include "carafe_overlay.h"
+#include "carafe_registry.h"
 #include "osk.h"
 
 #define MENU_OPACITY 214
@@ -29,6 +32,11 @@
 #define REPEAT_NEXT_NS 110000000ULL
 #define TEXT_SIZE 256
 #define CHORD_BUTTONS (HidNpadButton_Minus | HidNpadButton_Plus | HidNpadButton_L | HidNpadButton_R)
+#define REG_MAX_ENTRIES 192
+#define REG_LIST_TOP 194
+#define REG_TEXT_MAX 200
+#define REG_EDIT_W 880
+#define REG_LINE 1024
 
 typedef enum {
     ItemSetting,
@@ -36,6 +44,7 @@ typedef enum {
     ItemPreset,
     ItemReset,
     ItemSuggest,
+    ItemRegistry,
 } ItemKind;
 
 typedef struct {
@@ -52,6 +61,10 @@ typedef enum {
     HitStrip,
     HitSource,
     HitKey,
+    HitRegChip,
+    HitRegRow,
+    HitRegKey,
+    HitRegField,
 } HitKind;
 
 typedef enum {
@@ -64,6 +77,8 @@ typedef enum {
     ButtonLater,
     ButtonUndo,
     ButtonTrial,
+    ButtonEditDone,
+    ButtonEditCancel,
 } ButtonId;
 
 typedef struct {
@@ -186,6 +201,111 @@ static const Strings STRINGS[CARAFE_LANGUAGES] = {
 };
 
 typedef struct {
+    const char* title;
+    const char* item_hint;
+    const char* from_app;
+    const char* whole;
+    const char* computer;
+    const char* hive_hint[2];
+    const char* key_info;
+    const char* empty;
+    const char* missing;
+    const char* type_names[6];
+    const char* type_other;
+    const char* tags[3];
+    const char* was;
+    const char* path;
+    const char* writes;
+    const char* own_value;
+    const char* mode_row;
+    const char* mode_value;
+    const char* mode_added;
+    const char* mode_deleted;
+    const char* mode_readonly;
+    const char* mode_key;
+    const char* mode_empty;
+    const char* delete_again;
+    const char* open_change;
+    const char* new_value;
+    const char* undo;
+    const char* remove;
+    const char* up;
+    const char* rows;
+    const char* in_key;
+    const char* name;
+    const char* type;
+    const char* value;
+    const char* number;
+    const char* string;
+    const char* decimal;
+    const char* hex;
+    const char* press;
+    const char* erase;
+    const char* base;
+    const char* field;
+    const char* space;
+    const char* deleted;
+    const char* name_needed;
+    const char* too_big;
+} RegStrings;
+
+static const RegStrings REG_STRINGS[CARAFE_LANGUAGES] = {
+    {
+        "Реестр игры",
+        "Записи реестра Windows, в которых игра хранит свои настройки: разрешение, язык, управление. Сначала — "
+        "записи, подготовленные в приложении, дальше — весь реестр этой игры.",
+        "Из приложения · %d", "Весь реестр", "Компьютер",
+        { "Настройки системы: путь установки игры, версия, общие для всех параметры.",
+            "Настройки пользователя. Здесь игры обычно хранят разрешение, язык и управление." },
+        "Раздел: %d подразд. · %d знач.", "В этом разделе ничего нет.", "Раздела пока нет: игра ещё не создала его.",
+        { "Число (REG_DWORD).", "Число (REG_QWORD).", "Строка (REG_SZ).", "Строка с переменными (REG_EXPAND_SZ).",
+            "Список строк (REG_MULTI_SZ).", "Двоичные данные (REG_BINARY)." },
+        "Данные типа %u.", { "новое", "удалено", "изменено" }, "Было: %s · Y — вернуть", "Путь:", "Пишет в реестр:",
+        "Своё значение", "Применится после перезапуска игры. Запись подготовлена в приложении.",
+        "A — изменить. Игра прочтёт новое значение после перезапуска.",
+        "Новое значение. Появится в реестре после перезапуска.",
+        "Будет удалено при перезапуске. A или Y — оставить.", "Такие данные правятся в приложении.", "A — открыть",
+        "X — создать значение", "Нажмите − ещё раз, чтобы удалить", "Открыть / изменить", "Новое значение",
+        "Вернуть", "Удалить", "Наверх", "Записи", "В разделе %s", "Имя", "Тип", "Значение", "Число", "Строка",
+        "Десятичное", "Шестнадцатеричное", "Нажать", "Стереть", "Дес. / шестн.", "Поле", "Пробел", "удалить",
+        "Введите имя значения.", "Слишком большое число.",
+    },
+    {
+        "Game registry",
+        "Windows registry entries where the game keeps its settings: resolution, language, controls. First the "
+        "entries prepared in the app, then the game's whole registry.",
+        "From the app · %d", "Whole registry", "Computer",
+        { "System settings: where the game is installed, its version, settings shared by everyone.",
+            "User settings. Games usually keep their resolution, language and controls here." },
+        "Key: %d subkeys · %d values", "This key is empty.", "This key does not exist yet: the game has not made it.",
+        { "Number (REG_DWORD).", "Number (REG_QWORD).", "String (REG_SZ).", "String with variables (REG_EXPAND_SZ).",
+            "List of strings (REG_MULTI_SZ).", "Binary data (REG_BINARY)." },
+        "Data of type %u.", { "new", "deleted", "changed" }, "Was: %s · Y — undo", "Path:", "Writes to the registry:",
+        "Own value", "Takes effect when the game restarts. The entry was prepared in the app.",
+        "A — change. The game reads the new value when it restarts.",
+        "New value. It appears in the registry when the game restarts.",
+        "Deleted when the game restarts. A or Y — keep it.", "Data of this kind is edited in the app.", "A — open",
+        "X — create a value", "Press − again to delete", "Open / change", "New value", "Undo", "Delete", "Up",
+        "Entries", "In %s", "Name", "Type", "Value", "Number", "String", "Decimal", "Hexadecimal", "Press", "Erase",
+        "Dec / hex", "Field", "Space", "delete", "Enter a name for the value.", "The number is too big.",
+    },
+    {
+        "游戏注册表",
+        "游戏保存其设置的 Windows 注册表项：分辨率、语言、操作。先是在应用中准备的项，然后是此游戏的整个注册表。",
+        "来自应用 · %d", "整个注册表", "计算机",
+        { "系统设置：游戏的安装位置、版本、所有人共用的设置。", "用户设置。游戏通常在这里保存分辨率、语言和操作。" },
+        "项：%d 个子项 · %d 个值", "此项为空。", "此项尚不存在：游戏还没有创建它。",
+        { "数字 (REG_DWORD)。", "数字 (REG_QWORD)。", "字符串 (REG_SZ)。", "带变量的字符串 (REG_EXPAND_SZ)。",
+            "字符串列表 (REG_MULTI_SZ)。", "二进制数据 (REG_BINARY)。" },
+        "类型 %u 的数据。", { "新", "已删除", "已更改" }, "原值：%s · Y — 撤销", "路径：", "写入注册表：", "自定义值",
+        "重新启动游戏后生效。此项是在应用中准备的。", "A — 更改。游戏重新启动后读取新值。", "新值。游戏重新启动后出现在注册表中。",
+        "游戏重新启动时删除。A 或 Y — 保留。", "此类数据在应用中编辑。", "A — 打开", "X — 创建值", "再按一次 − 以删除",
+        "打开 / 更改", "新值", "撤销", "删除", "上一级", "项目", "位于 %s", "名称", "类型", "值", "数字", "字符串",
+        "十进制", "十六进制", "按下", "删除字符", "十 / 十六进制", "字段", "空格", "删除", "请输入值的名称。", "数字太大。",
+    },
+};
+
+typedef struct {
     int source;
     int column;
     int row;
@@ -259,6 +379,29 @@ static bool g_touching;
 static u64 g_chord_held;
 static Hit g_hits[MAX_HITS];
 static int g_hit_count;
+static bool g_reg_available;
+static bool g_reg;
+static int g_reg_view;
+static int g_reg_hive = -1;
+static char g_reg_path[CARAFE_REG_PATH];
+static int g_reg_focus;
+static int g_reg_scroll;
+static int g_reg_row_focus;
+static int g_reg_row_scroll;
+static bool g_reg_armed;
+static CarafeRegEntry* g_reg_entries;
+static int g_reg_count;
+static bool g_reg_missing;
+static bool g_edit;
+static bool g_edit_new;
+static int g_edit_field;
+static char g_edit_name[CARAFE_REG_NAME];
+static char g_edit_text[CARAFE_REG_NAME];
+static uint32_t g_edit_type;
+static bool g_edit_hex;
+static bool g_edit_shift;
+static int g_edit_key;
+static const char* g_edit_error;
 
 static void note(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
@@ -277,6 +420,14 @@ static const Strings* text(void) {
 
 static const char* pick(const char* const* texts) {
     return texts[g_language][0] != '\0' ? texts[g_language] : texts[1];
+}
+
+static const RegStrings* reg(void) {
+    return &REG_STRINGS[g_language];
+}
+
+static int pendingTotal(void) {
+    return carafePendingCount(g_catalog) + (g_reg_available ? carafeRegistryPendingCount() : 0);
 }
 
 static void changed(void) {
@@ -354,6 +505,9 @@ static int buildItems(Item* items) {
             items[count++] = (Item){ ItemGroup, row->index, 0 };
         }
     }
+    if (strcmp(section->id, "system") == 0 && g_reg_available && !g_error_mode && count < MAX_ITEMS) {
+        items[count++] = (Item){ ItemRegistry, 0, 0 };
+    }
     if (strcmp(section->id, "system") == 0 && count < MAX_ITEMS) {
         items[count++] = (Item){ ItemReset, 0, 0 };
     }
@@ -401,8 +555,236 @@ static void stepPreset(int delta) {
     carafePresetApply(g_catalog, &section->presets[next]);
 }
 
+static bool regHasRows(void) {
+    return carafeRegistryRowCount() > 0;
+}
+
+static void regRefresh(void) {
+    g_reg_missing = false;
+    g_reg_count = 0;
+    if (g_reg_view != 1 || g_reg_hive < 0 || g_reg_entries == NULL) {
+        return;
+    }
+    int count = carafeRegistryList(g_reg_hive, g_reg_path, g_reg_entries, REG_MAX_ENTRIES);
+    if (count < 0) {
+        g_reg_missing = true;
+        count = 0;
+    }
+    g_reg_count = count;
+}
+
+static int regListCount(void) {
+    if (g_reg_view == 0) {
+        return carafeRegistryRowCount();
+    }
+    return g_reg_hive < 0 ? 2 : g_reg_count;
+}
+
+static int* regFocus(void) {
+    return g_reg_view == 0 ? &g_reg_row_focus : &g_reg_focus;
+}
+
+static int* regScroll(void) {
+    return g_reg_view == 0 ? &g_reg_row_scroll : &g_reg_scroll;
+}
+
+static int rootHive(int index) {
+    return index == 0 ? CARAFE_REG_HIVE_USER : CARAFE_REG_HIVE_MACHINE;
+}
+
+static void regShowView(int view) {
+    g_reg_view = view;
+    g_reg_armed = false;
+    regRefresh();
+}
+
+static void regEnter(void) {
+    if (g_reg_entries == NULL) {
+        g_reg_entries = calloc(REG_MAX_ENTRIES, sizeof(CarafeRegEntry));
+    }
+    g_reg = true;
+    g_reg_hive = -1;
+    g_reg_path[0] = '\0';
+    g_reg_focus = g_reg_scroll = 0;
+    g_reg_row_focus = g_reg_row_scroll = 0;
+    g_edit = false;
+    regShowView(regHasRows() ? 0 : 1);
+}
+
+static void regLeave(void) {
+    g_reg = false;
+    g_edit = false;
+    g_reg_armed = false;
+}
+
+static void regDescend(const char* name, int root) {
+    if (g_reg_hive < 0) {
+        g_reg_hive = rootHive(root);
+        g_reg_path[0] = '\0';
+    } else {
+        size_t used = strlen(g_reg_path);
+        if (used + strlen(name) + 2 >= sizeof(g_reg_path)) {
+            return;
+        }
+        snprintf(g_reg_path + used, sizeof(g_reg_path) - used, "%s%s", used > 0 ? "\\" : "", name);
+    }
+    g_reg_focus = g_reg_scroll = 0;
+    g_reg_armed = false;
+    regRefresh();
+}
+
+static void regAscend(void) {
+    char* slash = strrchr(g_reg_path, '\\');
+    char leaf[CARAFE_REG_PATH] = "";
+    int root = g_reg_hive == CARAFE_REG_HIVE_USER ? 0 : 1;
+    if (g_reg_path[0] == '\0') {
+        g_reg_hive = -1;
+    } else if (slash != NULL) {
+        snprintf(leaf, sizeof(leaf), "%s", slash + 1);
+        *slash = '\0';
+    } else {
+        snprintf(leaf, sizeof(leaf), "%s", g_reg_path);
+        g_reg_path[0] = '\0';
+    }
+    g_reg_scroll = 0;
+    g_reg_focus = 0;
+    g_reg_armed = false;
+    regRefresh();
+    if (g_reg_hive < 0) {
+        g_reg_focus = root;
+        return;
+    }
+    for (int i = 0; i < g_reg_count; i++) {
+        if (g_reg_entries[i].key && strcasecmp(g_reg_entries[i].name, leaf) == 0) {
+            g_reg_focus = i;
+        }
+    }
+}
+
+static bool regEditable(const CarafeRegEntry* entry) {
+    if (entry->key || entry->truncated) {
+        return false;
+    }
+    return (entry->type == CARAFE_REG_DWORD && entry->size == 4) || (entry->type == CARAFE_REG_QWORD && entry->size == 8)
+        || entry->type == CARAFE_REG_SZ || entry->type == CARAFE_REG_EXPAND_SZ;
+}
+
+static bool regNumber(uint32_t type) {
+    return type == CARAFE_REG_DWORD || type == CARAFE_REG_QWORD;
+}
+
+static void regOpenEditor(const CarafeRegEntry* entry) {
+    g_edit = true;
+    g_edit_new = entry == NULL;
+    g_edit_field = 2;
+    g_edit_hex = false;
+    g_edit_shift = false;
+    g_edit_key = 0;
+    g_edit_error = NULL;
+    if (entry == NULL) {
+        g_edit_name[0] = '\0';
+        g_edit_text[0] = '\0';
+        g_edit_type = CARAFE_REG_DWORD;
+        g_edit_field = 0;
+        return;
+    }
+    snprintf(g_edit_name, sizeof(g_edit_name), "%s", entry->name);
+    g_edit_type = entry->type;
+    carafeRegistryFormat(entry->type, entry->data, entry->size, g_edit_text, sizeof(g_edit_text));
+}
+
+static bool regEditCommit(void) {
+    const RegStrings* r = reg();
+    g_edit_error = NULL;
+    if (g_edit_new && g_edit_name[0] == '\0') {
+        g_edit_error = r->name_needed;
+        return false;
+    }
+    uint8_t data[CARAFE_REG_DATA];
+    uint32_t size = 0;
+    if (regNumber(g_edit_type)) {
+        errno = 0;
+        unsigned long long value = g_edit_text[0] != '\0' ? strtoull(g_edit_text, NULL, g_edit_hex ? 16 : 10) : 0;
+        if (errno != 0 || (g_edit_type == CARAFE_REG_DWORD && value > 0xFFFFFFFFULL)) {
+            g_edit_error = r->too_big;
+            return false;
+        }
+        size = g_edit_type == CARAFE_REG_DWORD ? 4 : 8;
+        for (uint32_t i = 0; i < size; i++) {
+            data[i] = (uint8_t)(value >> (8 * i));
+        }
+    } else {
+        uint16_t wide[CARAFE_REG_DATA / 2];
+        size_t count = carafeRegistryUtf16(g_edit_text, wide, CARAFE_REG_DATA / 2 - 1);
+        wide[count++] = 0;
+        for (size_t i = 0; i < count; i++) {
+            data[2 * i] = (uint8_t)(wide[i] & 0xFF);
+            data[2 * i + 1] = (uint8_t)(wide[i] >> 8);
+        }
+        size = (uint32_t)count * 2;
+    }
+    carafeRegistrySetPending(g_reg_hive, g_reg_path, g_edit_name, g_edit_type, data, size);
+    g_edit = false;
+    regRefresh();
+    for (int i = 0; i < g_reg_count; i++) {
+        if (!g_reg_entries[i].key && strcasecmp(g_reg_entries[i].name, g_edit_name) == 0) {
+            g_reg_focus = i;
+        }
+    }
+    note("[CARAFE] settings menu: registry %s\\%s › %s changed", carafeRegistryHiveName(g_reg_hive), g_reg_path,
+        g_edit_name);
+    return true;
+}
+
+static void regRowStep(int row, int delta) {
+    int count = carafeRegistryRowOptionCount(row);
+    if (count == 0) {
+        return;
+    }
+    int current = carafeRegistryRowCurrent(row);
+    int next = current < 0 ? (delta > 0 ? 0 : count - 1) : (current + delta + count) % count;
+    carafeRegistryRowSet(row, next);
+}
+
+static void regActivate(int index, int delta) {
+    if (g_reg_view == 0) {
+        regRowStep(index, delta);
+        return;
+    }
+    if (delta <= 0) {
+        return;
+    }
+    if (g_reg_hive < 0) {
+        regDescend("", index);
+        return;
+    }
+    if (index < 0 || index >= g_reg_count) {
+        return;
+    }
+    CarafeRegEntry* entry = &g_reg_entries[index];
+    if (entry->key) {
+        if (entry->state != CarafeRegDeleted) {
+            regDescend(entry->name, 0);
+        }
+        return;
+    }
+    if (entry->state == CarafeRegDeleted) {
+        carafeRegistryDropPending(g_reg_hive, g_reg_path, entry->name);
+        regRefresh();
+        return;
+    }
+    if (regEditable(entry)) {
+        regOpenEditor(entry);
+    }
+}
+
 static void activateItem(const Item* item, int delta) {
     switch (item->kind) {
+    case ItemRegistry:
+        if (delta > 0) {
+            regEnter();
+        }
+        break;
     case ItemSetting:
         stepSetting(item->index, delta);
         break;
@@ -536,6 +918,11 @@ static void closeLocked(void) {
     g_open = false;
     carafeCatalogFree(g_catalog);
     g_catalog = NULL;
+    regLeave();
+    free(g_reg_entries);
+    g_reg_entries = NULL;
+    g_reg_count = 0;
+    carafeRegistryClose();
     pthread_mutex_lock(&g_picture_lock);
     free(g_picture.pixels);
     g_picture.pixels = NULL;
@@ -564,6 +951,9 @@ static bool openLocked(bool error_mode) {
     g_picker = false;
     g_confirm = false;
     g_reset_armed = false;
+    g_reg = false;
+    g_edit = false;
+    g_reg_available = !error_mode && carafeRegistryOpen();
     g_pad_focus = STRIP_MAX;
     g_held = error_mode ? OSK_A : OSK_MINUS | OSK_PLUS | OSK_L | OSK_R;
     g_repeat_bit = 0;
@@ -613,6 +1003,233 @@ static void switchTab(int delta) {
     g_reset_armed = false;
 }
 
+static void undoRegistry(void) {
+    if (g_reg_available) {
+        carafeRegistryUndoPending();
+        regRefresh();
+    }
+}
+
+static const char* const KEYS_DEC[] = { "1", "2", "3", "4", "5", "←", "6", "7", "8", "9", "0", "CLR" };
+static const char* const KEYS_HEX[] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E",
+    "F", "←", "CLR" };
+static const char* const KEYS_TEXT[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "q", "w", "e", "r", "t",
+    "y", "u", "i", "o", "p", "a", "s", "d", "f", "g", "h", "j", "k", "l", "_", "z", "x", "c", "v", "b", "n", "m", ".",
+    "-", "\\", "Aa", "SPACE", ":", "/", "←", "CLR" };
+
+static bool editOnType(void) {
+    return g_edit_new && g_edit_field == 1;
+}
+
+static bool editNumberGrid(void) {
+    return !(g_edit_new && g_edit_field == 0) && regNumber(g_edit_type);
+}
+
+static int editKeys(const char* const** keys, int* columns) {
+    if (editNumberGrid()) {
+        *keys = g_edit_hex ? KEYS_HEX : KEYS_DEC;
+        *columns = 6;
+        return g_edit_hex ? (int)(sizeof(KEYS_HEX) / sizeof(*KEYS_HEX)) : (int)(sizeof(KEYS_DEC) / sizeof(*KEYS_DEC));
+    }
+    *keys = KEYS_TEXT;
+    *columns = 10;
+    return (int)(sizeof(KEYS_TEXT) / sizeof(*KEYS_TEXT));
+}
+
+static char* editTarget(void) {
+    return g_edit_new && g_edit_field == 0 ? g_edit_name : g_edit_text;
+}
+
+static void editErase(void) {
+    char* target = editTarget();
+    size_t length = strlen(target);
+    while (length > 0 && (target[length - 1] & 0xC0) == 0x80) {
+        length--;
+    }
+    if (length > 0) {
+        length--;
+    }
+    target[length] = '\0';
+}
+
+static void editToggleBase(void) {
+    if (!regNumber(g_edit_type) || (g_edit_new && g_edit_field != 2)) {
+        return;
+    }
+    unsigned long long value = g_edit_text[0] != '\0' ? strtoull(g_edit_text, NULL, g_edit_hex ? 16 : 10) : 0;
+    g_edit_hex = !g_edit_hex;
+    if (g_edit_text[0] != '\0') {
+        snprintf(g_edit_text, sizeof(g_edit_text), g_edit_hex ? "%llX" : "%llu", value);
+    }
+    g_edit_key = 0;
+}
+
+static void editPress(int index) {
+    const char* const* keys;
+    int columns;
+    int count = editKeys(&keys, &columns);
+    if (index < 0 || index >= count) {
+        return;
+    }
+    g_edit_key = index;
+    g_edit_error = NULL;
+    const char* key = keys[index];
+    char* target = editTarget();
+    size_t length = strlen(target);
+    if (strcmp(key, "←") == 0) {
+        editErase();
+        return;
+    }
+    if (strcmp(key, "CLR") == 0) {
+        target[0] = '\0';
+        return;
+    }
+    if (strcmp(key, "Aa") == 0) {
+        g_edit_shift = !g_edit_shift;
+        return;
+    }
+    const char* add = strcmp(key, "SPACE") == 0 ? " " : key;
+    char upper[2] = { 0, 0 };
+    if (g_edit_shift && add[0] >= 'a' && add[0] <= 'z' && add[1] == '\0') {
+        upper[0] = (char)(add[0] - 'a' + 'A');
+        add = upper;
+    }
+    size_t limit = editNumberGrid() ? (g_edit_hex ? (g_edit_type == CARAFE_REG_DWORD ? 8 : 16) : 20) : REG_TEXT_MAX;
+    if (length + strlen(add) <= limit && length + strlen(add) < CARAFE_REG_NAME) {
+        snprintf(target + length, CARAFE_REG_NAME - length, "%s", add);
+    }
+}
+
+static void editSetType(uint32_t type) {
+    if (g_edit_type != type) {
+        g_edit_type = type;
+        g_edit_text[0] = '\0';
+        g_edit_hex = false;
+    }
+}
+
+static CarafeMenuAction pressEditor(unsigned int down) {
+    if (down & OSK_B) {
+        g_edit = false;
+        return CarafeMenuStay;
+    }
+    if (down & OSK_PLUS) {
+        regEditCommit();
+        return CarafeMenuStay;
+    }
+    if (down & OSK_X) {
+        editErase();
+        return CarafeMenuStay;
+    }
+    if (down & OSK_Y) {
+        editToggleBase();
+        return CarafeMenuStay;
+    }
+    if (g_edit_new && down & (OSK_L | OSK_R)) {
+        g_edit_field = (g_edit_field + (down & OSK_L ? 2 : 1)) % 3;
+        g_edit_key = 0;
+        return CarafeMenuStay;
+    }
+    if (editOnType()) {
+        if (down & (OSK_LEFT | OSK_RIGHT | OSK_A)) {
+            editSetType(g_edit_type == CARAFE_REG_DWORD ? CARAFE_REG_SZ : CARAFE_REG_DWORD);
+        } else if (down & OSK_DOWN) {
+            g_edit_field = 2;
+        } else if (down & OSK_UP) {
+            g_edit_field = 0;
+        }
+        return CarafeMenuStay;
+    }
+    const char* const* keys;
+    int columns;
+    int count = editKeys(&keys, &columns);
+    if (g_edit_key >= count) {
+        g_edit_key = count - 1;
+    }
+    if (down & OSK_A) {
+        editPress(g_edit_key);
+    } else if (down & OSK_LEFT && g_edit_key > 0) {
+        g_edit_key--;
+    } else if (down & OSK_RIGHT && g_edit_key < count - 1) {
+        g_edit_key++;
+    } else if (down & OSK_UP) {
+        if (g_edit_key >= columns) {
+            g_edit_key -= columns;
+        } else if (g_edit_new) {
+            g_edit_field = g_edit_field == 2 ? 1 : 0;
+        }
+    } else if (down & OSK_DOWN && g_edit_key + columns < count) {
+        g_edit_key += columns;
+    } else if (down & OSK_DOWN && g_edit_key / columns < (count - 1) / columns) {
+        g_edit_key = count - 1;
+    }
+    return CarafeMenuStay;
+}
+
+static CarafeMenuAction pressRegistry(unsigned int down) {
+    if (g_edit) {
+        return pressEditor(down);
+    }
+    if (down & OSK_B) {
+        if (g_reg_view == 1 && g_reg_hive >= 0) {
+            regAscend();
+        } else {
+            regLeave();
+        }
+        return CarafeMenuStay;
+    }
+    if (down & OSK_PLUS) {
+        if (pendingTotal() > 0) {
+            g_confirm = true;
+            g_confirm_focus = 0;
+        }
+        return CarafeMenuStay;
+    }
+    if (down & (OSK_L | OSK_R)) {
+        if (regHasRows()) {
+            regShowView(g_reg_view == 0 ? 1 : 0);
+        }
+        return CarafeMenuStay;
+    }
+    int count = regListCount();
+    int* focus = regFocus();
+    if (*focus >= count) {
+        *focus = count > 0 ? count - 1 : 0;
+    }
+    if (down & OSK_UP && *focus > 0) {
+        (*focus)--;
+        g_reg_armed = false;
+    } else if (down & OSK_DOWN && *focus < count - 1) {
+        (*focus)++;
+        g_reg_armed = false;
+    } else if (count > 0 && down & OSK_A) {
+        regActivate(*focus, 1);
+    } else if (count > 0 && g_reg_view == 0 && down & OSK_RIGHT) {
+        regActivate(*focus, 1);
+    } else if (count > 0 && g_reg_view == 0 && down & OSK_LEFT) {
+        regActivate(*focus, -1);
+    } else if (count > 0 && down & OSK_Y) {
+        if (g_reg_view == 0) {
+            carafeRegistryRowReset(*focus);
+        } else if (g_reg_hive >= 0 && !g_reg_entries[*focus].key) {
+            carafeRegistryDropPending(g_reg_hive, g_reg_path, g_reg_entries[*focus].name);
+            regRefresh();
+        }
+    } else if (down & OSK_X && g_reg_view == 1 && g_reg_hive >= 0 && !g_reg_missing) {
+        regOpenEditor(NULL);
+    } else if (count > 0 && down & OSK_MINUS && g_reg_view == 1 && g_reg_hive >= 0
+        && !g_reg_entries[*focus].key && g_reg_entries[*focus].state != CarafeRegDeleted) {
+        if (g_reg_armed) {
+            carafeRegistryDeletePending(g_reg_hive, g_reg_path, g_reg_entries[*focus].name);
+            g_reg_armed = false;
+            regRefresh();
+        } else {
+            g_reg_armed = true;
+        }
+    }
+    return CarafeMenuStay;
+}
+
 static CarafeMenuAction pressConfirm(unsigned int down) {
     if (down & OSK_B) {
         g_confirm = false;
@@ -636,6 +1253,7 @@ static CarafeMenuAction pressConfirm(unsigned int down) {
             return CarafeMenuBack;
         }
         carafeUndoPending(g_catalog);
+        undoRegistry();
     }
     return CarafeMenuStay;
 }
@@ -728,9 +1346,11 @@ static CarafeMenuAction pressList(unsigned int down) {
         moveFocus(1, count);
     } else if (count > 0 && down & OSK_A) {
         activateItem(&items[*focus], 1);
-    } else if (count > 0 && down & OSK_RIGHT && items[*focus].kind != ItemGroup && items[*focus].kind != ItemReset) {
+    } else if (count > 0 && down & OSK_RIGHT && items[*focus].kind != ItemGroup && items[*focus].kind != ItemReset
+        && items[*focus].kind != ItemRegistry) {
         activateItem(&items[*focus], 1);
-    } else if (count > 0 && down & OSK_LEFT && items[*focus].kind != ItemGroup && items[*focus].kind != ItemReset) {
+    } else if (count > 0 && down & OSK_LEFT && items[*focus].kind != ItemGroup && items[*focus].kind != ItemReset
+        && items[*focus].kind != ItemRegistry) {
         activateItem(&items[*focus], -1);
     } else if (count > 0 && down & OSK_Y) {
         resetItem(&items[*focus]);
@@ -745,6 +1365,9 @@ static CarafeMenuAction pressKeys(unsigned int down) {
     if (g_picker) {
         return pressPicker(down);
     }
+    if (g_reg) {
+        return pressRegistry(down);
+    }
     if (down & OSK_B) {
         if (g_group >= 0) {
             g_group = -1;
@@ -756,7 +1379,7 @@ static CarafeMenuAction pressKeys(unsigned int down) {
         if (g_error_mode) {
             return CarafeMenuRestart;
         }
-        if (carafePendingCount(g_catalog) > 0) {
+        if (pendingTotal() > 0) {
             g_confirm = true;
             g_confirm_focus = 0;
         }
@@ -792,8 +1415,18 @@ static CarafeMenuAction pressButton(int id) {
     case ButtonRestart:
         return pressKeys(OSK_PLUS);
     case ButtonGame:
-    case ButtonBack:
         return CarafeMenuBack;
+    case ButtonBack:
+        if (g_reg) {
+            return pressRegistry(OSK_B);
+        }
+        return CarafeMenuBack;
+    case ButtonEditDone:
+        regEditCommit();
+        return CarafeMenuStay;
+    case ButtonEditCancel:
+        g_edit = false;
+        return CarafeMenuStay;
     case ButtonDone:
         pickerDone();
         return CarafeMenuStay;
@@ -809,6 +1442,7 @@ static CarafeMenuAction pressButton(int id) {
     case ButtonUndo:
         g_confirm = false;
         carafeUndoPending(g_catalog);
+        undoRegistry();
         return CarafeMenuStay;
     case ButtonTrial:
         g_trial = !g_trial;
@@ -877,6 +1511,32 @@ static CarafeMenuAction tap(int x, int y) {
         pickerToggle(hit.value);
         if (g_picker_pad) {
             pickerDone();
+        }
+        break;
+    case HitRegChip:
+        if (hit.value != g_reg_view) {
+            regShowView(hit.value);
+        }
+        break;
+    case HitRegRow:
+        if (*regFocus() == hit.value) {
+            regActivate(hit.value, 1);
+        } else {
+            *regFocus() = hit.value;
+            g_reg_armed = false;
+        }
+        break;
+    case HitRegKey:
+        editPress(hit.value);
+        break;
+    case HitRegField:
+        if (hit.value == 1 && g_edit_field == 1) {
+            editSetType(g_edit_type == CARAFE_REG_DWORD ? CARAFE_REG_SZ : CARAFE_REG_DWORD);
+        } else if (hit.value == 3) {
+            editToggleBase();
+        } else {
+            g_edit_field = hit.value;
+            g_edit_key = 0;
         }
         break;
     }
@@ -979,7 +1639,7 @@ static void drawHeader(CarafeImage* picture) {
     CarafeTextStyle name = { 21, CarafeBold, 26, CARAFE_COLOR_INK, false };
     carafeDrawLine(picture, g_title, &name, x, 38, 0);
     char subline[TEXT_SIZE];
-    int pending = carafePendingCount(g_catalog);
+    int pending = pendingTotal();
     if (g_error_mode) {
         snprintf(subline, sizeof(subline), "%s", s->failed);
     } else if (pending > 0) {
@@ -994,12 +1654,14 @@ static void drawHeader(CarafeImage* picture) {
         false };
     carafeDrawLine(picture, subline, &sub, x, 64, 0);
 
-    if (g_group >= 0 || g_picker) {
+    if (g_group >= 0 || g_picker || g_reg) {
         int bx = 1208;
         const CarafeSection* section = tabSection(g_tab);
         const char* parent = section != NULL ? pick(section->name) : "";
         char title[TEXT_SIZE];
-        if (g_picker) {
+        if (g_reg) {
+            snprintf(title, sizeof(title), "%s", reg()->title);
+        } else if (g_picker) {
             snprintf(title, sizeof(title), s->button, carafe_source_names[g_picker_source]);
         } else {
             snprintf(title, sizeof(title), "%s", pick(g_catalog->groups[g_group].name));
@@ -1012,11 +1674,12 @@ static void drawHeader(CarafeImage* picture) {
         int crumb_w = carafeTextWidth(crumb, 17, CarafeRegular);
         bx -= crumb_w + 10;
         carafeDrawText(picture, crumb, 17, CarafeRegular, bx, 48, CARAFE_COLOR_HINT);
-        int back_w = 24 + 8 + carafeTextWidth(s->back, 15, CarafeBold) + 18;
+        const char* back = g_reg && g_reg_view == 1 && g_reg_hive >= 0 ? reg()->up : s->back;
+        int back_w = 24 + 8 + carafeTextWidth(back, 15, CarafeBold) + 18;
         bx -= back_w + 14;
         carafeDrawRound(picture, bx, 42, back_w, 36, 12, CARAFE_COLOR_WHITE, 18);
         drawGlyph(picture, bx + 6, 48, "B", CARAFE_COLOR_PRIMARY_INK, CARAFE_COLOR_INK);
-        carafeDrawText(picture, s->back, 15, CarafeBold, bx + 38, 50, CARAFE_COLOR_INK);
+        carafeDrawText(picture, back, 15, CarafeBold, bx + 38, 50, CARAFE_COLOR_INK);
         addHit(HitButton, ButtonBack, bx, 42, back_w, 36);
         return;
     }
@@ -1060,6 +1723,8 @@ static const char* itemName(const Item* item) {
         return text()->reset_all;
     case ItemSuggest:
         return pick(g_catalog->settings[g_catalog->suggests[item->index].setting].name);
+    case ItemRegistry:
+        return reg()->title;
     }
     return "";
 }
@@ -1080,6 +1745,7 @@ static void itemValue(const Item* item, char* out, size_t size) {
         break;
     }
     case ItemReset:
+    case ItemRegistry:
         snprintf(out, size, "›");
         break;
     case ItemSuggest:
@@ -1210,6 +1876,8 @@ static void drawCard(CarafeImage* picture, const Item* item, int top) {
             y = carafeDrawWrapped(picture, pick(section->presets[i].hint),
                     &(CarafeTextStyle){ 13, CarafeRegular, 18, CARAFE_COLOR_LABEL, false }, x + 28, y, width - 28) + 6;
         }
+    } else if (item->kind == ItemRegistry) {
+        carafeDrawWrapped(picture, reg()->item_hint, &body, x, y, width);
     } else if (item->kind == ItemReset) {
         carafeDrawWrapped(picture, g_reset_armed ? s->reset_again : s->reset_all_hint, &body, x, y, width);
     } else if (item->kind == ItemGroup) {
@@ -1472,6 +2140,539 @@ static void drawPicker(CarafeImage* picture) {
     carafeDrawLine(picture, s->live_controls, &mode, x + 10, LIST_BOTTOM - 26 - mode_h, 0);
 }
 
+static void fitText(const char* text, int size, CarafeWeight weight, int max, char* out, size_t out_size) {
+    snprintf(out, out_size, "%s", text);
+    if (carafeTextWidth(out, size, weight) <= max) {
+        return;
+    }
+    size_t length = strlen(out);
+    while (length > 0) {
+        length--;
+        while (length > 0 && (out[length] & 0xC0) == 0x80) {
+            length--;
+        }
+        snprintf(out + length, out_size - length, "…");
+        if (carafeTextWidth(out, size, weight) <= max) {
+            return;
+        }
+    }
+}
+
+static const char* regTypeTag(uint32_t type) {
+    if (regNumber(type)) {
+        return reg()->number;
+    }
+    if (type == CARAFE_REG_SZ || type == CARAFE_REG_EXPAND_SZ || type == CARAFE_REG_MULTI_SZ) {
+        return reg()->string;
+    }
+    return "HEX";
+}
+
+static const char* regTypeName(uint32_t type, char* out, size_t size) {
+    const RegStrings* r = reg();
+    const uint32_t types[6] = { CARAFE_REG_DWORD, CARAFE_REG_QWORD, CARAFE_REG_SZ, CARAFE_REG_EXPAND_SZ,
+        CARAFE_REG_MULTI_SZ, CARAFE_REG_BINARY };
+    for (int i = 0; i < 6; i++) {
+        if (types[i] == type) {
+            return r->type_names[i];
+        }
+    }
+    snprintf(out, size, r->type_other, type);
+    return out;
+}
+
+static void drawTag(CarafeImage* picture, int right, int y, const char* label, bool focused, bool strong) {
+    int w = carafeTextWidth(label, 11, CarafeBold) + 16;
+    uint32_t fill = focused ? 0xFFEAD7DEu : strong ? CARAFE_COLOR_FOCUS : CARAFE_COLOR_WHITE;
+    unsigned int alpha = focused ? 255 : strong ? 46 : 20;
+    carafeDrawRound(picture, right - w, y + (ROW_H - 20) / 2, w, 20, 10, fill, alpha);
+    CarafeTextStyle style = { 11, CarafeBold, 20, focused ? CARAFE_COLOR_DIM : strong ? CARAFE_COLOR_CHIP
+                                                                                      : CARAFE_COLOR_HINT,
+        true };
+    carafeDrawLine(picture, label, &style, right - w, y + (ROW_H - 20) / 2, w);
+}
+
+static void drawFolder(CarafeImage* picture, int x, int y, uint32_t color) {
+    carafeDrawRoundStroke(picture, x, y + 4, 18, 13, 3, 2, color, 255);
+    carafeDrawRound(picture, x, y + 1, 8, 5, 2, color, 255);
+}
+
+static void drawRegRow(CarafeImage* picture, int index, int y, bool focused, const char* name, const char* value,
+    const char* tag, bool strong_tag, bool dot, bool dim, bool folder) {
+    if (focused) {
+        carafeDrawFocusRing(picture, LIST_X, y, LIST_W, ROW_H, 14);
+    }
+    uint32_t ink = focused ? CARAFE_COLOR_PRIMARY_INK : dim ? CARAFE_COLOR_DIM : CARAFE_COLOR_VALUE;
+    if (dot) {
+        carafeDrawCircle(picture, LIST_X + 18, y + ROW_H / 2, 4, CARAFE_COLOR_FOCUS, 255);
+    }
+    int x = LIST_X + 32;
+    if (folder) {
+        drawFolder(picture, x, y + 11, focused ? CARAFE_COLOR_ACCENT : CARAFE_COLOR_HINT);
+        x += 28;
+    }
+    char shown[TEXT_SIZE];
+    fitText(value, 16, CarafeBold, 250, shown, sizeof(shown));
+    int value_w = carafeTextWidth(shown, 16, CarafeBold);
+    int right = LIST_X + LIST_W - 16 - value_w;
+    int tag_w = tag != NULL ? carafeTextWidth(tag, 11, CarafeBold) + 16 + 10 : 0;
+    char label[TEXT_SIZE];
+    fitText(name, 16, CarafeRegular, right - tag_w - x - 12, label, sizeof(label));
+    CarafeTextStyle name_style = { 16, CarafeRegular, ROW_H, ink, false };
+    carafeDrawLine(picture, label, &name_style, x, y, 0);
+    if (tag != NULL) {
+        drawTag(picture, right - 10, y, tag, focused, strong_tag);
+    }
+    CarafeTextStyle val = { 16, CarafeBold, ROW_H, focused ? CARAFE_COLOR_PRIMARY_INK : dim ? CARAFE_COLOR_DIM
+                                                                                         : CARAFE_COLOR_INK,
+        false };
+    carafeDrawLine(picture, shown, &val, right, y, 0);
+    addHit(HitRegRow, index, LIST_X, y, LIST_W, ROW_H);
+}
+
+static void drawRegChips(CarafeImage* picture) {
+    const RegStrings* r = reg();
+    int x = LIST_X;
+    for (int v = regHasRows() ? 0 : 1; v < 2; v++) {
+        char name[TEXT_SIZE];
+        if (v == 0) {
+            snprintf(name, sizeof(name), r->from_app, carafeRegistryRowCount());
+        } else {
+            snprintf(name, sizeof(name), "%s", r->whole);
+        }
+        int w = carafeTextWidth(name, 14, CarafeBold) + 24;
+        bool on = v == g_reg_view;
+        carafeDrawRound(picture, x, 104, w, 32, 16, on ? CARAFE_COLOR_FOCUS : CARAFE_COLOR_WHITE, on ? 255 : 18);
+        CarafeTextStyle style = { 14, CarafeBold, 32, on ? 0xFF22121Au : CARAFE_COLOR_HINT, true };
+        carafeDrawLine(picture, name, &style, x, 104, w);
+        addHit(HitRegChip, v, x, 104, w, 32);
+        x += w + 6;
+    }
+}
+
+static void regPathParts(char* head, size_t head_size, char* tail, size_t tail_size) {
+    head[0] = '\0';
+    if (g_reg_hive < 0) {
+        snprintf(tail, tail_size, "%s", reg()->computer);
+        return;
+    }
+    const char* hive = carafeRegistryHiveName(g_reg_hive);
+    if (g_reg_path[0] == '\0') {
+        snprintf(tail, tail_size, "%s", hive);
+        return;
+    }
+    const char* slash = strrchr(g_reg_path, '\\');
+    snprintf(tail, tail_size, "%s", slash != NULL ? slash + 1 : g_reg_path);
+    size_t used = (size_t)snprintf(head, head_size, "%s \\ ", hive);
+    for (const char* p = g_reg_path; slash != NULL && p < slash && used + 4 < head_size; p++) {
+        if (*p == '\\') {
+            used += (size_t)snprintf(head + used, head_size - used, " \\ ");
+        } else {
+            head[used++] = *p;
+            head[used] = '\0';
+        }
+    }
+    if (slash != NULL && used + 4 < head_size) {
+        snprintf(head + used, head_size - used, " \\ ");
+    }
+}
+
+static void drawRegPath(CarafeImage* picture) {
+    carafeDrawRound(picture, LIST_X, 150, LIST_W, 34, 10, CARAFE_COLOR_PANEL, 128);
+    drawFolder(picture, LIST_X + 14, 157, CARAFE_COLOR_HINT);
+    char head[REG_LINE];
+    char tail[REG_LINE];
+    regPathParts(head, sizeof(head), tail, sizeof(tail));
+    int x = LIST_X + 44;
+    int room = LIST_W - 60;
+    char shown_tail[REG_LINE];
+    fitText(tail, 14, CarafeBold, room / 2, shown_tail, sizeof(shown_tail));
+    int tail_w = carafeTextWidth(shown_tail, 14, CarafeBold);
+    if (head[0] != '\0') {
+        char shown[REG_LINE + 8];
+        if (carafeTextWidth(head, 14, CarafeRegular) > room - tail_w) {
+            const char* cut = head;
+            while (*cut != '\0' && carafeTextWidth(cut, 14, CarafeRegular) + carafeTextWidth("… ", 14, CarafeRegular)
+                    > room - tail_w) {
+                cut++;
+                while ((*cut & 0xC0) == 0x80) {
+                    cut++;
+                }
+            }
+            snprintf(shown, sizeof(shown), "… %s", cut);
+        } else {
+            snprintf(shown, sizeof(shown), "%s", head);
+        }
+        CarafeTextStyle style = { 14, CarafeRegular, 34, CARAFE_COLOR_HINT, false };
+        carafeDrawLine(picture, shown, &style, x, 150, 0);
+        x += carafeTextWidth(shown, 14, CarafeRegular);
+    }
+    CarafeTextStyle bold = { 14, CarafeBold, 34, CARAFE_COLOR_INK, false };
+    carafeDrawLine(picture, shown_tail, &bold, x, 150, 0);
+}
+
+static void regShortPath(char* out, size_t size, const char* leaf) {
+    snprintf(out, size, "%s%s%s%s%s", g_reg_hive == CARAFE_REG_HIVE_MACHINE ? "HKLM" : "HKCU",
+        g_reg_path[0] != '\0' ? "\\" : "", g_reg_path, leaf != NULL ? "\\" : "", leaf != NULL ? leaf : "");
+}
+
+static int drawModeBox(CarafeImage* picture, const char* mode, uint32_t color, int bottom) {
+    int x = CARD_X + 30;
+    int width = CARD_W - 60;
+    CarafeTextStyle style = { 14, CarafeRegular, 20, color, false };
+    int mode_h = carafeWrappedHeight(mode, &style, width - 28) + 16;
+    carafeDrawRound(picture, x - 4, bottom - 26 - mode_h, width + 8, mode_h, 12, color, 30);
+    carafeDrawWrapped(picture, mode, &style, x + 10, bottom - 26 - mode_h + 8, width - 28);
+    return bottom - 26 - mode_h;
+}
+
+static void drawRegCard(CarafeImage* picture, int top) {
+    const RegStrings* r = reg();
+    int bottom = LIST_BOTTOM;
+    carafeDrawRound(picture, CARD_X, top, CARD_W, bottom - top, 24, CARAFE_COLOR_PANEL, 128);
+    carafeDrawRoundStroke(picture, CARD_X, top, CARD_W, bottom - top, 24, 1, CARAFE_COLOR_WHITE, 20);
+    int x = CARD_X + 30;
+    int width = CARD_W - 60;
+    CarafeTextStyle title = { 24, CarafeHeavy, 29, CARAFE_COLOR_INK, false };
+    CarafeTextStyle body = { 16, CarafeRegular, 24, CARAFE_COLOR_TEXT, false };
+    CarafeTextStyle small = { 13, CarafeRegular, 19, CARAFE_COLOR_LABEL, false };
+    int focus = *regFocus();
+    char line[REG_LINE];
+    if (g_reg_view == 0) {
+        if (carafeRegistryRowCount() == 0) {
+            return;
+        }
+        int y = carafeDrawWrapped(picture, carafeRegistryRowName(focus), &title, x, top + 26, width) + 8;
+        if (carafeRegistryRowHint(focus)[0] != '\0') {
+            y = carafeDrawWrapped(picture, carafeRegistryRowHint(focus), &body, x, y, width);
+        }
+        y += 10;
+        int current = carafeRegistryRowCurrent(focus);
+        int mode_top = bottom - 26 - 60;
+        for (int i = 0; i < carafeRegistryRowOptionCount(focus) && y + 34 <= mode_top - 50; i++) {
+            bool on = i == current;
+            if (on) {
+                carafeDrawRound(picture, x - 4, y, width + 8, 32, 10, CARAFE_COLOR_FOCUS, 41);
+            }
+            carafeDrawRing(picture, x + 10, y + 16, 8, on ? 5 : 2, on ? CARAFE_COLOR_FOCUS : CARAFE_COLOR_DIM, 255);
+            CarafeTextStyle option = { 15, on ? CarafeBold : CarafeRegular, 32, on ? CARAFE_COLOR_INK : CARAFE_COLOR_TEXT,
+                false };
+            carafeDrawLine(picture, carafeRegistryRowOptionLabel(focus, i), &option, x + 28, y, 0);
+            y += 34;
+        }
+        char where[CARAFE_REG_PATH];
+        carafeRegistryRowWhere(focus, where, sizeof(where));
+        snprintf(line, sizeof(line), "%s %s", r->writes, where);
+        carafeDrawWrapped(picture, line, &small, x, y + 8, width);
+        drawModeBox(picture, r->mode_row, CARAFE_COLOR_RESTART, bottom);
+        return;
+    }
+    if (g_reg_hive < 0) {
+        int hive = rootHive(focus);
+        int y = carafeDrawWrapped(picture, carafeRegistryHiveName(hive), &title, x, top + 26, width) + 8;
+        carafeDrawWrapped(picture, r->hive_hint[hive], &body, x, y, width);
+        drawModeBox(picture, r->mode_key, CARAFE_COLOR_HINT, bottom);
+        return;
+    }
+    char head[REG_LINE];
+    char tail[REG_LINE];
+    regPathParts(head, sizeof(head), tail, sizeof(tail));
+    if (g_reg_count == 0) {
+        int y = carafeDrawWrapped(picture, tail, &title, x, top + 26, width) + 8;
+        carafeDrawWrapped(picture, g_reg_missing ? r->missing : r->empty, &body, x, y, width);
+        if (!g_reg_missing) {
+            drawModeBox(picture, r->mode_empty, CARAFE_COLOR_HINT, bottom);
+        }
+        return;
+    }
+    const CarafeRegEntry* entry = &g_reg_entries[focus < g_reg_count ? focus : g_reg_count - 1];
+    const char* name = entry->name[0] != '\0' ? entry->name : "@";
+    int y = carafeDrawWrapped(picture, name, &title, x, top + 26, width) + 8;
+    if (entry->key) {
+        regShortPath(line, sizeof(line), entry->name);
+        char ref[REG_LINE + 64];
+        snprintf(ref, sizeof(ref), "%s %s", r->path, line);
+        carafeDrawWrapped(picture, ref, &small, x, y, width);
+        drawModeBox(picture, entry->state == CarafeRegDeleted ? r->mode_deleted : r->mode_key, CARAFE_COLOR_HINT,
+            bottom);
+        return;
+    }
+    char type_name[64];
+    y = carafeDrawWrapped(picture, regTypeName(entry->type, type_name, sizeof(type_name)), &body, x, y, width) + 8;
+    char value[TEXT_SIZE * 2];
+    carafeRegistryFormat(entry->type, entry->data, entry->size, value, sizeof(value));
+    CarafeTextStyle big = { 22, CarafeHeavy, 28, CARAFE_COLOR_INK, false };
+    int box_h = carafeWrappedHeight(value[0] != '\0' ? value : " ", &big, width - 28);
+    if (box_h > 140) {
+        box_h = 140;
+    }
+    bool hex = regNumber(entry->type) && entry->size >= 4;
+    int box_total = box_h + 20 + (hex ? 22 : 0);
+    carafeDrawRound(picture, x - 4, y, width + 8, box_total, 12, CARAFE_COLOR_WHITE, 15);
+    carafeDrawWrapped(picture, value[0] != '\0' ? value : " ", &big, x + 10, y + 10, width - 28);
+    if (hex) {
+        unsigned long long number = 0;
+        for (uint32_t i = 0; i < entry->size && i < 8; i++) {
+            number |= (unsigned long long)entry->data[i] << (8 * i);
+        }
+        char hex_text[32];
+        snprintf(hex_text, sizeof(hex_text), entry->size == 4 ? "0x%08llX" : "0x%016llX", number);
+        carafeDrawText(picture, hex_text, 14, CarafeRegular, x + 10, y + 10 + box_h + 2, CARAFE_COLOR_LABEL);
+    }
+    y += box_total + 8;
+    if (entry->state == CarafeRegChanged) {
+        char was[TEXT_SIZE];
+        char shown[TEXT_SIZE * 2];
+        carafeRegistryFormat(entry->live_type, entry->live_data, entry->live_size, was, sizeof(was));
+        snprintf(shown, sizeof(shown), r->was, was);
+        y = carafeDrawWrapped(picture, shown, &small, x, y, width) + 4;
+    }
+    regShortPath(line, sizeof(line), NULL);
+    char ref[REG_LINE + 64];
+    snprintf(ref, sizeof(ref), "%s %s", r->path, line);
+    carafeDrawWrapped(picture, ref, &small, x, y, width);
+    const char* mode = r->mode_value;
+    uint32_t color = CARAFE_COLOR_RESTART;
+    if (g_reg_armed) {
+        mode = r->delete_again;
+    } else if (entry->state == CarafeRegDeleted) {
+        mode = r->mode_deleted;
+    } else if (entry->state == CarafeRegAdded) {
+        mode = r->mode_added;
+    } else if (!regEditable(entry)) {
+        mode = r->mode_readonly;
+        color = CARAFE_COLOR_HINT;
+    }
+    drawModeBox(picture, mode, color, bottom);
+}
+
+static void drawRegistry(CarafeImage* picture) {
+    const RegStrings* r = reg();
+    drawRegChips(picture);
+    int top = g_reg_view == 0 ? LIST_TOP_PAGES : REG_LIST_TOP;
+    if (g_reg_view == 1) {
+        drawRegPath(picture);
+    }
+    int count = regListCount();
+    int* focus = regFocus();
+    int* scroll = regScroll();
+    if (*focus >= count) {
+        *focus = count > 0 ? count - 1 : 0;
+    }
+    int visible = (LIST_BOTTOM - top) / (ROW_H + ROW_GAP);
+    if (*focus < *scroll) {
+        *scroll = *focus;
+    }
+    if (*focus >= *scroll + visible) {
+        *scroll = *focus - visible + 1;
+    }
+    int y = top;
+    for (int i = *scroll; i < count && i < *scroll + visible; i++) {
+        bool focused = i == *focus;
+        if (g_reg_view == 0) {
+            int current = carafeRegistryRowCurrent(i);
+            const char* value = current >= 0 ? carafeRegistryRowOptionLabel(i, current) : r->own_value;
+            drawRegRow(picture, i, y + 3, focused, carafeRegistryRowName(i), value, NULL, false,
+                carafeRegistryRowChanged(i), false, false);
+        } else if (g_reg_hive < 0) {
+            drawRegRow(picture, i, y + 3, focused, carafeRegistryHiveName(rootHive(i)), "›", NULL, false, false, false,
+                true);
+        } else {
+            const CarafeRegEntry* entry = &g_reg_entries[i];
+            const char* name = entry->name[0] != '\0' ? entry->name : "@";
+            bool deleted = entry->state == CarafeRegDeleted;
+            if (entry->key) {
+                drawRegRow(picture, i, y + 3, focused, name, "›", deleted ? r->tags[1] : NULL, true, deleted, deleted,
+                    true);
+            } else {
+                char value[TEXT_SIZE];
+                carafeRegistryFormat(entry->type, entry->data, entry->size, value, sizeof(value));
+                const char* tag = entry->state == CarafeRegAdded ? r->tags[0]
+                    : deleted                                    ? r->tags[1]
+                                                                 : regTypeTag(entry->type);
+                bool strong = entry->state == CarafeRegAdded || deleted;
+                drawRegRow(picture, i, y + 3, focused, name, value, tag, strong, entry->state != CarafeRegLive, deleted,
+                    false);
+            }
+        }
+        y += ROW_H + ROW_GAP;
+    }
+    if (*scroll + visible < count) {
+        carafeDrawText(picture, "…", 18, CarafeBold, LIST_X + LIST_W / 2, LIST_BOTTOM - 8, CARAFE_COLOR_LABEL);
+    }
+    drawRegCard(picture, LIST_TOP_PAGES);
+}
+
+static int drawEditField(CarafeImage* picture, int x, int y, int w, const char* label, const char* text, bool on,
+    bool caret, const char* prefix, int field) {
+    CarafeTextStyle caption = { 13, CarafeBold, 18, CARAFE_COLOR_LABEL, false };
+    carafeDrawLine(picture, label, &caption, x, y, 0);
+    y += 22;
+    carafeDrawRound(picture, x, y, w, 52, 14, CARAFE_COLOR_GAP, 255);
+    carafeDrawRoundStroke(picture, x, y, w, 52, 14, 2, on ? CARAFE_COLOR_FOCUS : 0xFF3A1A27u, 255);
+    int tx = x + 16;
+    if (prefix != NULL) {
+        carafeDrawText(picture, prefix, 22, CarafeRegular, tx, y + 11, CARAFE_COLOR_LABEL);
+        tx += carafeTextWidth(prefix, 22, CarafeRegular) + 4;
+    }
+    char shown[CARAFE_REG_NAME + 8];
+    fitText(text, 22, CarafeBold, w - (tx - x) - 24, shown, sizeof(shown));
+    carafeDrawText(picture, shown, 22, CarafeBold, tx, y + 11, CARAFE_COLOR_INK);
+    if (caret) {
+        carafeDrawRound(picture, tx + carafeTextWidth(shown, 22, CarafeBold) + 2, y + 12, 2, 28, 0, CARAFE_COLOR_FOCUS,
+            255);
+    }
+    addHit(HitRegField, field, x, y, w, 52);
+    return y + 52 + 12;
+}
+
+static int drawSegment(CarafeImage* picture, int x, int y, int w, const char* left, const char* right, bool right_on,
+    bool focused, int field) {
+    carafeDrawRound(picture, x, y, w, 44, 14, CARAFE_COLOR_GAP, 255);
+    if (focused) {
+        carafeDrawRoundStroke(picture, x, y, w, 44, 14, 2, CARAFE_COLOR_FOCUS, 255);
+    }
+    int half = (w - 8) / 2;
+    for (int i = 0; i < 2; i++) {
+        bool on = (i == 1) == right_on;
+        int bx = x + 4 + i * half;
+        if (on) {
+            carafeDrawRound(picture, bx, y + 4, half, 36, 10, CARAFE_COLOR_FOCUS, 255);
+        }
+        CarafeTextStyle style = { 15, CarafeBold, 36, on ? 0xFF22121Au : CARAFE_COLOR_HINT, true };
+        carafeDrawLine(picture, i == 0 ? left : right, &style, bx, y + 4, half);
+    }
+    addHit(HitRegField, field, x, y, w, 44);
+    return y + 44 + 12;
+}
+
+static void drawEditor(CarafeImage* picture) {
+    const RegStrings* r = reg();
+    const Strings* s = text();
+    carafeDrawRound(picture, 0, 0, picture->width, picture->height, 0, 0xFF0E0408u, 184);
+    g_hit_count = 0;
+    const char* const* keys;
+    int columns;
+    int count = editKeys(&keys, &columns);
+    int rows = (count + columns - 1) / columns;
+    const int key_h = 44;
+    const int w = REG_EDIT_W;
+    const int x = (picture->width - w) / 2;
+    bool number = regNumber(g_edit_type);
+    bool value_on = !g_edit_new || g_edit_field == 2;
+    bool base_shown = number && value_on;
+    int h = 30 + 34 + 26 + (g_edit_new ? 74 + 78 : 0) + 74 + (base_shown ? 56 : 0) + rows * (key_h + 6) + 16 + 56 + 30
+        + (g_edit_error != NULL ? 24 : 0);
+    if (h > picture->height - 16) {
+        h = picture->height - 16;
+    }
+    const int y = (picture->height - h) / 2;
+    carafeDrawRound(picture, x, y, w, h, 24, 0xFF1C0B13u, 255);
+    carafeDrawRoundStroke(picture, x, y, w, h, 24, 1, CARAFE_COLOR_WHITE, 26);
+    int inner = x + 36;
+    int inner_w = w - 72;
+    CarafeTextStyle title = { 26, CarafeHeavy, 32, CARAFE_COLOR_INK, false };
+    char line[REG_LINE + 128];
+    char where[REG_LINE];
+    regShortPath(where, sizeof(where), NULL);
+    carafeDrawLine(picture, g_edit_new ? r->new_value : (g_edit_name[0] != '\0' ? g_edit_name : "@"), &title, inner,
+        y + 24, 0);
+    char type_name[64];
+    if (g_edit_new) {
+        snprintf(line, sizeof(line), r->in_key, where);
+    } else {
+        snprintf(line, sizeof(line), "%s · %s", where, regTypeName(g_edit_type, type_name, sizeof(type_name)));
+    }
+    char shown[REG_LINE + 128];
+    fitText(line, 14, CarafeRegular, inner_w, shown, sizeof(shown));
+    carafeDrawText(picture, shown, 14, CarafeRegular, inner, y + 58, CARAFE_COLOR_LABEL);
+    int ty = y + 90;
+    if (g_edit_new) {
+        ty = drawEditField(picture, inner, ty, inner_w, r->name, g_edit_name, g_edit_field == 0, g_edit_field == 0,
+            NULL, 0);
+        CarafeTextStyle caption = { 13, CarafeBold, 18, CARAFE_COLOR_LABEL, false };
+        carafeDrawLine(picture, r->type, &caption, inner, ty, 0);
+        ty = drawSegment(picture, inner, ty + 22, inner_w, r->number, r->string, g_edit_type == CARAFE_REG_SZ,
+            g_edit_field == 1, 1);
+    }
+    ty = drawEditField(picture, inner, ty, inner_w, r->value, g_edit_text, value_on, value_on,
+        number && g_edit_hex ? "0x" : NULL, 2);
+    if (base_shown) {
+        unsigned long long value = g_edit_text[0] != '\0' ? strtoull(g_edit_text, NULL, g_edit_hex ? 16 : 10) : 0;
+        char dec[64];
+        char hex[64];
+        snprintf(dec, sizeof(dec), "%s · %llu", r->decimal, value);
+        snprintf(hex, sizeof(hex), "%s · 0x%llX", r->hex, value);
+        ty = drawSegment(picture, inner, ty - 4, inner_w, dec, hex, g_edit_hex, false, 3);
+    }
+    int key_w = (inner_w - (columns - 1) * 6) / columns;
+    bool grid_on = !editOnType();
+    for (int i = 0; i < count; i++) {
+        int kx = inner + (i % columns) * (key_w + 6);
+        int ky = ty + (i / columns) * (key_h + 6);
+        const char* label = keys[i];
+        char upper[4];
+        if (strcmp(label, "SPACE") == 0) {
+            label = r->space;
+        } else if (strcmp(label, "CLR") == 0) {
+            label = s->clear;
+        } else if (g_edit_shift && label[0] >= 'a' && label[0] <= 'z' && label[1] == '\0') {
+            snprintf(upper, sizeof(upper), "%c", label[0] - 'a' + 'A');
+            label = upper;
+        }
+        bool focus = grid_on && i == g_edit_key;
+        bool lit = strcmp(keys[i], "Aa") == 0 && g_edit_shift;
+        if (focus) {
+            carafeDrawFocusRing(picture, kx, ky, key_w, key_h, 10);
+        } else {
+            carafeDrawRound(picture, kx, ky, key_w, key_h, 10, lit ? CARAFE_COLOR_ACCENT : CARAFE_COLOR_WHITE,
+                lit ? 255 : 20);
+        }
+        int size = 16;
+        while (size > 10 && carafeTextWidth(label, size, CarafeBold) > key_w - 6) {
+            size--;
+        }
+        CarafeTextStyle style = { size, CarafeBold, key_h, focus ? CARAFE_COLOR_PRIMARY_INK : CARAFE_COLOR_VALUE, true };
+        carafeDrawLine(picture, label, &style, kx, ky, key_w);
+        addHit(HitRegKey, i, kx, ky, key_w, key_h);
+    }
+    ty += rows * (key_h + 6) + 10;
+    if (g_edit_error != NULL) {
+        carafeDrawText(picture, g_edit_error, 15, CarafeBold, inner, ty, CARAFE_COLOR_RESTART);
+        ty += 24;
+    }
+    int bx = inner;
+    const char* labels[2] = { s->done, s->cancel };
+    const char* glyphs[2] = { "+", "B" };
+    const ButtonId ids[2] = { ButtonEditDone, ButtonEditCancel };
+    for (int i = 0; i < 2; i++) {
+        int bw = 14 + 46 + carafeTextWidth(labels[i], 20, CarafeBold) + 30;
+        if (i == 0) {
+            carafeDrawRound(picture, bx, ty, bw, 52, 16, CARAFE_COLOR_INK, 255);
+        } else {
+            carafeDrawRound(picture, bx, ty, bw, 52, 16, CARAFE_COLOR_WHITE, 18);
+            carafeDrawRoundStroke(picture, bx, ty, bw, 52, 16, 2, CARAFE_COLOR_WHITE, 36);
+        }
+        carafeDrawCircle(picture, bx + 14 + 17, ty + 26, 17, i == 0 ? CARAFE_COLOR_PRIMARY_INK : CARAFE_COLOR_GAP, 255);
+        CarafeTextStyle g = { 19, CarafeHeavy, 34, CARAFE_COLOR_INK, true };
+        carafeDrawLine(picture, glyphs[i], &g, bx + 14, ty + 9, 34);
+        CarafeTextStyle label = { 20, CarafeBold, 52, i == 0 ? CARAFE_COLOR_PRIMARY_INK : CARAFE_COLOR_INK, false };
+        carafeDrawLine(picture, labels[i], &label, bx + 60, ty, 0);
+        addHit(HitButton, ids[i], bx, ty, bw, 52);
+        bx += bw + 14;
+    }
+    int hx = bx + 10;
+    int hy = ty + 14;
+    hx = drawHint(picture, hx, hy, "A", r->press);
+    hx = drawHint(picture, hx, hy, "X", r->erase);
+    if (base_shown) {
+        hx = drawHint(picture, hx, hy, "Y", r->base);
+    }
+    if (g_edit_new) {
+        drawHint(picture, hx, hy, "L R", r->field);
+    }
+}
+
 static void drawConfirm(CarafeImage* picture) {
     const Strings* s = text();
     carafeDrawRound(picture, 0, 0, picture->width, picture->height, 0, 0xFF0E0408u, 184);
@@ -1482,9 +2683,13 @@ static void drawConfirm(CarafeImage* picture) {
             pending[count++] = i;
         }
     }
+    int registry = g_reg_available ? carafeRegistryPendingCount() : 0;
+    if (registry > 6 - count) {
+        registry = 6 - count;
+    }
     const int w = 700;
     const int x = (picture->width - w) / 2;
-    const int h = 250 + count * 44 + 90;
+    const int h = 250 + (count + registry) * 44 + 90;
     const int y = (picture->height - h) / 2;
     carafeDrawRound(picture, x, y, w, h, 24, 0xFF1C0B13u, 255);
     carafeDrawRoundStroke(picture, x, y, w, h, 24, 1, CARAFE_COLOR_WHITE, 26);
@@ -1499,6 +2704,25 @@ static void drawConfirm(CarafeImage* picture) {
         snprintf(line, sizeof(line), "%s → %s", from, carafeValueLabel(setting, g_language));
         carafeDrawText(picture, pick(setting->name), 17, CarafeRegular, x + 36, ty + 10, CARAFE_COLOR_VALUE);
         int lw = carafeTextWidth(line, 17, CarafeBold);
+        carafeDrawText(picture, line, 17, CarafeBold, x + w - 36 - lw, ty + 10, CARAFE_COLOR_INK);
+        carafeDrawRound(picture, x + 36, ty + 43, w - 72, 1, 0, CARAFE_COLOR_WHITE, 26);
+        ty += 44;
+    }
+    for (int i = 0; i < registry; i++) {
+        char name[CARAFE_REG_NAME];
+        char from[TEXT_SIZE];
+        char to[TEXT_SIZE];
+        if (!carafeRegistryPendingLine(i, name, sizeof(name), from, sizeof(from), to, sizeof(to))) {
+            continue;
+        }
+        char change[TEXT_SIZE * 2 + 8];
+        snprintf(change, sizeof(change), "%s → %s", from, to[0] != '\0' ? to : reg()->deleted);
+        char line[TEXT_SIZE];
+        fitText(change, 17, CarafeBold, (w - 72) / 2, line, sizeof(line));
+        int lw = carafeTextWidth(line, 17, CarafeBold);
+        char label[CARAFE_REG_NAME];
+        fitText(name, 17, CarafeRegular, w - 72 - lw - 16, label, sizeof(label));
+        carafeDrawText(picture, label, 17, CarafeRegular, x + 36, ty + 10, CARAFE_COLOR_VALUE);
         carafeDrawText(picture, line, 17, CarafeBold, x + w - 36 - lw, ty + 10, CARAFE_COLOR_INK);
         carafeDrawRound(picture, x + 36, ty + 43, w - 72, 1, 0, CARAFE_COLOR_WHITE, 26);
         ty += 44;
@@ -1542,7 +2766,7 @@ static void drawConfirm(CarafeImage* picture) {
 static void drawFooter(CarafeImage* picture) {
     const Strings* s = text();
     int x = LIST_X;
-    int pending = carafePendingCount(g_catalog);
+    int pending = pendingTotal();
     if (g_picker) {
         x = drawButtonAt(picture, x, "+", s->done, 1, ButtonDone);
         drawButtonAt(picture, x, NULL, s->clear, 0, ButtonClear);
@@ -1565,6 +2789,51 @@ static void drawFooter(CarafeImage* picture) {
     }
     int hx = CARD_X;
     int hy = BUTTONS_Y + 18;
+    if (g_reg) {
+        const RegStrings* r = reg();
+        const char* keys[6];
+        const char* labels[6];
+        int count = 0;
+        if (g_reg_view == 0) {
+            keys[count] = "A";
+            labels[count++] = s->change;
+            keys[count] = "Y";
+            labels[count++] = s->reset;
+            keys[count] = "L R";
+            labels[count++] = r->whole;
+            keys[count] = "B";
+            labels[count++] = s->back;
+        } else {
+            keys[count] = "A";
+            labels[count++] = r->open_change;
+            if (g_reg_hive >= 0) {
+                keys[count] = "X";
+                labels[count++] = r->new_value;
+                keys[count] = "Y";
+                labels[count++] = r->undo;
+                keys[count] = "−";
+                labels[count++] = r->remove;
+            }
+            if (regHasRows()) {
+                keys[count] = "L R";
+                labels[count++] = r->rows;
+            }
+            keys[count] = "B";
+            labels[count++] = g_reg_hive >= 0 ? r->up : s->back;
+        }
+        hy = BUTTONS_Y + 2;
+        for (int i = 0; i < count; i++) {
+            int glyph = carafeTextWidth(keys[i], 12, CarafeHeavy) + 12;
+            glyph = glyph < 24 ? 24 : glyph;
+            int need = glyph + 6 + carafeTextWidth(labels[i], 14, CarafeRegular);
+            if (hx > CARD_X && hx + need > CARD_X + CARD_W) {
+                hx = CARD_X;
+                hy += 30;
+            }
+            hx = drawHint(picture, hx, hy, keys[i], labels[i]);
+        }
+        return;
+    }
     if (g_picker) {
         hx = drawHint(picture, hx, hy, "A", g_picker_pad ? s->choose : s->toggle);
         hx = drawHint(picture, hx, hy, "Y", s->clear);
@@ -1586,12 +2855,17 @@ static void renderLocked(CarafeImage* picture) {
     drawHeader(picture);
     if (g_picker) {
         drawPicker(picture);
+    } else if (g_reg) {
+        drawRegistry(picture);
     } else if (g_group < 0 && tabIsControls(g_tab)) {
         drawPad(picture);
     } else {
         drawList(picture);
     }
     drawFooter(picture);
+    if (g_reg && g_edit) {
+        drawEditor(picture);
+    }
     if (g_confirm) {
         g_hit_count = 0;
         drawConfirm(picture);

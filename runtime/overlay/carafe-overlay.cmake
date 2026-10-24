@@ -6,6 +6,7 @@ set(CARAFE_ERROR_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_error.c")
 set(CARAFE_DRAW_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_draw.c")
 set(CARAFE_SETTINGS_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_settings.c")
 set(CARAFE_MENU_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_menu.c")
+set(CARAFE_REGISTRY_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_registry.c")
 set(CARAFE_DIAG_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_diag.c")
 set(CARAFE_LOCK_BOOST_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_lock_boost.c")
 set(CARAFE_MESA_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_mesa.c")
@@ -100,7 +101,7 @@ function(carafe_add_overlay)
         wine-nx-runtime
         PRIVATE "${CARAFE_OVERLAY_FILE}" "${CARAFE_LOADING_FILE}" "${CARAFE_ERROR_FILE}" "${CARAFE_DIAG_FILE}"
             "${CARAFE_LOCK_BOOST_FILE}" "${CARAFE_MESA_FILE}" "${CARAFE_DRAW_FILE}" "${CARAFE_SETTINGS_FILE}"
-            "${CARAFE_MENU_FILE}"
+            "${CARAFE_MENU_FILE}" "${CARAFE_REGISTRY_FILE}"
     )
     target_compile_definitions(wine-nx-runtime PRIVATE ${CARAFE_OVERLAY_DEFINITIONS})
     set_source_files_properties(
@@ -109,6 +110,7 @@ function(carafe_add_overlay)
         "${CARAFE_DRAW_FILE}"
         "${CARAFE_SETTINGS_FILE}"
         "${CARAFE_MENU_FILE}"
+        "${CARAFE_REGISTRY_FILE}"
         PROPERTIES
             INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/source;$ENV{DEVKITPRO}/portlibs/switch/include/SDL2"
             COMPILE_DEFINITIONS _REENTRANT
@@ -117,7 +119,7 @@ function(carafe_add_overlay)
         target_link_options(wine-nx-runtime PRIVATE "LINKER:--wrap=${symbol}")
     endforeach()
     carafe_apply_patches()
-    message(STATUS "Carafe overlay: overlay, loading and error screens, settings menu, lock waits and diagnostics added to wine-nx-runtime")
+    message(STATUS "Carafe overlay: overlay, loading and error screens, settings menu, registry, lock waits and diagnostics added to wine-nx-runtime")
 endfunction()
 
 cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL carafe_add_overlay)

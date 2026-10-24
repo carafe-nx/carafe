@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::autorun_files::{AutorunFiles, executable_stem};
 use crate::nacp;
 use crate::record::BuildRecord;
+use crate::registry;
 
 /// Games folder in RomFS; under it is the game folder with its files.
 pub const GAMES_DIR: &str = "switch/wine/drive_c/Games";
@@ -66,7 +67,8 @@ pub enum PackageError {
 /// The game folder in RomFS is named like the folder on the PC. The runtime gets the path to the `.exe` in
 /// `carafe/argv`, the title for the loading screen in `carafe/title`; next to the `.exe` go `<name>.keys.txt`,
 /// `<name>.wine-nx.txt`, `<name>.box64.txt` when a Box64 option is changed and, if there are arguments,
-/// `<name>.args.txt`. The console menu's `carafe/menu.txt` comes from [`crate::settings_menu::render`].
+/// `<name>.args.txt`, and `carafe/registry.txt` when the game has registry entries or menu rows. The console
+/// menu's `carafe/menu.txt` comes from [`crate::settings_menu::render`].
 ///
 /// # Errors
 ///
@@ -104,6 +106,12 @@ pub fn package(record: &BuildRecord) -> Result<GamePackage, PackageError> {
         romfs_files.push(GeneratedFile {
             path: format!("{exe_dir}/{}", settings.box64_name),
             contents: settings.box64,
+        });
+    }
+    if let Some(contents) = registry::render_registry_file(&record.settings.registry) {
+        romfs_files.push(GeneratedFile {
+            path: registry::REGISTRY_FILE.to_owned(),
+            contents,
         });
     }
     if !source.arguments.is_empty() {
@@ -248,6 +256,29 @@ mod tests {
         assert!(file(&package, &format!("{games}/openttd.args.txt")).is_none());
         assert_eq!(package.icon_files, vec!["icon_AmericanEnglish.dat"]);
         assert_eq!(package.nacp.len(), nacp::NACP_SIZE);
+    }
+
+    #[test]
+    fn registry_entries_go_into_the_package_only_when_there_are_some() {
+        use crate::registry::{RegistryChange, RegistryEntry, RegistryRoot, RegistryValue};
+
+        let mut record = record("C:\\Games\\Probe", "probe.exe", &[]);
+        assert!(file(&package(&record).unwrap(), "carafe/registry.txt").is_none());
+        record.settings.registry.entries.push(RegistryEntry {
+            root: RegistryRoot::CurrentUser,
+            path: "Software\\Probe".to_owned(),
+            name: "Width".to_owned(),
+            change: RegistryChange::Set {
+                value: RegistryValue::Dword { number: 1280 },
+            },
+        });
+        let package = package(&record).unwrap();
+        assert_eq!(
+            file(&package, "carafe/registry.txt"),
+            Some(
+                "carafe-registry\t1\nmode\tonce\nset\tHKCU\tSoftware\\Probe\tWidth\t4\t00050000\n"
+            )
+        );
     }
 
     #[test]

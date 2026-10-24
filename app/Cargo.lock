@@ -266,6 +266,7 @@ dependencies = [
  "carafe-library",
  "carafe-mtp",
  "carafe-pack",
+ "carafe-regfiles",
  "carafe-steamgriddb",
  "serde",
  "serde_json",
@@ -324,6 +325,13 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "carafe-regfiles"
+version = "0.0.0"
+dependencies = [
+ "carafe-core",
 ]
 
 [[package]]
