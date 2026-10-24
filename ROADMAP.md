@@ -43,6 +43,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` 32-bit games no longer run out of address space while FEX compiles on many threads at once (#47)
 - [x] `bug` 32-bit games get addresses up to 4 GB instead of 2 GB (#47) — v0.3.1
 - [x] `bug` Saves keep the time they were changed, so games that check it load them (#47) — v0.3.1
 - [x] `feature` When a game fails, an error screen shows what failed and offers to restart it or exit — v0.3.0

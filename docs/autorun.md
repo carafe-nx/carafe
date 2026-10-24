@@ -182,6 +182,15 @@ newlib and libnx details the overlay has to respect:
   region that lands below 2 GB. NFS Carbon (#47) asked for 132 MB in one piece and found none while about 1.1 GB
   below 4 GB was free; with the heap at 1 GB only about 400 MB were left to it. Patch `0040` gives every 32-bit
   program addresses up to 4 GB; the image keeps its flag, so `GlobalMemoryStatus` still reports at most 2 GB.
+- That limit was not what ran out. A 32-bit process has about 1.3 GB for the guest whatever the heap's place
+  (`[VA] early guest reservations`), and FEX took a large part of it: every thread that compiles holds a decoded
+  instruction buffer for 65536 instructions (8 MB, `Frontend.h`) and two IR lists of 8 MB (`IREmitter.h`), pooled
+  per thread in the guest's own address space. On the console 23 threads compiled during Carbon's start, 552 MB,
+  and the 132 MB reservation found no range. A block holds at most `FEX_MAXINST` instructions (1000 by default),
+  so FEX patch `0003` sizes the decoder for that limit and the IR lists at upstream's 8 MB per 5000 instructions:
+  4 MB per thread instead of 24 MB. The native window, about 640 MB, had 360–450 MB free and was left as it is.
+- Eden puts the heap high, so a 32-bit game there keeps a large free range below it; Lab's `--heap-start` places it
+  where the console did (`carafe-lab`, `patches/eden/0051`).
 - Where the kernel puts the heap is decided at process creation (ASLR). Rarely it lands inside the low 4 GB; then
   early guest reservations shrink to about 600 MB and the start fails. Ordinary Autorun likely has the same; not
   verified.
