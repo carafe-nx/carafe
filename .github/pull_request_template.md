@@ -10,5 +10,5 @@
 
 - [ ] `npm run check` passes.
 - [ ] Changes to the runtime were tested on the console.
-- [ ] New UI strings are in `en.json`, `ru.json` and `zh-Hans.json`.
+- [ ] New UI strings are in every file in `app/ui/src/shared/i18n/locales/`.
 - [ ] No firmware, games or links to them.

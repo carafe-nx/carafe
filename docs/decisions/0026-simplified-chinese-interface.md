@@ -2,6 +2,8 @@
 
 Date: 2026-10-15
 
+Replaced by [0035](0035-every-switch-language.md).
+
 Replaces the languages of [0013](0013-desktop-app.md) and the installer languages of [0017](0017-updates.md).
 
 ## Context

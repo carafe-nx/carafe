@@ -245,7 +245,6 @@
   },
   "library": {
     "title": "游戏库",
-    "count_one": "{{count}} 个游戏",
     "count_other": "{{count}} 个游戏",
     "newGame": "新建游戏",
     "empty": "构建完成的游戏会显示在这里。点击“新建游戏”开始。",
@@ -343,7 +342,6 @@
     "pickHint": "Carafe 会自动查找可执行文件",
     "reading": "正在读取游戏文件夹…",
     "readingHint": "正在查找 .exe、程序位数和图标",
-    "found_one": "找到 {{count}} 个 .exe",
     "found_other": "找到 {{count}} 个 .exe",
     "change": "选择其他文件夹",
     "installedHint": "Carafe 需要已安装的游戏，而非安装程序。如果您只有 setup.exe，请先在此电脑上安装游戏。"
@@ -780,7 +778,6 @@
     "devBuild": "此开发版本不支持自动更新。"
   },
   "rebuild": {
-    "offerTitle_one": "{{count}} 个游戏使用了旧版运行时",
     "offerTitle_other": "{{count}} 个游戏使用了旧版运行时",
     "offerText": "重新构建可获得运行时 {{version}} 中的修复。",
     "notNow": "暂不处理",
@@ -795,7 +792,6 @@
     "builtWith": "运行时 {{version}}",
     "space": "游戏库所在磁盘最多需要 {{size}} 可用空间",
     "reinstallHint": "请将重新构建的游戏再次安装到 Switch。由于 Title ID 不变，主机上的存档会保留。",
-    "start_one": "重新构建 {{count}} 个游戏",
     "start_other": "重新构建 {{count}} 个游戏",
     "queueTitle": "正在重新构建",
     "queueDone": "重新构建已结束",
@@ -876,7 +872,6 @@
     "importTitle": "导入 {{name}}",
     "importText": "勾选要放入游戏的内容。HKEY_CLASSES_ROOT 变为 HKLM\\Software\\Classes，Wow6432Node 会被去掉：游戏的 32 位和 64 位共用一个注册表。删除项也会一并导入。",
     "replaces": "将替换",
-    "skipped_one": "{{count}} 行未导入",
     "skipped_other": "{{count}} 行未导入",
     "skipLine": "第 {{line}} 行：{{reason}}。",
     "skipReasons": {
@@ -884,20 +879,16 @@
       "noKey": "在第一个项之前的值",
       "badValue": "无法读取该值"
     },
-    "importCount_one": "导入 {{count}} 项",
     "importCount_other": "导入 {{count}} 项",
     "importErrors": {
       "format": "这不是 Windows 注册表文件：第一行必须是“Windows Registry Editor Version 5.00”或“REGEDIT4”。",
       "read": "无法读取该文件。"
     },
-    "imported_one": "已从 {{name}} 导入 {{count}} 项。",
     "imported_other": "已从 {{name}} 导入 {{count}} 项。",
-    "exported_one": "已导出 {{count}} 项。",
     "exported_other": "已导出 {{count}} 项。",
     "exportError": "文件未能写入。",
     "newRow": "新行",
     "unnamed": "未命名",
-    "rowSummary_one": "{{count}} 个选项 · {{names}}",
     "rowSummary_other": "{{count}} 个选项 · {{names}}",
     "addRow": "+ 菜单行",
     "rowName": "菜单中的名称",

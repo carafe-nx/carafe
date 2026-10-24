@@ -8,6 +8,7 @@
 
 #include "carafe_draw.h"
 #include "carafe_overlay.h"
+#include "carafe_text.h"
 
 #define FONT_SLOTS 16
 #define FONT_LIMIT (4 * 1024 * 1024)
@@ -87,6 +88,7 @@ static TTF_Font* fontAt(int size, CarafeWeight weight) {
 }
 
 void carafeDrawRelease(void) {
+    carafeTextRelease();
     for (int i = 0; i < FONT_SLOTS; i++) {
         if (g_fonts[i].font != NULL) {
             TTF_CloseFont(g_fonts[i].font);
@@ -219,12 +221,10 @@ void carafeDrawFocusRing(CarafeImage* picture, int x, int y, int w, int h, int r
 
 int carafeTextWidth(const char* text, int size, CarafeWeight weight) {
     TTF_Font* font = fontAt(size, weight);
-    int w = 0;
-    int h = 0;
-    if (font == NULL || text[0] == '\0' || TTF_SizeUTF8(font, text, &w, &h) != 0) {
+    if (font == NULL || text[0] == '\0') {
         return 0;
     }
-    return w;
+    return carafeTextMeasure(font, size, weight != CarafeRegular, text);
 }
 
 void carafeDrawText(CarafeImage* picture, const char* text, int size, CarafeWeight weight, int x0, int top,
@@ -233,13 +233,7 @@ void carafeDrawText(CarafeImage* picture, const char* text, int size, CarafeWeig
     if (font == NULL || text[0] == '\0' || picture->pixels == NULL) {
         return;
     }
-    SDL_Color white = { 255, 255, 255, 255 };
-    SDL_Surface* drawn = TTF_RenderUTF8_Blended(font, text, white);
-    if (drawn == NULL) {
-        return;
-    }
-    SDL_Surface* surface = SDL_ConvertSurfaceFormat(drawn, SDL_PIXELFORMAT_ARGB8888, 0);
-    SDL_FreeSurface(drawn);
+    SDL_Surface* surface = carafeTextRender(font, size, weight != CarafeRegular, text);
     if (surface == NULL) {
         return;
     }

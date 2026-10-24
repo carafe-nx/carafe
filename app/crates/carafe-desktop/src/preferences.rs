@@ -29,6 +29,38 @@ pub enum Language {
     #[serde(rename = "zh-Hans")]
     #[ts(rename = "zh-Hans")]
     ZhHans,
+    /// Japanese.
+    Ja,
+    /// Korean.
+    Ko,
+    /// Traditional Chinese.
+    #[serde(rename = "zh-Hant")]
+    #[ts(rename = "zh-Hant")]
+    ZhHant,
+    /// French.
+    Fr,
+    /// Canadian French.
+    #[serde(rename = "fr-CA")]
+    #[ts(rename = "fr-CA")]
+    FrCa,
+    /// German.
+    De,
+    /// Italian.
+    It,
+    /// Spanish as spoken in Spain.
+    Es,
+    /// Latin American Spanish.
+    #[serde(rename = "es-419")]
+    #[ts(rename = "es-419")]
+    Es419,
+    /// Dutch.
+    Nl,
+    /// Portuguese as spoken in Portugal.
+    Pt,
+    /// Brazilian Portuguese.
+    #[serde(rename = "pt-BR")]
+    #[ts(rename = "pt-BR")]
+    PtBr,
 }
 
 /// Interface theme.
@@ -76,10 +108,17 @@ pub struct Preferences {
 /// Returns the settings from the file.
 ///
 /// Returns `None` if the file is missing, unreadable or cannot be parsed: the application then starts
-/// with the default settings. Fields missing from the file are taken from [`Preferences::default`].
+/// with the default settings. Fields missing from the file are taken from [`Preferences::default`]; a
+/// language this version does not know reads as [`Language::System`].
 pub fn load(path: &Path) -> Option<Preferences> {
     let text = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&text).ok()
+    let mut value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    if let Some(language) = value.get_mut("language")
+        && serde_json::from_value::<Language>(language.clone()).is_err()
+    {
+        *language = serde_json::Value::from("system");
+    }
+    serde_json::from_value(value).ok()
 }
 
 /// Writes the settings to the file, creating the folder if needed.
@@ -107,17 +146,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn simplified_chinese_preferences_round_trip() {
-        let preferences = Preferences {
-            language: Language::ZhHans,
-            ..Preferences::default()
-        };
-        let json = serde_json::to_string(&preferences).expect("serialized");
-        assert!(json.contains(r#""language":"zh-Hans""#));
-        assert_eq!(
-            serde_json::from_str::<Preferences>(&json).expect("parsed"),
-            preferences
-        );
+    fn every_language_round_trips_under_its_code() {
+        let languages = [
+            (Language::System, "system"),
+            (Language::Ru, "ru"),
+            (Language::En, "en"),
+            (Language::ZhHans, "zh-Hans"),
+            (Language::Ja, "ja"),
+            (Language::Ko, "ko"),
+            (Language::ZhHant, "zh-Hant"),
+            (Language::Fr, "fr"),
+            (Language::FrCa, "fr-CA"),
+            (Language::De, "de"),
+            (Language::It, "it"),
+            (Language::Es, "es"),
+            (Language::Es419, "es-419"),
+            (Language::Nl, "nl"),
+            (Language::Pt, "pt"),
+            (Language::PtBr, "pt-BR"),
+        ];
+        for (language, code) in languages {
+            let preferences = Preferences {
+                language,
+                ..Preferences::default()
+            };
+            let json = serde_json::to_string(&preferences).expect("serialized");
+            assert!(json.contains(&format!(r#""language":"{code}""#)), "{json}");
+            assert_eq!(
+                serde_json::from_str::<Preferences>(&json).expect("parsed"),
+                preferences
+            );
+        }
+    }
+
+    #[test]
+    fn an_unknown_language_reads_as_the_system_one() {
+        let dir = temp_dir("unknown-language");
+        let path = dir.join(PREFERENCES_FILE);
+        fs::create_dir_all(&dir).expect("created");
+        let mut loaded = Vec::new();
+        for code in [r#""pl""#, r#""zh_Hant""#, r#""""#, "7", "null"] {
+            let json = format!(r#"{{"onboarded":true,"language":{code},"theme":"dark"}}"#);
+            fs::write(&path, json).expect("written");
+            loaded.push(load(&path));
+        }
+        fs::remove_dir_all(&dir).expect("removed");
+        for preferences in loaded {
+            let preferences = preferences.expect("loaded");
+            assert!(preferences.onboarded);
+            assert_eq!(preferences.language, Language::System);
+            assert_eq!(preferences.theme, Theme::Dark);
+        }
     }
 
     fn temp_dir(name: &str) -> PathBuf {

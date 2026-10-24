@@ -79,7 +79,7 @@ export function OnboardingPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
-        <LanguageSwitch />
+        <LanguageSwitch align="end" />
         <ThemeSwitch />
       </div>
       <Panel className={styles.panel}>

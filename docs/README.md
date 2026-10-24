@@ -21,6 +21,8 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/in-game-menu/REPORT.md](research/in-game-menu/REPORT.md) — a settings menu over a running game.
 - [research/game-registry/REPORT.md](research/game-registry/REPORT.md) — a game's Windows registry: where it lives, laying
   entries over it, `.reg` files.
+- [research/languages/REPORT.md](research/languages/REPORT.md) — the console's languages and fonts, picking a language
+  in the app and the installer.
 
 ## Keeping it
 

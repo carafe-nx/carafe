@@ -14,7 +14,7 @@
 #include "input_profile.h"
 
 #define MENU_FILE "/carafe/menu.txt"
-#define MENU_LIMIT (512 * 1024)
+#define MENU_LIMIT (1024 * 1024)
 #define CHANGES_DIR "sdmc:/switch/wine/carafe"
 #define CHANGES_FILE CHANGES_DIR "/changes.txt"
 #define MERGED_MARK CHANGES_DIR "/merged"
@@ -83,26 +83,83 @@ static void note(const char* fmt, ...) {
     carafeOverlayLog(line);
 }
 
-int carafeLanguage(void) {
+static CarafeLanguage languageOf(SetLanguage set) {
+    switch (set) {
+    case SetLanguage_RU:
+        return CarafeLanguageRu;
+    case SetLanguage_ZHCN:
+    case SetLanguage_ZHHANS:
+        return CarafeLanguageZhHans;
+    case SetLanguage_JA:
+        return CarafeLanguageJa;
+    case SetLanguage_KO:
+        return CarafeLanguageKo;
+    case SetLanguage_ZHTW:
+    case SetLanguage_ZHHANT:
+        return CarafeLanguageZhHant;
+    case SetLanguage_FR:
+        return CarafeLanguageFr;
+    case SetLanguage_FRCA:
+        return CarafeLanguageFrCa;
+    case SetLanguage_DE:
+        return CarafeLanguageDe;
+    case SetLanguage_IT:
+        return CarafeLanguageIt;
+    case SetLanguage_ES:
+        return CarafeLanguageEs;
+    case SetLanguage_ES419:
+        return CarafeLanguageEs419;
+    case SetLanguage_NL:
+        return CarafeLanguageNl;
+    case SetLanguage_PT:
+        return CarafeLanguagePt;
+    case SetLanguage_PTBR:
+        return CarafeLanguagePtBr;
+    default:
+        return CarafeLanguageEn;
+    }
+}
+
+CarafeLanguage carafeLanguage(void) {
     static int language = -1;
     if (language >= 0) {
-        return language;
+        return (CarafeLanguage)language;
     }
-    language = 1;
+    language = CarafeLanguageEn;
     if (R_FAILED(setInitialize())) {
-        return language;
+        return (CarafeLanguage)language;
     }
     u64 code = 0;
     SetLanguage set = SetLanguage_ENUS;
     if (R_SUCCEEDED(setGetSystemLanguage(&code)) && R_SUCCEEDED(setMakeLanguage(code, &set))) {
-        if (set == SetLanguage_RU) {
-            language = 0;
-        } else if (set == SetLanguage_ZHCN || set == SetLanguage_ZHHANS) {
-            language = 2;
-        }
+        language = languageOf(set);
     }
     setExit();
-    return language;
+    return (CarafeLanguage)language;
+}
+
+int carafePluralForm(int count) {
+    switch (carafeLanguage()) {
+    case CarafeLanguageRu:
+        return count % 10 == 1 && count % 100 != 11 ? 0
+            : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 1
+                                                                                           : 2;
+    case CarafeLanguageJa:
+    case CarafeLanguageKo:
+    case CarafeLanguageZhHans:
+    case CarafeLanguageZhHant:
+        return 0;
+    case CarafeLanguageFr:
+    case CarafeLanguageFrCa:
+    case CarafeLanguagePtBr:
+        return count == 0 || count == 1 ? 0 : 1;
+    default:
+        return count == 1 ? 0 : 1;
+    }
+}
+
+const char* carafeText(const char* const texts[CARAFE_TEXTS]) {
+    return texts[0][0] != '\0' ? texts[0] : texts[1];
 }
 
 bool carafeGameArgv(char* out, size_t size) {
@@ -701,17 +758,58 @@ static CarafeRow* addRow(CarafeRow* rows, int* count, CarafeRowKind kind, int in
     return row;
 }
 
-static void texts3(char** cursor, const char** out) {
-    for (int i = 0; i < CARAFE_LANGUAGES; i++) {
+static void texts(char** cursor, const char** out) {
+    CarafeLanguage own = carafeLanguage();
+    out[0] = "";
+    out[1] = "";
+    for (int i = 0; i < CarafeLanguageCount; i++) {
         const char* field = nextField(cursor);
-        out[i] = field != NULL ? field : "";
+        if (field == NULL) {
+            field = "";
+        }
+        if (i == (int)own) {
+            out[0] = field;
+        }
+        if (i == CarafeLanguageEn) {
+            out[1] = field;
+        }
     }
+}
+
+static bool languagesMatch(char* line) {
+    static const char* const CODES[CarafeLanguageCount] = {
+        "ru", "en", "zh-Hans", "ja", "ko", "zh-Hant", "fr", "fr-CA", "de", "it", "es", "es-419", "nl", "pt", "pt-BR",
+    };
+    char* cursor = line;
+    const char* kind = nextField(&cursor);
+    if (kind == NULL || strcmp(kind, "languages") != 0) {
+        return false;
+    }
+    for (int i = 0; i < CarafeLanguageCount; i++) {
+        const char* code = nextField(&cursor);
+        if (code == NULL || strcmp(code, CODES[i]) != 0) {
+            return false;
+        }
+    }
+    return cursor == NULL;
 }
 
 static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** group_when) {
     char* line = catalog->text;
     char* end = strchr(line, '\n');
-    if (end == NULL || strncmp(line, "carafe-menu\t1", 13) != 0) {
+    if (end == NULL || strncmp(line, "carafe-menu\t2", 13) != 0 || (line[13] != '\n' && line[13] != '\r')) {
+        note("[CARAFE] settings menu: %s is not version 2", MENU_FILE);
+        return false;
+    }
+    line = end + 1;
+    end = strchr(line, '\n');
+    if (end == NULL) {
+        return false;
+    }
+    *end = '\0';
+    line[strcspn(line, "\r")] = '\0';
+    if (!languagesMatch(line)) {
+        note("[CARAFE] settings menu: %s lists other languages", MENU_FILE);
         return false;
     }
     int section = -1;
@@ -733,7 +831,7 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
         } else if (strcmp(kind, "section") == 0 && catalog->section_count < MAX_SECTIONS) {
             CarafeSection* s = &catalog->sections[catalog->section_count];
             s->id = nextField(&cursor);
-            texts3(&cursor, s->name);
+            texts(&cursor,s->name);
             s->rows = calloc(MAX_ROWS, sizeof(CarafeRow));
             s->presets = calloc(MAX_PRESETS, sizeof(CarafePreset));
             if (s->id == NULL || s->rows == NULL || s->presets == NULL) {
@@ -746,7 +844,7 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
             CarafeGroup* g = &catalog->groups[catalog->group_count];
             g->id = nextField(&cursor);
             group_when[catalog->group_count] = nextField(&cursor);
-            texts3(&cursor, g->name);
+            texts(&cursor,g->name);
             g->pages = calloc(MAX_PAGES, sizeof(CarafePage));
             if (g->id == NULL || g->pages == NULL) {
                 return false;
@@ -758,7 +856,7 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
             if (g->page_count < MAX_PAGES) {
                 CarafePage* p = &g->pages[g->page_count++];
                 p->id = nextField(&cursor);
-                texts3(&cursor, p->name);
+                texts(&cursor,p->name);
                 p->rows = calloc(MAX_ROWS, sizeof(CarafeRow));
                 if (p->rows == NULL) {
                     return false;
@@ -775,8 +873,8 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
             const char* index = nextField(&cursor);
             const char* when = nextField(&cursor);
             const char* api = nextField(&cursor);
-            texts3(&cursor, s->name);
-            texts3(&cursor, s->hint);
+            texts(&cursor,s->name);
+            texts(&cursor,s->hint);
             if (s->id == NULL || file == NULL || s->key == NULL || !fileFromName(file, &s->file)) {
                 last_setting = -1;
                 goto next;
@@ -813,15 +911,15 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
                 CarafeValue* v = &s->values[s->value_count++];
                 const char* text = nextField(&cursor);
                 v->text = text != NULL ? text : "-";
-                texts3(&cursor, v->label);
+                texts(&cursor,v->label);
             }
         } else if (strcmp(kind, "preset") == 0 && section >= 0) {
             CarafeSection* s = &catalog->sections[section];
             if (s->preset_count < MAX_PRESETS) {
                 CarafePreset* p = &s->presets[s->preset_count];
                 p->id = nextField(&cursor);
-                texts3(&cursor, p->name);
-                texts3(&cursor, p->hint);
+                texts(&cursor,p->name);
+                texts(&cursor,p->hint);
                 p->sets = calloc(MAX_SETS, sizeof(CarafeSet));
                 if (p->sets == NULL) {
                     return false;
@@ -848,7 +946,7 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
                 s->kind = failureFromName(which);
                 s->setting = setting;
                 s->value = atoi(value);
-                texts3(&cursor, s->why);
+                texts(&cursor,s->why);
             }
         } else if ((strcmp(kind, "key") == 0 && catalog->key_count < MAX_KEYS)
             || (strcmp(kind, "pad") == 0 && catalog->pad_count < MAX_PADS)) {
@@ -856,7 +954,7 @@ static bool parseCatalog(CarafeCatalog* catalog, PendingWhen* pending, char** gr
             CarafeKey* k = pad ? &catalog->pads[catalog->pad_count++] : &catalog->keys[catalog->key_count++];
             const char* code = nextField(&cursor);
             k->code = code != NULL ? (unsigned int)strtoul(code, NULL, 0) : 0;
-            texts3(&cursor, k->label);
+            texts(&cursor,k->label);
         }
     next:
         if (end == NULL) {
@@ -989,10 +1087,9 @@ bool carafeSettingVisible(const CarafeCatalog* catalog, const CarafeSetting* set
     return carafeWhenHolds(catalog, &setting->when, CarafeWhenShow);
 }
 
-const char* carafeValueLabel(const CarafeSetting* setting, int language) {
+const char* carafeValueLabel(const CarafeSetting* setting) {
     if (setting->current >= 0 && setting->current < setting->value_count) {
-        const char* label = setting->values[setting->current].label[language];
-        return label[0] != '\0' ? label : setting->values[setting->current].label[1];
+        return carafeText(setting->values[setting->current].label);
     }
     return setting->current_text;
 }
@@ -1140,11 +1237,14 @@ bool carafeBindingSet(CarafeCatalog* catalog, bool pad, int source, const Carafe
     return true;
 }
 
-void carafeChordLabel(const CarafeCatalog* catalog, bool pad, const CarafeChord* chord, int language, char* out,
-    size_t size) {
-    static const char* const NONE[CARAFE_LANGUAGES] = { "Нет", "None", "无" };
+void carafeChordLabel(const CarafeCatalog* catalog, bool pad, const CarafeChord* chord, char* out, size_t size) {
+    static const char* const NONE[] = {
+        "Нет", "None", "无", "なし", "없음", "無", "Aucun", "Aucun", "Keine", "Nessuno", "Ninguno", "Ninguno", "Geen",
+        "Nenhum", "Nenhum",
+    };
+    _Static_assert(sizeof(NONE) / sizeof(NONE[0]) == CarafeLanguageCount, "a word for every language");
     if (chord->count == 0) {
-        snprintf(out, size, "%s", NONE[language]);
+        snprintf(out, size, "%s", NONE[carafeLanguage()]);
         return;
     }
     size_t used = 0;
@@ -1155,7 +1255,7 @@ void carafeChordLabel(const CarafeCatalog* catalog, bool pad, const CarafeChord*
         int count = pad ? catalog->pad_count : catalog->key_count;
         for (int k = 0; k < count && label == NULL; k++) {
             if (list[k].code == chord->code[i]) {
-                label = list[k].label[language][0] != '\0' ? list[k].label[language] : list[k].label[1];
+                label = carafeText(list[k].label);
             }
         }
         char fallback[16];

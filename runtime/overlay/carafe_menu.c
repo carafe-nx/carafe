@@ -139,7 +139,7 @@ typedef struct {
     const char* trial_toggle;
 } Strings;
 
-static const Strings STRINGS[CARAFE_LANGUAGES] = {
+static const Strings STRINGS[] = {
     {
         "Назад", "Перезапустить", "Перезапустить · %d", "В игру", "К ошибке", "Изменить", "Сбросить", "Открыть",
         "Разделы", "Страницы", "Действует сразу — видно в игре.", "Применится после перезапуска игры.",
@@ -198,7 +198,292 @@ static const Strings STRINGS[CARAFE_LANGUAGES] = {
         },
         "按下", "无", "试运行",
     },
+    {
+        "もどる", "再起動", "再起動 · %d", "ゲームに戻る", "もどる", "変更", "リセット", "開く", "カテゴリー", "ページ",
+        "すぐに反映されます。ゲームで確認できます。", "ゲームを再起動すると反映されます。",
+        "ゲームを次に起動したときに反映されます。", "今は効果がありません。", "デフォルト", "プリセット", "カスタム",
+        "オプションの組み合わせです。選んだ後にオプションを手動で調整すると、プリセットは「カスタム」になります。",
+        "おすすめに戻す", "このゲームのすべての設定が、Carafeがビルドしたときの状態に戻ります。",
+        "もう一度Aを押すと戻します", "ゲームを再起動しますか？",
+        "これらの設定は次の起動から反映されます。ゲームで保存していない進行状況は失われます。",
+        "お試し起動", "新しい設定でゲームがクラッシュしたら、元の設定に戻すか確認します。", "あとで", "元に戻す",
+        { "%d件の変更が再起動待ちです", "%d件の変更が再起動待ちです", "%d件の変更が再起動待ちです" },
+        "ゲームは動作中 · 閉じる：−、+、L、Rを同時に押す", "ゲームはエラーで終了しました", "試せること",
+        "%sボタン", "完了", "クリア", "キーとマウスボタンを選んでください。複数選ぶと組み合わせになります。",
+        "このSwitchのボタンを、Xboxコントローラーのどのボタンにするかを選びます。", "追加/削除", "決定", "キャンセル",
+        "すぐに反映されます。ゲームで試してください。", "Xbox 360コントローラー", "キーボードとマウス",
+        {
+            { "ZL", "トリガー" }, { "L", "ショルダー" }, { "−", "マイナス" }, { "Lスティック", "傾け・押し込み" },
+            { "方向ボタン", "4つのボタン" }, { "ZR", "トリガー" }, { "R", "ショルダー" }, { "+", "プラス" },
+            { "A B X Y", "アクションボタン" }, { "Rスティック", "傾け・押し込み" },
+        },
+        "押し込み", "なし", "お試し起動",
+    },
+    {
+        "뒤로", "다시 시작", "다시 시작 · %d", "게임으로", "뒤로", "변경", "초기화", "열기", "분류", "페이지",
+        "바로 적용됩니다. 게임에서 확인할 수 있습니다.", "게임을 다시 시작하면 적용됩니다.",
+        "게임을 다시 실행하면 적용됩니다.", "지금은 효과가 없습니다.", "기본값", "프리셋", "사용자 지정",
+        "미리 만든 옵션 조합입니다. 하나를 고른 뒤 옵션을 직접 조정하면 프리셋이 “사용자 지정”으로 표시됩니다.",
+        "권장 설정으로", "이 게임의 모든 설정이 Carafe가 빌드한 상태로 돌아갑니다.",
+        "되돌리려면 A를 한 번 더 누르세요", "게임을 다시 시작할까요?",
+        "이 설정은 다음 실행부터 적용됩니다. 게임에서 저장하지 않은 진행 상황은 사라집니다.",
+        "시험 실행", "새 설정으로 게임이 오류로 종료되면 이전 설정으로 되돌릴지 묻습니다.", "나중에", "되돌리기",
+        { "변경 %d개가 다시 시작을 기다립니다", "변경 %d개가 다시 시작을 기다립니다",
+            "변경 %d개가 다시 시작을 기다립니다" },
+        "게임은 계속 실행 중 · 닫기: −, +, L, R 동시에 누르기", "게임이 오류로 종료되었습니다", "해결 방법",
+        "%s 버튼", "완료", "지우기", "키와 마우스 버튼을 고르세요. 여러 개를 고르면 조합이 됩니다.",
+        "이 Switch 버튼이 Xbox 컨트롤러의 어떤 버튼이 될지 고릅니다.", "추가/제거", "선택", "취소",
+        "바로 적용됩니다. 게임에서 확인해 보세요.", "Xbox 360 컨트롤러", "키보드와 마우스",
+        {
+            { "ZL", "트리거" }, { "L", "숄더" }, { "−", "마이너스" }, { "L스틱", "기울이기·누르기" },
+            { "방향 버튼", "버튼 4개" }, { "ZR", "트리거" }, { "R", "숄더" }, { "+", "플러스" },
+            { "A B X Y", "액션 버튼" }, { "R스틱", "기울이기·누르기" },
+        },
+        "누르기", "없음", "시험 실행",
+    },
+    {
+        "返回", "重新啟動", "重新啟動 · %d", "回到遊戲", "返回", "變更", "重設", "開啟", "分類", "頁面",
+        "立即生效，可在遊戲中看到。", "重新啟動遊戲後生效。", "遊戲再次啟動時生效。", "目前沒有作用。", "預設", "方案",
+        "自訂", "現成的選項組合。選擇一個後可手動調整選項，此時方案會顯示為「自訂」。", "恢復建議設定",
+        "這款遊戲的所有設定都會恢復為 Carafe 建置時的樣子。", "再按一次 A 以恢復", "要重新啟動遊戲嗎？",
+        "這些設定會在下次啟動時生效。遊戲尚未儲存的進度將會遺失。", "試執行", "如果遊戲在新設定下當機，提議恢復原本的設定。",
+        "稍後", "復原", { "%d 項變更等待重新啟動", "%d 項變更等待重新啟動", "%d 項變更等待重新啟動" },
+        "遊戲仍在執行 · 關閉：同時按 −、+、L 和 R", "遊戲因錯誤而關閉", "可以試試", "按鈕 %s", "完成", "清除",
+        "選擇鍵盤按鍵與滑鼠按鈕。選擇多個即成為組合鍵。", "這個 Switch 按鈕要對應 Xbox 控制器的哪個按鈕。", "新增或移除",
+        "選擇", "取消", "立即生效，請在遊戲中試試。", "Xbox 360 控制器", "鍵盤與滑鼠",
+        {
+            { "ZL", "扳機" }, { "L", "肩鍵" }, { "−", "減號" }, { "左搖桿", "傾斜與按下" }, { "方向按鈕", "四個按鈕" },
+            { "ZR", "扳機" }, { "R", "肩鍵" }, { "+", "加號" }, { "A B X Y", "動作按鈕" }, { "右搖桿", "傾斜與按下" },
+        },
+        "按下", "無", "試執行",
+    },
+    {
+        "Retour", "Redémarrer", "Redémarrer · %d", "Reprendre", "Retour", "Modifier", "Rétablir", "Ouvrir",
+        "Sections", "Pages", "Effet immédiat — visible dans le jeu.", "Prend effet au redémarrage du jeu.",
+        "Prend effet au prochain lancement du jeu.", "Sans effet pour le moment.", "par défaut", "Préréglage",
+        "Personnalisé",
+        "Des combinaisons d’options toutes prêtes. Choisissez-en une et ajustez les options à la main — le "
+        "préréglage devient alors « Personnalisé ».",
+        "Rétablir les recommandations",
+        "Tous les paramètres de ce jeu reviennent à ceux avec lesquels Carafe l’a généré.",
+        "Appuyez encore sur A pour rétablir", "Redémarrer le jeu ?",
+        "Ces paramètres prendront effet au prochain lancement. La progression non sauvegardée par le jeu sera perdue.",
+        "Lancement d’essai", "Si le jeu plante avec les nouveaux paramètres, proposer de revenir aux anciens.",
+        "Plus tard", "Annuler",
+        { "%d changement attend un redémarrage", "%d changements attendent un redémarrage",
+            "%d changements attendent un redémarrage" },
+        "Le jeu continue de tourner · fermer : −, +, L et R ensemble", "Le jeu s’est fermé à cause d’une erreur",
+        "À essayer", "Bouton %s", "OK", "Vider",
+        "Choisissez des touches et des boutons de souris. Plusieurs forment une combinaison.",
+        "Le bouton de manette Xbox que devient ce bouton Switch.", "Ajouter ou retirer", "Choisir", "Annuler",
+        "Effet immédiat — essayez dans le jeu.", "manette Xbox 360", "clavier et souris",
+        {
+            { "ZL", "gâchette" }, { "L", "tranche" }, { "−", "moins" }, { "Stick gauche", "incliner, clic" },
+            { "Croix", "quatre boutons" }, { "ZR", "gâchette" }, { "R", "tranche" }, { "+", "plus" },
+            { "A B X Y", "boutons action" }, { "Stick droit", "incliner, clic" },
+        },
+        "appui", "Aucun", "Lancement d’essai",
+    },
+    {
+        "Retour", "Redémarrer", "Redémarrer · %d", "Reprendre", "Retour", "Modifier", "Rétablir", "Ouvrir",
+        "Sections", "Pages", "S’applique tout de suite — visible dans le jeu.", "S’applique au redémarrage du jeu.",
+        "S’applique au prochain démarrage du jeu.", "Sans effet pour l’instant.", "par défaut", "Préréglage",
+        "Personnalisé",
+        "Ensembles d’options prêts à l’emploi. Choisissez-en un et ajustez les options à la main — le préréglage "
+        "devient alors « Personnalisé ».",
+        "Rétablir les réglages recommandés",
+        "Tous les paramètres de ce jeu reviennent à ceux de sa création par Carafe.",
+        "Appuyez de nouveau sur A pour rétablir", "Redémarrer le jeu?",
+        "Ces paramètres s’appliqueront au prochain démarrage. Toute progression non sauvegardée sera perdue.",
+        "Lancement d’essai", "Si le jeu plante avec les nouveaux paramètres, proposer de revenir aux anciens.",
+        "Plus tard", "Défaire",
+        { "%d changement attend un redémarrage", "%d changements attendent un redémarrage",
+            "%d changements attendent un redémarrage" },
+        "Le jeu continue de tourner · fermer : −, +, L et R ensemble", "Le jeu s’est fermé à cause d’une erreur",
+        "À essayer", "Bouton %s", "Terminé", "Effacer",
+        "Choisissez des touches et des boutons de souris. Plusieurs forment une combinaison.",
+        "Le bouton de manette Xbox que devient ce bouton de la Switch.", "Ajouter ou retirer", "Choisir", "Annuler",
+        "S’applique tout de suite — essayez dans le jeu.", "manette Xbox 360", "clavier et souris",
+        {
+            { "ZL", "gâchette" }, { "L", "épaule" }, { "−", "moins" }, { "Joystick gauche", "incliner, appuyer" },
+            { "Directions", "quatre boutons" }, { "ZR", "gâchette" }, { "R", "épaule" }, { "+", "plus" },
+            { "A B X Y", "boutons d’action" }, { "Joystick droit", "incliner, appuyer" },
+        },
+        "appui", "Aucun", "Lancement d’essai",
+    },
+    {
+        "Zurück", "Neustart", "Neustart · %d", "Zum Spiel", "Zurück", "Ändern", "Zurücksetzen", "Öffnen", "Bereiche",
+        "Seiten", "Wirkt sofort – im Spiel sichtbar.", "Wirkt nach einem Neustart des Spiels.",
+        "Wirkt, wenn das Spiel wieder startet.", "Wirkt gerade nicht.", "Standard", "Voreinstellung", "Eigene",
+        "Fertige Optionssätze. Wähle einen und passe die Optionen von Hand an – die Voreinstellung heißt dann "
+        "„Eigene“.",
+        "Empfohlene wiederherstellen", "Alle Einstellungen dieses Spiels werden so, wie Carafe sie erstellt hat.",
+        "Drücke erneut A zum Wiederherstellen", "Spiel neu starten?",
+        "Diese Einstellungen wirken ab dem nächsten Start. Nicht gespeicherter Fortschritt geht verloren.",
+        "Probelauf", "Wenn das Spiel mit den neuen Einstellungen abstürzt, anbieten, die alten zurückzuholen.",
+        "Später", "Rückgängig",
+        { "%d Änderung wartet auf Neustart", "%d Änderungen warten auf Neustart", "%d Änderungen warten auf Neustart" },
+        "Das Spiel läuft weiter · schließen: −, +, L und R zusammen", "Das Spiel wurde wegen eines Fehlers beendet",
+        "Was du probieren kannst", "Taste %s", "Fertig", "Leeren",
+        "Wähle Tasten und Maustasten. Mehrere ergeben eine Kombination.",
+        "Welche Taste des Xbox-Controllers diese Switch-Taste wird.", "Hinzufügen/entfernen", "Wählen", "Abbrechen",
+        "Wirkt sofort – probier es im Spiel aus.", "Xbox-360-Controller", "Tastatur und Maus",
+        {
+            { "ZL", "Trigger" }, { "L", "Schultertaste" }, { "−", "Minus" }, { "Linker Stick", "neigen/drücken" },
+            { "Steuerkreuz", "vier Tasten" }, { "ZR", "Trigger" }, { "R", "Schultertaste" }, { "+", "Plus" },
+            { "A B X Y", "Aktionstasten" }, { "Rechter Stick", "neigen/drücken" },
+        },
+        "drücken", "Keine", "Probelauf",
+    },
+    {
+        "Indietro", "Riavvia", "Riavvia · %d", "Al gioco", "Indietro", "Cambia", "Ripristina", "Apri", "Sezioni",
+        "Pagine", "Ha effetto subito — si vede nel gioco.", "Ha effetto al riavvio del gioco.",
+        "Ha effetto al prossimo avvio del gioco.", "Ora non ha effetto.", "predefinito", "Preset", "Personalizzato",
+        "Combinazioni di opzioni pronte. Scegline una e regola le opzioni a mano: il preset diventerà Personalizzato.",
+        "Ripristina consigliate", "Tutte le impostazioni di questo gioco tornano come quando Carafe lo ha compilato.",
+        "Premi di nuovo A per ripristinare", "Riavviare il gioco?",
+        "Queste impostazioni avranno effetto al prossimo avvio. I progressi non salvati dal gioco andranno persi.",
+        "Avvio di prova", "Se il gioco va in crash con le nuove impostazioni, propone di tornare a quelle precedenti.",
+        "Dopo", "Annulla",
+        { "%d modifica attende il riavvio", "%d modifiche attendono il riavvio", "%d modifiche attendono il riavvio" },
+        "Il gioco continua · per chiudere: −, +, L e R insieme", "Il gioco si è chiuso per un errore", "Cosa provare",
+        "Pulsante %s", "Fine", "Cancella", "Scegli tasti e pulsanti del mouse. Più di uno formano una combinazione.",
+        "Quale pulsante del controller Xbox diventa questo pulsante della Switch.", "Aggiungi o rimuovi", "Scegli",
+        "Annulla", "Ha effetto subito — provalo nel gioco.", "controller Xbox 360", "tastiera e mouse",
+        {
+            { "ZL", "grilletto" }, { "L", "dorsale" }, { "−", "meno" }, { "Stick sinistro", "inclina, premi" },
+            { "Croce", "quattro pulsanti" }, { "ZR", "grilletto" }, { "R", "dorsale" }, { "+", "più" },
+            { "A B X Y", "tasti azione" }, { "Stick destro", "inclina, premi" },
+        },
+        "pressione", "Nessuno", "Avvio di prova",
+    },
+    {
+        "Atrás", "Reiniciar", "Reiniciar · %d", "Al juego", "Volver", "Cambiar", "Restablecer", "Abrir", "Secciones",
+        "Páginas", "Se aplica al momento: puedes verlo en el juego.", "Se aplicará cuando reinicies el juego.",
+        "Se aplicará cuando el juego vuelva a iniciarse.", "Ahora mismo no tiene efecto.", "por defecto", "Preajuste",
+        "Personalizado",
+        "Combinaciones de opciones ya listas. Elige una y ajusta las opciones a mano: el preajuste pasará a "
+        "«Personalizado».",
+        "Volver a los recomendados", "Todos los ajustes de este juego vuelven a como los dejó Carafe al generarlo.",
+        "Pulsa A otra vez para restablecer", "¿Reiniciar el juego?",
+        "Estos ajustes se aplicarán la próxima vez que se inicie. Se perderá el progreso que el juego no haya "
+        "guardado.",
+        "Modo de prueba", "Si el juego falla con los ajustes nuevos, ofrece recuperar los anteriores.", "Más tarde",
+        "Deshacer",
+        { "%d cambio pendiente de reinicio", "%d cambios pendientes de reinicio", "%d cambios pendientes de reinicio" },
+        "El juego sigue abierto · cerrar: −, +, L y R a la vez", "El juego se ha cerrado por un error",
+        "Qué puedes probar", "Botón %s", "Listo", "Borrar",
+        "Elige teclas y botones del ratón. Si eliges varios, forman una combinación.",
+        "Qué botón del mando de Xbox será este botón de la Switch.", "Añadir o quitar", "Elegir", "Cancelar",
+        "Se aplica al momento: pruébalo en el juego.", "mando de Xbox 360", "teclado y ratón",
+        {
+            { "ZL", "gatillo" }, { "L", "botón superior" }, { "−", "menos" }, { "Palanca izq.", "mover y pulsar" },
+            { "Cruceta", "cuatro botones" }, { "ZR", "gatillo" }, { "R", "botón superior" }, { "+", "más" },
+            { "A B X Y", "acción" }, { "Palanca der.", "mover y pulsar" },
+        },
+        "pulsar", "Ninguno", "Modo de prueba",
+    },
+    {
+        "Atrás", "Reiniciar", "Reiniciar · %d", "Volver al juego", "Volver", "Cambiar", "Restablecer", "Abrir",
+        "Secciones", "Páginas", "Se aplica ahora: puedes verlo en el juego.", "Se aplica al reiniciar el juego.",
+        "Se aplica cuando el juego vuelva a iniciarse.", "Ahora no tiene efecto.", "predeterminado", "Preajuste",
+        "Personalizado",
+        "Combinaciones de opciones listas. Elige una y ajusta las opciones a mano: el preajuste se mostrará como "
+        "Personalizado.",
+        "Restaurar lo recomendado", "Toda la configuración de este juego vuelve a como la generó Carafe.",
+        "Presiona A otra vez para restaurar", "¿Reiniciar el juego?",
+        "Esta configuración se aplicará en el próximo inicio. Se perderá el progreso que el juego no haya guardado.",
+        "Inicio de prueba", "Si el juego falla con la nueva configuración, ofrecer volver a la anterior.", "Más tarde",
+        "Deshacer",
+        { "%d cambio espera un reinicio", "%d cambios esperan un reinicio", "%d cambios esperan un reinicio" },
+        "El juego sigue en marcha · cerrar: −, +, L y R a la vez", "El juego se cerró por un error", "Qué probar",
+        "Botón %s", "Listo", "Borrar", "Elige teclas y botones del mouse. Si eliges varios, se forma una combinación.",
+        "Qué botón del control de Xbox será este botón de Switch.", "Agregar o quitar", "Elegir", "Cancelar",
+        "Se aplica ahora: pruébalo en el juego.", "control de Xbox 360", "teclado y mouse",
+        {
+            { "ZL", "gatillo" }, { "L", "botón superior" }, { "−", "menos" }, { "Palanca izq.", "mover y presionar" },
+            { "Direcciones", "cuatro botones" }, { "ZR", "gatillo" }, { "R", "botón superior" }, { "+", "más" },
+            { "A B X Y", "botones de acción" }, { "Palanca der.", "mover y presionar" },
+        },
+        "presionar", "Ninguno", "Inicio de prueba",
+    },
+    {
+        "Terug", "Herstarten", "Herstarten · %d", "Naar game", "Terug", "Wijzigen", "Resetten", "Openen", "Onderdelen",
+        "Pagina's", "Werkt meteen — je ziet het in de game.", "Werkt na een herstart van de game.",
+        "Werkt als de game opnieuw start.", "Heeft nu geen effect.", "standaard", "Voorinstelling", "Aangepast",
+        "Kant-en-klare sets opties. Kies er een en pas de opties met de hand aan — de voorinstelling heet dan "
+        "Aangepast.",
+        "Aanbevolen herstellen", "Alle instellingen van deze game gaan terug naar hoe Carafe hem heeft gebouwd.",
+        "Druk nogmaals op A om te herstellen", "Game herstarten?",
+        "Deze instellingen werken vanaf de volgende start. Voortgang die de game niet heeft opgeslagen, gaat verloren.",
+        "Proefstart", "Crasht de game met de nieuwe instellingen, bied dan aan de oude terug te zetten.", "Later",
+        "Ongedaan maken",
+        { "%d wijziging wacht op een herstart", "%d wijzigingen wachten op een herstart",
+            "%d wijzigingen wachten op een herstart" },
+        "De game blijft draaien · sluiten: −, +, L en R tegelijk", "De game is afgesloten door een fout",
+        "Wat je kunt proberen", "Knop %s", "Klaar", "Wissen",
+        "Kies toetsen en muisknoppen. Meerdere vormen samen een combinatie.",
+        "Welke knop van de Xbox-controller deze Switch-knop wordt.", "Toevoegen of verwijderen", "Kiezen", "Annuleren",
+        "Werkt meteen — probeer het in de game.", "Xbox 360-controller", "toetsenbord en muis",
+        {
+            { "ZL", "trigger" }, { "L", "schouderknop" }, { "−", "min" }, { "Linkerstick", "kantelen en indrukken" },
+            { "Richtingsknoppen", "vier knoppen" }, { "ZR", "trigger" }, { "R", "schouderknop" }, { "+", "plus" },
+            { "A B X Y", "actieknoppen" }, { "Rechterstick", "kantelen en indrukken" },
+        },
+        "indrukken", "Geen", "Proefstart",
+    },
+    {
+        "Voltar", "Reiniciar", "Reiniciar · %d", "Voltar ao jogo", "Voltar", "Alterar", "Repor", "Abrir", "Secções",
+        "Páginas", "Tem efeito imediato — pode vê-lo no jogo.", "Tem efeito quando o jogo reiniciar.",
+        "Tem efeito quando o jogo voltar a arrancar.", "Neste momento não tem efeito.", "predefinido", "Perfil",
+        "Personalizado",
+        "Conjuntos de opções prontos. Escolha um e ajuste as opções manualmente — o perfil passa a aparecer como "
+        "Personalizado.",
+        "Repor recomendadas", "Todas as definições deste jogo voltam a ser como o Carafe as compilou.",
+        "Prima A novamente para repor", "Reiniciar o jogo?",
+        "Estas definições têm efeito no próximo arranque. O progresso que o jogo não guardou vai perder-se.",
+        "Arranque de teste", "Se o jogo falhar com as novas definições, propor repor as antigas.", "Mais tarde",
+        "Anular",
+        { "%d alteração aguarda reinício", "%d alterações aguardam reinício", "%d alterações aguardam reinício" },
+        "O jogo continua a correr · fechar: −, +, L e R em simultâneo", "O jogo fechou devido a um erro",
+        "O que experimentar", "Botão %s", "OK", "Limpar",
+        "Escolha teclas e botões do rato. Vários formam uma combinação.",
+        "Em que botão do comando Xbox se torna este botão da Switch.", "Adicionar ou remover", "Escolher", "Cancelar",
+        "Tem efeito imediato — experimente no jogo.", "comando Xbox 360", "teclado e rato",
+        {
+            { "ZL", "gatilho" }, { "L", "ombro" }, { "−", "menos" }, { "Manípulo esq.", "mover e premir" },
+            { "Direcionais", "quatro botões" }, { "ZR", "gatilho" }, { "R", "ombro" }, { "+", "mais" },
+            { "A B X Y", "botões de ação" }, { "Manípulo dir.", "mover e premir" },
+        },
+        "premir", "Nenhum", "Arranque de teste",
+    },
+    {
+        "Voltar", "Reiniciar", "Reiniciar · %d", "Voltar ao jogo", "Voltar", "Alterar", "Redefinir", "Abrir", "Seções",
+        "Páginas", "Tem efeito imediato — dá para ver no jogo.", "Tem efeito quando o jogo reiniciar.",
+        "Tem efeito quando o jogo for iniciado de novo.", "Sem efeito no momento.", "padrão", "Predefinição",
+        "Personalizada",
+        "Conjuntos prontos de opções. Escolha um e ajuste as opções manualmente — a predefinição passa a aparecer "
+        "como Personalizada.",
+        "Restaurar recomendadas", "Todas as configurações deste jogo voltam a ser como o Carafe as criou.",
+        "Pressione A de novo para restaurar", "Reiniciar o jogo?",
+        "Estas configurações passam a valer na próxima vez que o jogo iniciar. O progresso não salvo será perdido.",
+        "Modo de teste", "Se o jogo falhar com as novas configurações, oferecer a volta das anteriores.", "Depois",
+        "Desfazer",
+        { "%d alteração aguarda reinício", "%d alterações aguardam reinício", "%d alterações aguardam reinício" },
+        "O jogo continua rodando · fechar: −, +, L e R juntos", "O jogo fechou com um erro", "O que tentar",
+        "Botão %s", "Pronto", "Limpar", "Escolha teclas e botões do mouse. Vários formam uma combinação.",
+        "Qual botão do controle Xbox este botão do Switch passa a ser.", "Adicionar ou remover", "Escolher",
+        "Cancelar", "Tem efeito imediato — teste no jogo.", "controle Xbox 360", "teclado e mouse",
+        {
+            { "ZL", "gatilho" }, { "L", "ombro" }, { "−", "menos" }, { "Direcional L", "mover e clicar" },
+            { "Direcionais", "quatro botões" }, { "ZR", "gatilho" }, { "R", "ombro" }, { "+", "mais" },
+            { "A B X Y", "botões de ação" }, { "Direcional R", "mover e clicar" },
+        },
+        "clique", "Nenhum", "Modo de teste",
+    },
 };
+
+_Static_assert(sizeof(STRINGS) / sizeof(STRINGS[0]) == CarafeLanguageCount, "a menu text for every language");
 
 typedef struct {
     const char* title;
@@ -249,7 +534,7 @@ typedef struct {
     const char* too_big;
 } RegStrings;
 
-static const RegStrings REG_STRINGS[CARAFE_LANGUAGES] = {
+static const RegStrings REG_STRINGS[] = {
     {
         "Реестр игры",
         "Записи реестра Windows, в которых игра хранит свои настройки: разрешение, язык, управление. Сначала — "
@@ -303,7 +588,267 @@ static const RegStrings REG_STRINGS[CARAFE_LANGUAGES] = {
         "打开 / 更改", "新值", "撤销", "删除", "上一级", "项目", "位于 %s", "名称", "类型", "值", "数字", "字符串",
         "十进制", "十六进制", "按下", "删除字符", "十 / 十六进制", "字段", "空格", "删除", "请输入值的名称。", "数字太大。",
     },
+    {
+        "ゲームのレジストリ",
+        "ゲームが解像度、言語、操作などの設定を保存しているWindowsのレジストリのエントリーです。"
+        "最初にアプリで用意したエントリー、その後にこのゲームのレジストリ全体が表示されます。",
+        "アプリから · %d", "レジストリ全体", "コンピューター",
+        { "システムの設定です。ゲームのインストール先やバージョン、全ユーザー共通の設定があります。",
+            "ユーザーの設定です。ゲームは解像度、言語、操作をたいていここに保存します。" },
+        "キー：サブキー%d個 · 値%d個", "このキーは空です。", "このキーはまだありません。ゲームがまだ作成していません。",
+        { "数値（REG_DWORD）。", "数値（REG_QWORD）。", "文字列（REG_SZ）。", "変数付き文字列（REG_EXPAND_SZ）。",
+            "文字列のリスト（REG_MULTI_SZ）。", "バイナリデータ（REG_BINARY）。" },
+        "種類%uのデータです。", { "新規", "削除", "変更" }, "元の値：%s · Y：元に戻す", "パス：", "レジストリへの書き込み：",
+        "独自の値", "ゲームを再起動すると反映されます。このエントリーはアプリで用意されました。",
+        "A：変更。ゲームは再起動後に新しい値を読み込みます。",
+        "新しい値です。ゲームを再起動するとレジストリに追加されます。",
+        "ゲームを再起動すると削除されます。AかY：残す。", "この種類のデータはアプリで編集します。", "A：開く",
+        "X：値を作成", "もう一度−を押すと削除します", "開く/変更", "新しい値", "元に戻す", "削除", "上へ",
+        "エントリー", "場所：%s", "名前", "種類", "値", "数値", "文字列", "10進数", "16進数", "入力", "消す",
+        "10進/16進", "入力欄", "スペース", "削除", "値の名前を入力してください。", "数値が大きすぎます。",
+    },
+    {
+        "게임 레지스트리",
+        "게임이 해상도, 언어, 조작 같은 설정을 저장하는 Windows 레지스트리 항목입니다. 먼저 앱에서 준비한 "
+        "항목이, 그다음 이 게임의 레지스트리 전체가 나옵니다.",
+        "앱에서 · %d", "레지스트리 전체", "컴퓨터",
+        { "시스템 설정: 게임 설치 위치, 버전, 모든 사용자가 함께 쓰는 설정.",
+            "사용자 설정. 게임은 보통 여기에 해상도, 언어, 조작 설정을 저장합니다." },
+        "키: 하위 키 %d개 · 값 %d개", "이 키는 비어 있습니다.", "아직 없는 키입니다. 게임이 아직 만들지 않았습니다.",
+        { "숫자 (REG_DWORD).", "숫자 (REG_QWORD).", "문자열 (REG_SZ).", "변수 포함 문자열 (REG_EXPAND_SZ).",
+            "문자열 목록 (REG_MULTI_SZ).", "바이너리 데이터 (REG_BINARY)." },
+        "종류 %u의 데이터.", { "신규", "삭제됨", "변경됨" }, "이전: %s · Y — 되돌리기", "경로:", "레지스트리에 쓰는 값:",
+        "직접 입력한 값", "게임을 다시 시작하면 적용됩니다. 앱에서 준비한 항목입니다.",
+        "A — 변경. 게임을 다시 시작하면 새 값을 읽습니다.",
+        "새 값입니다. 게임을 다시 시작하면 레지스트리에 나타납니다.",
+        "게임을 다시 시작하면 삭제됩니다. A 또는 Y — 유지.", "이런 데이터는 앱에서 편집합니다.", "A — 열기",
+        "X — 값 만들기", "삭제하려면 −를 한 번 더 누르세요", "열기 / 변경", "새 값", "되돌리기", "삭제", "위로",
+        "항목", "%s 안에", "이름", "종류", "값", "숫자", "문자열", "10진수", "16진수", "누르기", "지우기",
+        "10진 / 16진", "입력란", "Space", "삭제", "값 이름을 입력하세요.", "숫자가 너무 큽니다.",
+    },
+    {
+        "遊戲登錄檔",
+        "遊戲用來保存設定的 Windows 登錄檔項目：解析度、語言、操作。先列出在應用程式中準備的項目，"
+        "再列出這款遊戲的整個登錄檔。",
+        "來自應用程式 · %d", "整個登錄檔", "電腦",
+        { "系統設定：遊戲的安裝位置、版本、所有人共用的設定。",
+            "使用者設定。遊戲通常把解析度、語言和操作存在這裡。" },
+        "機碼：%d 個子機碼 · %d 個值", "這個機碼是空的。", "這個機碼還不存在：遊戲尚未建立它。",
+        { "數字（REG_DWORD）。", "數字（REG_QWORD）。", "字串（REG_SZ）。", "含變數的字串（REG_EXPAND_SZ）。",
+            "字串清單（REG_MULTI_SZ）。", "二進位資料（REG_BINARY）。" },
+        "類型 %u 的資料。", { "新增", "已刪除", "已變更" }, "原本：%s · Y — 復原", "路徑：", "寫入登錄檔：",
+        "自訂值", "重新啟動遊戲後生效。此項目是在應用程式中準備的。",
+        "A — 變更。遊戲重新啟動後會讀取新值。",
+        "新值。遊戲重新啟動後會出現在登錄檔中。",
+        "遊戲重新啟動時刪除。A 或 Y — 保留。", "這類資料請在應用程式中編輯。", "A — 開啟",
+        "X — 建立值", "再按一次 − 以刪除", "開啟 / 變更", "新值", "復原", "刪除", "上一層",
+        "項目", "位於 %s", "名稱", "類型", "值", "數字", "字串", "十進位", "十六進位", "按下", "退格",
+        "十 / 十六進位", "欄位", "空格", "刪除", "請輸入值的名稱。", "數字太大。",
+    },
+    {
+        "Registre du jeu",
+        "Entrées du registre Windows où le jeu garde ses paramètres : résolution, langue, commandes. D’abord les "
+        "entrées préparées dans l’application, puis tout le registre du jeu.",
+        "De l’application · %d", "Tout le registre", "Ordinateur",
+        { "Paramètres du système : emplacement du jeu, sa version, paramètres communs à tous.",
+            "Paramètres de l’utilisateur. Les jeux y gardent en général leur résolution, leur langue et leurs "
+            "commandes." },
+        "Clé : %d sous-clés · %d valeurs", "Cette clé est vide.",
+        "Cette clé n’existe pas encore : le jeu ne l’a pas créée.",
+        { "Nombre (REG_DWORD).", "Nombre (REG_QWORD).", "Chaîne (REG_SZ).", "Chaîne avec variables (REG_EXPAND_SZ).",
+            "Liste de chaînes (REG_MULTI_SZ).", "Données binaires (REG_BINARY)." },
+        "Données de type %u.", { "nouvelle", "supprimée", "modifiée" }, "Avant : %s · Y — annuler", "Chemin :",
+        "Écrit dans le registre :", "Valeur perso",
+        "Prend effet au redémarrage du jeu. L’entrée a été préparée dans l’application.",
+        "A — modifier. Le jeu lira la nouvelle valeur au redémarrage.",
+        "Nouvelle valeur. Elle apparaîtra dans le registre au redémarrage du jeu.",
+        "Supprimée au redémarrage du jeu. A ou Y — la garder.", "Ce type de données se modifie dans l’application.",
+        "A — ouvrir", "X — créer une valeur", "Appuyez encore sur − pour supprimer", "Ouvrir / modifier",
+        "Nouvelle valeur", "Annuler", "Supprimer", "Remonter", "Entrées", "Dans %s", "Nom", "Type", "Valeur", "Nombre",
+        "Chaîne", "Décimal", "Hexadécimal", "Appuyer", "Effacer", "Déc. / hex.", "Champ", "Espace", "suppression",
+        "Saisissez un nom pour la valeur.", "Le nombre est trop grand.",
+    },
+    {
+        "Registre du jeu",
+        "Entrées du registre Windows où le jeu garde ses paramètres : résolution, langue, commandes. D’abord les "
+        "entrées préparées dans l’application, puis le registre complet du jeu.",
+        "De l’application · %d", "Registre complet", "Ordinateur",
+        { "Paramètres du système : emplacement d’installation du jeu, sa version, paramètres communs à tous.",
+            "Paramètres de l’utilisateur. Les jeux y gardent généralement leur résolution, leur langue et leurs "
+            "commandes." },
+        "Clé : %d sous-clés · %d valeurs", "Cette clé est vide.",
+        "Cette clé n’existe pas encore : le jeu ne l’a pas créée.",
+        { "Nombre (REG_DWORD).", "Nombre (REG_QWORD).", "Chaîne (REG_SZ).", "Chaîne avec variables (REG_EXPAND_SZ).",
+            "Liste de chaînes (REG_MULTI_SZ).", "Données binaires (REG_BINARY)." },
+        "Données de type %u.", { "nouveau", "supprimé", "modifié" }, "Avant : %s · Y — défaire", "Chemin :",
+        "Écrit dans le registre :", "Valeur personnalisée",
+        "S’applique au redémarrage du jeu. L’entrée a été préparée dans l’application.",
+        "A — modifier. Le jeu lira la nouvelle valeur au redémarrage.",
+        "Nouvelle valeur. Elle apparaîtra dans le registre au redémarrage du jeu.",
+        "Supprimée au redémarrage du jeu. A ou Y — la garder.", "Ce type de données se modifie dans l’application.",
+        "A — ouvrir", "X — créer une valeur", "Appuyez de nouveau sur − pour supprimer", "Ouvrir / modifier",
+        "Nouvelle valeur", "Défaire", "Supprimer", "Remonter", "Entrées", "Dans %s", "Nom", "Type", "Valeur",
+        "Nombre", "Chaîne", "Décimal", "Hexadécimal", "Appuyer", "Effacer", "Déc. / hex.", "Champ", "Espace",
+        "supprimer", "Entrez un nom pour la valeur.", "Le nombre est trop grand.",
+    },
+    {
+        "Spiel-Registry",
+        "Einträge der Windows-Registry, in denen das Spiel seine Einstellungen speichert: Auflösung, Sprache, "
+        "Steuerung. Zuerst die in der App vorbereiteten Einträge, dann die gesamte Registry des Spiels.",
+        "Aus der App · %d", "Ganze Registry", "Computer",
+        { "Einstellungen für den ganzen Computer: wo das Spiel installiert ist, seine Version, gemeinsame "
+            "Einstellungen für alle.",
+            "Benutzereinstellungen. Spiele speichern hier meist Auflösung, Sprache und Steuerung." },
+        "Schlüssel: %d Unterschl. · %d Werte", "Dieser Schlüssel ist leer.",
+        "Diesen Schlüssel gibt es noch nicht: Das Spiel hat ihn nicht angelegt.",
+        { "Zahl (REG_DWORD).", "Zahl (REG_QWORD).", "Text (REG_SZ).", "Text mit Variablen (REG_EXPAND_SZ).",
+            "Textliste (REG_MULTI_SZ).", "Binärdaten (REG_BINARY)." },
+        "Daten vom Typ %u.", { "neu", "gelöscht", "geändert" }, "Vorher: %s · Y — rückgängig", "Pfad:",
+        "Schreibt in die Registry:", "Eigener Wert",
+        "Wirkt nach einem Neustart des Spiels. Der Eintrag wurde in der App vorbereitet.",
+        "A — ändern. Das Spiel liest den neuen Wert nach einem Neustart.",
+        "Neuer Wert. Er erscheint nach einem Neustart des Spiels in der Registry.",
+        "Wird beim Neustart des Spiels gelöscht. A oder Y — behalten.",
+        "Daten dieser Art werden in der App bearbeitet.", "A — öffnen", "X — Wert anlegen",
+        "Drücke erneut −, um zu löschen", "Öffnen / ändern", "Neuer Wert", "Rückgängig", "Löschen", "Nach oben",
+        "Einträge", "In %s", "Name", "Typ", "Wert", "Zahl", "Text", "Dezimal", "Hexadezimal", "Drücken", "Löschen",
+        "Dez / hex", "Feld", "Leertaste", "löschen", "Gib einen Namen für den Wert ein.", "Die Zahl ist zu groß.",
+    },
+    {
+        "Registro del gioco",
+        "Voci del registro di Windows in cui il gioco conserva le sue impostazioni: risoluzione, lingua, comandi. "
+        "Prima le voci preparate nell'app, poi l'intero registro del gioco.",
+        "Dall'app · %d", "Intero registro", "Computer",
+        { "Impostazioni di sistema: dove è installato il gioco, la sua versione, impostazioni comuni a tutti.",
+            "Impostazioni dell'utente. Di solito i giochi conservano qui risoluzione, lingua e comandi." },
+        "Chiave: %d sottochiavi · %d valori", "Questa chiave è vuota.",
+        "Questa chiave non esiste ancora: il gioco non l'ha creata.",
+        { "Numero (REG_DWORD).", "Numero (REG_QWORD).", "Stringa (REG_SZ).", "Stringa con variabili (REG_EXPAND_SZ).",
+            "Elenco di stringhe (REG_MULTI_SZ).", "Dati binari (REG_BINARY)." },
+        "Dati di tipo %u.", { "nuovo", "eliminato", "modificato" }, "Prima: %s · Y — annulla", "Percorso:",
+        "Scrive nel registro:", "Valore personalizzato",
+        "Ha effetto al riavvio del gioco. La voce è stata preparata nell'app.",
+        "A — cambia. Il gioco legge il nuovo valore al riavvio.",
+        "Nuovo valore. Compare nel registro al riavvio del gioco.",
+        "Verrà eliminato al riavvio del gioco. A o Y — mantieni.", "Questo tipo di dati si modifica nell'app.",
+        "A — apri", "X — crea un valore", "Premi di nuovo − per eliminare", "Apri / cambia", "Nuovo valore", "Annulla",
+        "Elimina", "Su", "Voci", "In %s", "Nome", "Tipo", "Valore", "Numero", "Stringa", "Decimale", "Esadecimale",
+        "Premi", "Cancella", "Dec / esa", "Campo", "Spazio", "elimina", "Inserisci un nome per il valore.",
+        "Il numero è troppo grande.",
+    },
+    {
+        "Registro del juego",
+        "Entradas del Registro de Windows donde el juego guarda sus ajustes: resolución, idioma, controles. Primero, "
+        "las entradas preparadas en la aplicación; después, todo el registro del juego.",
+        "De la aplicación · %d", "Todo el registro", "Equipo",
+        { "Ajustes del sistema: dónde está instalado el juego, su versión, ajustes comunes para todos.",
+            "Ajustes del usuario. Aquí suelen guardar los juegos la resolución, el idioma y los controles." },
+        "Clave: %d subclaves · %d valores", "Esta clave está vacía.",
+        "Esta clave aún no existe: el juego no la ha creado.",
+        { "Número (REG_DWORD).", "Número (REG_QWORD).", "Cadena (REG_SZ).", "Cadena con variables (REG_EXPAND_SZ).",
+            "Lista de cadenas (REG_MULTI_SZ).", "Datos binarios (REG_BINARY)." },
+        "Datos de tipo %u.", { "nuevo", "eliminado", "cambiado" }, "Antes: %s · Y — deshacer", "Ruta:",
+        "Escribe en el registro:", "Valor propio",
+        "Se aplicará cuando reinicies el juego. La entrada se preparó en la aplicación.",
+        "A — cambiar. El juego leerá el nuevo valor cuando se reinicie.",
+        "Valor nuevo. Aparecerá en el registro cuando reinicies el juego.",
+        "Se eliminará cuando reinicies el juego. A o Y — conservarlo.", "Este tipo de datos se edita en la aplicación.",
+        "A — abrir", "X — crear un valor", "Pulsa − otra vez para eliminar", "Abrir / cambiar", "Valor nuevo",
+        "Deshacer", "Eliminar", "Subir", "Entradas", "En %s", "Nombre", "Tipo", "Valor", "Número", "Cadena",
+        "Decimal", "Hexadecimal", "Pulsar", "Borrar", "Dec / hex", "Campo", "Espacio", "eliminado",
+        "Escribe un nombre para el valor.", "El número es demasiado grande.",
+    },
+    {
+        "Registro del juego",
+        "Entradas del registro de Windows donde el juego guarda su configuración: resolución, idioma, controles. "
+        "Primero, las entradas preparadas en la aplicación; después, todo el registro del juego.",
+        "De la aplicación · %d", "Todo el registro", "Equipo",
+        { "Configuración del sistema: dónde está instalado el juego, su versión y los ajustes comunes para todos.",
+            "Configuración del usuario. Aquí los juegos suelen guardar su resolución, idioma y controles." },
+        "Clave: %d subclaves · %d valores", "Esta clave está vacía.", "Esta clave aún no existe: el juego no la creó.",
+        { "Número (REG_DWORD).", "Número (REG_QWORD).", "Cadena (REG_SZ).", "Cadena con variables (REG_EXPAND_SZ).",
+            "Lista de cadenas (REG_MULTI_SZ).", "Datos binarios (REG_BINARY)." },
+        "Datos de tipo %u.", { "nuevo", "eliminado", "cambiado" }, "Antes: %s · Y — deshacer", "Ruta:",
+        "Escribe en el registro:", "Valor propio",
+        "Se aplica al reiniciar el juego. La entrada se preparó en la aplicación.",
+        "A — cambiar. El juego leerá el nuevo valor al reiniciarse.",
+        "Valor nuevo. Aparecerá en el registro al reiniciar el juego.",
+        "Se eliminará al reiniciar el juego. A o Y — conservarlo.", "Este tipo de datos se edita en la aplicación.",
+        "A — abrir", "X — crear un valor", "Presiona − otra vez para eliminar", "Abrir / cambiar", "Valor nuevo",
+        "Deshacer", "Eliminar", "Subir", "Entradas", "En %s", "Nombre", "Tipo", "Valor", "Número", "Cadena", "Decimal",
+        "Hexadecimal", "Presionar", "Borrar", "Dec / hex", "Campo", "Espacio", "eliminar",
+        "Escribe un nombre para el valor.", "El número es demasiado grande.",
+    },
+    {
+        "Gameregister",
+        "Vermeldingen in het Windows-register waarin de game zijn instellingen bewaart: resolutie, taal, besturing. "
+        "Eerst de vermeldingen die in de app zijn voorbereid, daarna het hele register van de game.",
+        "Uit de app · %d", "Hele register", "Computer",
+        { "Systeeminstellingen: waar de game is geïnstalleerd, de versie, instellingen die voor iedereen gelden.",
+            "Gebruikersinstellingen. Games bewaren hier meestal hun resolutie, taal en besturing." },
+        "Sleutel: %d subsleutels · %d waarden", "Deze sleutel is leeg.",
+        "Deze sleutel bestaat nog niet: de game heeft hem nog niet gemaakt.",
+        { "Getal (REG_DWORD).", "Getal (REG_QWORD).", "Tekenreeks (REG_SZ).",
+            "Tekenreeks met variabelen (REG_EXPAND_SZ).", "Lijst met tekenreeksen (REG_MULTI_SZ).",
+            "Binaire gegevens (REG_BINARY)." },
+        "Gegevens van type %u.", { "nieuw", "verwijderd", "gewijzigd" }, "Was: %s · Y — ongedaan maken", "Pad:",
+        "Schrijft naar het register:", "Eigen waarde",
+        "Werkt na een herstart van de game. De vermelding is in de app voorbereid.",
+        "A — wijzigen. De game leest de nieuwe waarde na een herstart.",
+        "Nieuwe waarde. Verschijnt na een herstart van de game in het register.",
+        "Wordt verwijderd bij een herstart van de game. A of Y — behouden.", "Dit soort gegevens bewerk je in de app.",
+        "A — openen", "X — waarde maken", "Druk nogmaals op − om te verwijderen", "Openen / wijzigen", "Nieuwe waarde",
+        "Ongedaan maken", "Verwijderen", "Omhoog", "Vermeldingen", "In %s", "Naam", "Type", "Waarde", "Getal",
+        "Tekenreeks", "Decimaal", "Hexadecimaal", "Indrukken", "Wissen", "Dec / hex", "Veld", "Spatie", "verwijderen",
+        "Voer een naam voor de waarde in.", "Het getal is te groot.",
+    },
+    {
+        "Registo do jogo",
+        "Entradas do registo do Windows onde o jogo guarda as suas definições: resolução, idioma, controlos. "
+        "Primeiro as entradas preparadas na aplicação, depois todo o registo do jogo.",
+        "Da aplicação · %d", "Registo completo", "Computador",
+        { "Definições do sistema: onde o jogo está instalado, a versão, definições partilhadas por todos.",
+            "Definições do utilizador. Os jogos costumam guardar aqui a resolução, o idioma e os controlos." },
+        "Chave: %d subchaves · %d valores", "Esta chave está vazia.",
+        "Esta chave ainda não existe: o jogo ainda não a criou.",
+        { "Número (REG_DWORD).", "Número (REG_QWORD).", "Texto (REG_SZ).", "Texto com variáveis (REG_EXPAND_SZ).",
+            "Lista de textos (REG_MULTI_SZ).", "Dados binários (REG_BINARY)." },
+        "Dados do tipo %u.", { "novo", "eliminado", "alterado" }, "Antes: %s · Y — anular", "Caminho:",
+        "Escreve no registo:", "Valor próprio",
+        "Tem efeito quando o jogo reiniciar. A entrada foi preparada na aplicação.",
+        "A — alterar. O jogo lê o novo valor quando reiniciar.",
+        "Valor novo. Aparece no registo quando o jogo reiniciar.",
+        "Eliminado quando o jogo reiniciar. A ou Y — manter.", "Dados deste tipo são editados na aplicação.",
+        "A — abrir", "X — criar um valor", "Prima − novamente para eliminar", "Abrir / alterar", "Valor novo",
+        "Anular", "Eliminar", "Subir", "Entradas", "Em %s", "Nome", "Tipo", "Valor", "Número", "Texto", "Decimal",
+        "Hexadecimal", "Premir", "Apagar", "Dec / hex", "Campo", "Espaço", "eliminar",
+        "Introduza um nome para o valor.", "O número é demasiado grande.",
+    },
+    {
+        "Registro do jogo",
+        "Entradas do registro do Windows em que o jogo guarda suas configurações: resolução, idioma, controles. "
+        "Primeiro as entradas preparadas no app, depois todo o registro do jogo.",
+        "Do app · %d", "Registro inteiro", "Computador",
+        { "Configurações do sistema: onde o jogo está instalado, a versão, configurações comuns a todos.",
+            "Configurações do usuário. Os jogos costumam guardar aqui a resolução, o idioma e os controles." },
+        "Chave: %d subchaves · %d valores", "Esta chave está vazia.",
+        "Esta chave ainda não existe: o jogo não a criou.",
+        { "Número (REG_DWORD).", "Número (REG_QWORD).", "Texto (REG_SZ).", "Texto com variáveis (REG_EXPAND_SZ).",
+            "Lista de textos (REG_MULTI_SZ).", "Dados binários (REG_BINARY)." },
+        "Dados do tipo %u.", { "novo", "excluído", "alterado" }, "Antes: %s · Y — desfazer", "Caminho:",
+        "Grava no registro:", "Valor personalizado",
+        "Tem efeito quando o jogo reiniciar. A entrada foi preparada no app.",
+        "A — alterar. O jogo lê o novo valor quando reiniciar.",
+        "Valor novo. Aparece no registro quando o jogo reiniciar.",
+        "Será excluído quando o jogo reiniciar. A ou Y — manter.", "Dados deste tipo são editados no app.",
+        "A — abrir", "X — criar um valor", "Pressione − de novo para excluir", "Abrir / alterar", "Novo valor",
+        "Desfazer", "Excluir", "Subir", "Entradas", "Em %s", "Nome", "Tipo", "Valor", "Número", "Texto", "Decimal",
+        "Hexadecimal", "Pressionar", "Apagar", "Dec / hex", "Campo", "Espaço", "excluir",
+        "Digite um nome para o valor.", "O número é grande demais.",
+    },
 };
+
+_Static_assert(sizeof(REG_STRINGS) / sizeof(REG_STRINGS[0]) == CarafeLanguageCount, "registry texts per language");
 
 typedef struct {
     int source;
@@ -349,7 +894,7 @@ static bool g_open;
 static bool g_error_mode;
 static CarafeFailure g_failure = CarafeKindNone;
 static CarafeCatalog* g_catalog;
-static int g_language = 1;
+static CarafeLanguage g_language = CarafeLanguageEn;
 static unsigned int g_generation = 1;
 static unsigned int g_rendered;
 static CarafeImage g_picture;
@@ -419,7 +964,7 @@ static const Strings* text(void) {
 }
 
 static const char* pick(const char* const* texts) {
-    return texts[g_language][0] != '\0' ? texts[g_language] : texts[1];
+    return carafeText(texts);
 }
 
 static const RegStrings* reg(void) {
@@ -1643,10 +2188,7 @@ static void drawHeader(CarafeImage* picture) {
     if (g_error_mode) {
         snprintf(subline, sizeof(subline), "%s", s->failed);
     } else if (pending > 0) {
-        int form = g_language != 0 ? (pending == 1 ? 0 : 1)
-                   : pending % 10 == 1 && pending % 100 != 11 ? 0
-                   : pending % 10 >= 2 && pending % 10 <= 4 && (pending % 100 < 12 || pending % 100 > 14) ? 1 : 2;
-        snprintf(subline, sizeof(subline), s->pending[form], pending);
+        snprintf(subline, sizeof(subline), s->pending[carafePluralForm(pending)], pending);
     } else {
         snprintf(subline, sizeof(subline), "%s", s->running);
     }
@@ -1733,7 +2275,7 @@ static void itemValue(const Item* item, char* out, size_t size) {
     out[0] = '\0';
     switch (item->kind) {
     case ItemSetting:
-        snprintf(out, size, "%s", carafeValueLabel(&g_catalog->settings[item->index], g_language));
+        snprintf(out, size, "%s", carafeValueLabel(&g_catalog->settings[item->index]));
         break;
     case ItemGroup:
         snprintf(out, size, "›");
@@ -1749,8 +2291,7 @@ static void itemValue(const Item* item, char* out, size_t size) {
         snprintf(out, size, "›");
         break;
     case ItemSuggest:
-        snprintf(out, size, "%s", carafeValueLabel(&g_catalog->settings[g_catalog->suggests[item->index].setting],
-            g_language));
+        snprintf(out, size, "%s", carafeValueLabel(&g_catalog->settings[g_catalog->suggests[item->index].setting]));
         break;
     }
 }
@@ -2016,7 +2557,7 @@ static void drawPad(CarafeImage* picture) {
         uint32_t ink = focus ? CARAFE_COLOR_PRIMARY_INK : CARAFE_COLOR_VALUE;
         CarafeTextStyle name = { 15, CarafeRegular, 52, ink, false };
         carafeDrawLine(picture, pick(setting->name), &name, x + 14, 104, 0);
-        const char* value = carafeValueLabel(setting, g_language);
+        const char* value = carafeValueLabel(setting);
         int vw = carafeTextWidth(value, 15, CarafeBold);
         CarafeTextStyle val = { 15, CarafeBold, 52, focus ? CARAFE_COLOR_PRIMARY_INK : CARAFE_COLOR_INK, false };
         carafeDrawLine(picture, value, &val, x + width - 14 - vw, 104, 0);
@@ -2051,7 +2592,7 @@ static void drawPad(CarafeImage* picture) {
                 int cy = row->cross ? y + 26 + cell->row * 30 : y + 7;
                 bool focus = g_pad_focus - STRIP_MAX == ordinal + c;
                 char label[TEXT_SIZE];
-                carafeChordLabel(g_catalog, pad, chordOf(cell->source, pad), g_language, label, sizeof(label));
+                carafeChordLabel(g_catalog, pad, chordOf(cell->source, pad), label, sizeof(label));
                 if (focus) {
                     carafeDrawRound(picture, cx - 4, cy - 4, cw + 8, 36, 12, CARAFE_COLOR_FOCUS, 255);
                     carafeDrawRound(picture, cx - 2, cy - 2, cw + 4, 32, 11, CARAFE_COLOR_GAP, 255);
@@ -2129,7 +2670,7 @@ static void drawPicker(CarafeImage* picture) {
     CarafeTextStyle body = { 16, CarafeRegular, 24, CARAFE_COLOR_TEXT, false };
     y = carafeDrawWrapped(picture, g_picker_pad ? s->pick_pad : s->pick_keys, &body, x, y, width) + 12;
     char chord[TEXT_SIZE];
-    carafeChordLabel(g_catalog, g_picker_pad, &g_picker_chord, g_language, chord, sizeof(chord));
+    carafeChordLabel(g_catalog, g_picker_pad, &g_picker_chord, chord, sizeof(chord));
     int cw = carafeTextWidth(chord, 16, CarafeBold) + 28;
     carafeDrawRound(picture, x, y, cw > width ? width : cw, 34, 17, CARAFE_COLOR_FOCUS, 41);
     CarafeTextStyle chip = { 16, CarafeBold, 34, CARAFE_COLOR_CHIP, true };
@@ -2701,7 +3242,7 @@ static void drawConfirm(CarafeImage* picture) {
         const CarafeSetting* setting = &g_catalog->settings[pending[i]];
         const char* from = setting->start >= 0 ? pick(setting->values[setting->start].label) : setting->start_text;
         char line[TEXT_SIZE];
-        snprintf(line, sizeof(line), "%s → %s", from, carafeValueLabel(setting, g_language));
+        snprintf(line, sizeof(line), "%s → %s", from, carafeValueLabel(setting));
         carafeDrawText(picture, pick(setting->name), 17, CarafeRegular, x + 36, ty + 10, CARAFE_COLOR_VALUE);
         int lw = carafeTextWidth(line, 17, CarafeBold);
         carafeDrawText(picture, line, 17, CarafeBold, x + w - 36 - lw, ty + 10, CARAFE_COLOR_INK);

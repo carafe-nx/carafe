@@ -3,4 +3,4 @@
 /**
  * Interface language.
  */
-export type Language = "system" | "ru" | "en" | "zh-Hans";
+export type Language = "system" | "ru" | "en" | "zh-Hans" | "ja" | "ko" | "zh-Hant" | "fr" | "fr-CA" | "de" | "it" | "es" | "es-419" | "nl" | "pt" | "pt-BR";

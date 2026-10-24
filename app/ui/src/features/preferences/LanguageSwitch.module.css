@@ -19,6 +19,13 @@
   background: var(--accent-soft);
 }
 
+.globe {
+  display: block;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
 .button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ring);
@@ -27,15 +34,19 @@
 .menu {
   position: absolute;
   top: 100%;
-  left: 50%;
+  left: 0;
   z-index: 10;
   padding-top: 6px;
-  transform: translateX(-50%);
   visibility: hidden;
   opacity: 0;
   transition:
     opacity 0.12s,
     visibility 0.12s;
+}
+
+.end .menu {
+  right: 0;
+  left: auto;
 }
 
 .switch:hover .menu,
@@ -45,8 +56,8 @@
 }
 
 .list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(4, 40px);
   gap: 2px;
   margin: 0;
   padding: 4px;

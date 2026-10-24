@@ -216,6 +216,753 @@ static const Strings STRINGS_RU = {
     },
 };
 
+static const Strings STRINGS_ZH_HANS = {
+    "Windows 游戏",
+    "因错误而关闭",
+    "重新启动",
+    "退出",
+    "代码",
+    "模块",
+    "缺少文件",
+    "游玩时间",
+    "设置",
+    "恢复旧的",
+    "保留新的",
+    "推荐设置",
+    "试运行失败",
+    "游戏已连续多次出错。可以恢复为 Carafe 构建时的设置。",
+    {
+        {
+            "游戏停止运行了",
+            "游戏遇到了无法恢复的问题，只能关闭。在此之前游戏保存的内容都会保留。",
+            "请再次启动试试。如果总在同一个地方出错，请查看设置——里面有针对此错误的提示。",
+        },
+        {
+            "游戏同时要做的事太多了",
+            "Switch 只允许游戏同时运行有限数量的任务。这款游戏还需要再多一个，只能关闭。",
+            "再次启动游戏通常就能解决。如果每次都出现，新版 Carafe 可能会修复此问题。",
+        },
+        {
+            "游戏内存不足",
+            "游戏申请的内存超过了它在 Switch 上可用的数量，只能关闭。",
+            "请在游戏选项中降低分辨率或纹理质量，或查看设置，然后再次启动。",
+        },
+        {
+            "游戏缺少部分文件",
+            "游戏需要一个此软件包中没有的 Windows 文件，因此无法启动。",
+            "请在电脑上用 Carafe 打开这款游戏并重新构建，并确认游戏文件夹是完整的。",
+        },
+        {
+            "Windows 环境已停止",
+            "Carafe 中负责在 Switch 上运行 Windows 游戏的部分出错了，游戏只能关闭。",
+            "请再次启动游戏。如果每次都出现，新版 Carafe 可能会修复此问题。",
+        },
+    },
+    {
+        "游戏在新设置下崩溃了",
+        "这是一次试运行：更改设置后，游戏因错误而关闭。之前运行时使用的设置仍然保留。",
+        "恢复旧的设置，游戏就会像更改前一样启动；如果错误看起来与新设置无关，也可以保留新的设置。",
+    },
+};
+
+static const Strings STRINGS_JA = {
+    "Windowsのゲーム",
+    "エラーで終了しました",
+    "再起動",
+    "終了",
+    "コード",
+    "モジュール",
+    "不足ファイル",
+    "プレイ時間",
+    "設定",
+    "元に戻す",
+    "このまま",
+    "おすすめ",
+    "お試し起動に失敗",
+    "ゲームが続けて何度も終了しています。Carafeがビルドしたときの設定に戻せます。",
+    {
+        {
+            "ゲームが動かなくなりました",
+            "ゲームで回復できない問題が起きたため、終了しました。それまでにゲームが保存したデータは残っています。",
+            "もう一度起動してみてください。同じ場所で何度も起きる場合は、設定を確認してください。"
+            "このエラーへの対処法が載っています。",
+        },
+        {
+            "ゲームが一度に多くの処理をしようとしました",
+            "Switchでは、ゲームが同時に実行できる処理の数に限りがあります。"
+            "このゲームはそれを1つ超えたため、終了しました。",
+            "もう一度起動すると、たいてい解決します。毎回起きる場合は、新しいバージョンのCarafeで直る可能性があります。",
+        },
+        {
+            "メモリーが足りなくなりました",
+            "このゲームがSwitchで使えるより多くのメモリーを必要としたため、終了しました。",
+            "ゲームのオプションで解像度やテクスチャの品質を下げるか、設定を確認してから、もう一度起動してください。",
+        },
+        {
+            "ゲームのファイルが足りません",
+            "このパッケージに入っていないWindowsのファイルが必要なため、ゲームを起動できません。",
+            "PCのCarafeでゲームを開き、もう一度ビルドしてください。ゲームのフォルダーがそろっているかも確認してください。",
+        },
+        {
+            "Windows環境が停止しました",
+            "SwitchでWindowsのゲームを動かすCarafeの部分でエラーが起き、ゲームが終了しました。",
+            "もう一度ゲームを起動してください。毎回起きる場合は、新しいバージョンのCarafeで直る可能性があります。",
+        },
+    },
+    {
+        "新しい設定でゲームがクラッシュしました",
+        "これはお試し起動でした。設定を変更した後、ゲームがエラーで終了しました。"
+        "以前の設定は保存されています。",
+        "元に戻すと、変更前と同じ状態でゲームを起動します。"
+        "エラーが新しい設定のせいではなさそうなら、このままにしてください。",
+    },
+};
+
+static const Strings STRINGS_KO = {
+    "Windows 게임",
+    "오류로 종료됨",
+    "다시 시작",
+    "종료",
+    "코드",
+    "모듈",
+    "없는 파일",
+    "플레이 시간",
+    "설정",
+    "되돌리기",
+    "새 설정 유지",
+    "권장 설정",
+    "시험 실행 실패",
+    "게임이 여러 번 연달아 오류로 종료되었습니다. Carafe가 빌드한 설정으로 되돌릴 수 있습니다.",
+    {
+        {
+            "게임이 작동을 멈췄습니다",
+            "게임에 복구할 수 없는 문제가 생겨 종료되었습니다. 그전에 게임이 저장한 내용은 그대로 "
+            "남아 있습니다.",
+            "다시 시작해 보세요. 같은 곳에서 계속 일어나면 설정을 확인하세요. 이 오류에 맞는 도움말이 "
+            "있습니다.",
+        },
+        {
+            "게임이 한 번에 너무 많은 일을 하려 했습니다",
+            "Switch에서는 게임이 동시에 실행할 수 있는 작업 수가 정해져 있습니다. 이 게임은 작업이 하나 "
+            "더 필요해서 종료되었습니다.",
+            "보통 게임을 다시 시작하면 해결됩니다. 매번 일어난다면 Carafe의 새 버전에서 고쳐질 수 있습니다.",
+        },
+        {
+            "게임의 메모리가 부족합니다",
+            "이 게임이 Switch에서 쓸 수 있는 것보다 많은 메모리를 요청해서 종료되었습니다.",
+            "게임 옵션에서 해상도나 텍스처 품질을 낮추거나 설정을 확인한 뒤 게임을 다시 시작하세요.",
+        },
+        {
+            "게임 파일 일부가 없습니다",
+            "게임에 필요한 Windows 파일이 이 패키지에 없어 시작할 수 없습니다.",
+            "컴퓨터의 Carafe에서 게임을 열어 다시 빌드하세요. 게임 폴더에 빠진 파일이 없는지 확인하세요.",
+        },
+        {
+            "Windows 환경이 멈췄습니다",
+            "Switch에서 Windows 게임을 실행하는 Carafe의 구성 요소에 오류가 생겨 게임이 종료되었습니다.",
+            "게임을 다시 시작하세요. 매번 일어난다면 Carafe의 새 버전에서 고쳐질 수 있습니다.",
+        },
+    },
+    {
+        "새 설정으로 게임이 오류로 종료되었습니다",
+        "시험 실행이었습니다. 설정을 바꾼 뒤 게임이 오류로 종료되었습니다. 전에 쓰던 설정은 그대로 "
+        "보관되어 있습니다.",
+        "되돌리면 바꾸기 전처럼 게임을 시작합니다. 오류가 새 설정 때문이 아닌 것 같다면 새 설정을 "
+        "유지하세요.",
+    },
+};
+
+static const Strings STRINGS_ZH_HANT = {
+    "Windows 遊戲",
+    "因錯誤而關閉",
+    "重新啟動",
+    "結束",
+    "代碼",
+    "模組",
+    "缺少",
+    "遊玩時間",
+    "設定",
+    "還原",
+    "保留新的",
+    "建議設定",
+    "試執行失敗",
+    "遊戲已連續多次失敗。可以恢復為 Carafe 建置時的設定。",
+    {
+        {
+            "遊戲停止運作",
+            "遊戲遇到無法復原的問題，只好關閉。遊戲在此之前儲存的內容都會保留。",
+            "請再次啟動看看。如果總是在同一個地方發生，請查看設定，裡面有針對這個錯誤的建議。",
+        },
+        {
+            "遊戲同時想做的事太多了",
+            "Switch 只允許遊戲同時執行有限數量的工作。這款遊戲還需要多一個，只好關閉。",
+            "再次啟動遊戲通常就能解決。如果每次都發生，較新版本的 Carafe 可能會修正。",
+        },
+        {
+            "遊戲的記憶體不足",
+            "遊戲要求的記憶體超過它在 Switch 上能使用的量，只好關閉。",
+            "請在遊戲的選項中降低解析度或材質品質，或查看設定，然後再次啟動。",
+        },
+        {
+            "遊戲缺少部分檔案",
+            "遊戲需要一個不在這個套件中的 Windows 檔案，因此無法啟動。",
+            "請在電腦上用 Carafe 開啟這款遊戲並重新建置。請確認遊戲資料夾是完整的。",
+        },
+        {
+            "Windows 環境已停止",
+            "Carafe 中負責在 Switch 上執行 Windows 遊戲的部分發生錯誤，遊戲只好關閉。",
+            "請再次啟動遊戲。如果每次都發生，較新版本的 Carafe 可能會修正。",
+        },
+    },
+    {
+        "遊戲在新設定下當機了",
+        "這是一次試執行：設定變更後，遊戲因錯誤而關閉。先前執行時使用的設定已保留。",
+        "選擇還原，遊戲就會照變更前的方式啟動；如果錯誤似乎與新設定無關，也可以保留新的設定。",
+    },
+};
+
+static const Strings STRINGS_FR = {
+    "Jeu Windows",
+    "Fermé après une erreur",
+    "Redémarrer",
+    "Quitter",
+    "Code",
+    "Module",
+    "Manquant",
+    "Temps de jeu",
+    "Paramètres",
+    "Rétablir",
+    "Garder",
+    "Recommandés",
+    "Essai échoué",
+    "Le jeu a planté plusieurs fois de suite. Vous pouvez revenir aux paramètres avec lesquels Carafe l’a généré.",
+    {
+        {
+            "Le jeu a cessé de fonctionner",
+            "Le jeu a rencontré un problème dont il n’a pas pu se remettre et a dû se fermer. Tout ce que le jeu a "
+            "sauvegardé avant est conservé.",
+            "Essayez de le relancer. Si cela se reproduit au même endroit, regardez dans les paramètres : ils "
+            "donnent des conseils pour cette erreur.",
+        },
+        {
+            "Le jeu a tenté d’en faire trop à la fois",
+            "La Switch ne laisse un jeu mener qu’un nombre limité de tâches en même temps. Ce jeu en a demandé une de "
+            "plus et a dû se fermer.",
+            "Relancer le jeu suffit en général. Si cela arrive à chaque fois, une version plus récente de Carafe "
+            "pourra peut-être corriger le problème.",
+        },
+        {
+            "Le jeu a manqué de mémoire",
+            "Il a demandé plus de mémoire que ce jeu ne peut en utiliser sur la Switch et a dû se fermer.",
+            "Baissez la résolution ou la qualité des textures dans les options du jeu, ou regardez dans les "
+            "paramètres, puis relancez-le.",
+        },
+        {
+            "Des fichiers du jeu sont manquants",
+            "Le jeu a besoin d’un fichier Windows absent de ce paquet, il ne peut donc pas démarrer.",
+            "Sur votre ordinateur, ouvrez le jeu dans Carafe et régénérez-le. Vérifiez que le dossier du jeu est "
+            "complet.",
+        },
+        {
+            "L’environnement Windows s’est arrêté",
+            "La partie de Carafe qui fait tourner les jeux Windows sur la Switch a rencontré une erreur, et le jeu a "
+            "dû se fermer.",
+            "Relancez le jeu. Si cela arrive à chaque fois, une version plus récente de Carafe pourra peut-être "
+            "corriger le problème.",
+        },
+    },
+    {
+        "Le jeu a planté avec les nouveaux paramètres",
+        "C’était un lancement d’essai : le jeu s’est fermé à cause d’une erreur après la modification de ses "
+        "paramètres. Les paramètres d’avant sont conservés.",
+        "Rétablissez-les pour lancer le jeu comme avant la modification, ou gardez les nouveaux si l’erreur ne "
+        "semble pas venir d’eux.",
+    },
+};
+
+static const Strings STRINGS_FR_CA = {
+    "Jeu Windows",
+    "Fermé à cause d’une erreur",
+    "Redémarrer",
+    "Quitter",
+    "Code",
+    "Module",
+    "Manquant",
+    "Temps de jeu",
+    "Paramètres",
+    "Rétablir",
+    "Garder",
+    "Recommandés",
+    "Essai échoué",
+    "Le jeu a planté plusieurs fois de suite. Vous pouvez revenir aux paramètres de sa création par Carafe.",
+    {
+        {
+            "Le jeu a cessé de fonctionner",
+            "Le jeu a rencontré un problème dont il n’a pas pu se remettre et a dû se fermer. Tout ce que le jeu a "
+            "sauvegardé avant est conservé.",
+            "Essayez de le redémarrer. Si cela se reproduit au même endroit, consultez les paramètres — ils "
+            "contiennent des conseils pour cette erreur.",
+        },
+        {
+            "Le jeu a tenté d’en faire trop à la fois",
+            "La Switch ne permet à un jeu d’exécuter qu’un nombre limité de tâches en même temps. Ce jeu en a "
+            "demandé une de plus et a dû se fermer.",
+            "Redémarrer le jeu aide généralement. Si cela arrive chaque fois, une version plus récente de Carafe "
+            "pourrait régler le problème.",
+        },
+        {
+            "Le jeu a manqué de mémoire",
+            "Il a demandé plus de mémoire que ce jeu ne peut en utiliser sur la Switch et a dû se fermer.",
+            "Baissez la résolution ou la qualité des textures dans les options du jeu, ou consultez les paramètres, "
+            "puis redémarrez-le.",
+        },
+        {
+            "Des fichiers du jeu sont manquants",
+            "Le jeu a besoin d’un fichier Windows qui n’est pas dans ce paquet, alors il ne peut pas démarrer.",
+            "Sur votre ordinateur, ouvrez le jeu dans Carafe et créez-le de nouveau. Vérifiez que le dossier du jeu "
+            "est complet.",
+        },
+        {
+            "L’environnement Windows s’est arrêté",
+            "La partie de Carafe qui fait tourner les jeux Windows sur la Switch a rencontré une erreur, et le jeu a "
+            "dû se fermer.",
+            "Redémarrez le jeu. Si cela arrive chaque fois, une version plus récente de Carafe pourrait régler le "
+            "problème.",
+        },
+    },
+    {
+        "Le jeu a planté avec les nouveaux paramètres",
+        "C’était un lancement d’essai : le jeu s’est fermé à cause d’une erreur après la modification de ses "
+        "paramètres. Les paramètres d’avant sont conservés.",
+        "Rétablissez-les pour lancer le jeu comme avant la modification, ou gardez les nouveaux si l’erreur ne "
+        "semble pas venir d’eux.",
+    },
+};
+
+static const Strings STRINGS_DE = {
+    "Windows-Spiel",
+    "Mit Fehler beendet",
+    "Neustart",
+    "Beenden",
+    "Code",
+    "Modul",
+    "Fehlt",
+    "Gespielt",
+    "Einstellungen",
+    "Zurückholen",
+    "Behalten",
+    "Empfohlene",
+    "Probelauf fehlgeschlagen",
+    "Das Spiel ist mehrmals hintereinander abgestürzt. Du kannst zu den Einstellungen zurückkehren, mit denen Carafe "
+    "es erstellt hat.",
+    {
+        {
+            "Das Spiel funktioniert nicht mehr",
+            "Das Spiel hatte ein Problem, das es nicht beheben konnte, und musste beendet werden. Alles, was das Spiel "
+            "vorher gespeichert hat, bleibt erhalten.",
+            "Starte es noch einmal. Wenn es immer an derselben Stelle passiert, schau in die Einstellungen – dort gibt "
+            "es Tipps zu diesem Fehler.",
+        },
+        {
+            "Das Spiel wollte zu viel auf einmal",
+            "Die Switch lässt ein Spiel nur eine begrenzte Zahl von Aufgaben gleichzeitig ausführen. Dieses Spiel "
+            "brauchte eine mehr und musste beendet werden.",
+            "Meist hilft es, das Spiel neu zu starten. Wenn es jedes Mal passiert, behebt es vielleicht eine neuere "
+            "Version von Carafe.",
+        },
+        {
+            "Dem Spiel ist der Speicher ausgegangen",
+            "Es hat mehr Speicher angefordert, als dieses Spiel auf der Switch nutzen kann, und musste beendet werden.",
+            "Senke die Auflösung oder die Texturqualität in den Optionen des Spiels oder schau in die Einstellungen. "
+            "Starte es dann noch einmal.",
+        },
+        {
+            "Dateien des Spiels fehlen",
+            "Das Spiel braucht eine Windows-Datei, die nicht in diesem Paket ist, und kann deshalb nicht starten.",
+            "Öffne das Spiel auf deinem Computer in Carafe und erstelle es neu. Prüfe, ob der Spielordner vollständig "
+            "ist.",
+        },
+        {
+            "Die Windows-Umgebung wurde angehalten",
+            "Der Teil von Carafe, der Windows-Spiele auf der Switch ausführt, hatte einen Fehler, und das Spiel musste "
+            "beendet werden.",
+            "Starte das Spiel noch einmal. Wenn es jedes Mal passiert, behebt es vielleicht eine neuere Version von "
+            "Carafe.",
+        },
+    },
+    {
+        "Das Spiel ist mit den neuen Einstellungen abgestürzt",
+        "Das war ein Probelauf: Das Spiel wurde nach einer Änderung seiner Einstellungen mit einem Fehler beendet. Die "
+        "Einstellungen, mit denen es vorher lief, sind aufbewahrt.",
+        "Hol sie zurück, damit das Spiel so startet wie vor der Änderung, oder behalte die neuen, wenn der Fehler "
+        "nicht an ihnen zu liegen scheint.",
+    },
+};
+
+static const Strings STRINGS_IT = {
+    "Gioco per Windows",
+    "Chiuso per un errore",
+    "Riavvia",
+    "Esci",
+    "Codice",
+    "Modulo",
+    "Mancante",
+    "Giocato",
+    "Impostazioni",
+    "Ripristina",
+    "Tieni nuove",
+    "Consigliate",
+    "Avvio di prova non riuscito",
+    "Il gioco ha smesso di funzionare più volte di fila. Puoi tornare alle impostazioni con cui Carafe lo ha "
+    "compilato.",
+    {
+        {
+            "Il gioco ha smesso di funzionare",
+            "Il gioco ha avuto un problema da cui non è riuscito a riprendersi e si è dovuto chiudere. Ciò che il "
+            "gioco aveva salvato prima resta al sicuro.",
+            "Prova ad avviarlo di nuovo. Se succede sempre nello stesso punto, guarda nelle impostazioni: ci sono "
+            "consigli per questo errore.",
+        },
+        {
+            "Il gioco ha provato a fare troppe cose insieme",
+            "La Switch permette a un gioco di eseguire solo un numero limitato di attività contemporaneamente. Questo "
+            "gioco ne ha chiesta una in più e si è dovuto chiudere.",
+            "Di solito basta avviare di nuovo il gioco. Se succede ogni volta, una versione più recente di Carafe "
+            "potrebbe risolvere il problema.",
+        },
+        {
+            "Il gioco ha esaurito la memoria",
+            "Ha chiesto più memoria di quanta questo gioco ne possa usare sulla Switch e si è dovuto chiudere.",
+            "Abbassa la risoluzione o la qualità delle texture nelle opzioni del gioco, oppure guarda nelle "
+            "impostazioni, poi avvialo di nuovo.",
+        },
+        {
+            "Mancano alcuni file del gioco",
+            "Il gioco ha bisogno di un file di Windows che non è in questo pacchetto, quindi non può avviarsi.",
+            "Sul computer, apri il gioco in Carafe e compilalo di nuovo. Controlla che la cartella del gioco sia "
+            "completa.",
+        },
+        {
+            "L'ambiente Windows si è fermato",
+            "La parte di Carafe che esegue i giochi Windows sulla Switch ha avuto un errore e il gioco si è dovuto "
+            "chiudere.",
+            "Avvia di nuovo il gioco. Se succede ogni volta, una versione più recente di Carafe potrebbe risolvere il "
+            "problema.",
+        },
+    },
+    {
+        "Il gioco è andato in crash con le nuove impostazioni",
+        "Era un avvio di prova: il gioco si è chiuso per un errore dopo la modifica delle impostazioni. Le "
+        "impostazioni con cui funzionava prima sono conservate.",
+        "Ripristinale per avviare il gioco come funzionava prima della modifica, oppure tieni quelle nuove se l'errore "
+        "non sembra dipendere da loro.",
+    },
+};
+
+static const Strings STRINGS_ES = {
+    "Juego de Windows",
+    "Se ha cerrado por un error",
+    "Reiniciar",
+    "Salir",
+    "Código",
+    "Módulo",
+    "Falta",
+    "Jugado",
+    "Ajustes",
+    "Recuperar",
+    "Mantener",
+    "Recomendados",
+    "Prueba fallida",
+    "El juego ha fallado varias veces seguidas. Puedes volver a los ajustes con los que lo generó Carafe.",
+    {
+        {
+            "El juego ha dejado de funcionar",
+            "El juego ha tenido un problema del que no ha podido recuperarse y se ha cerrado. Se conserva todo lo "
+            "que guardó antes.",
+            "Prueba a iniciarlo de nuevo. Si vuelve a pasar en el mismo punto, consulta los ajustes: ahí hay "
+            "consejos para este error.",
+        },
+        {
+            "El juego ha intentado hacer demasiado a la vez",
+            "La Switch solo deja que un juego realice un número limitado de tareas al mismo tiempo. Este juego "
+            "necesitaba una más y ha tenido que cerrarse.",
+            "Suele bastar con volver a iniciarlo. Si pasa siempre, puede que una versión más reciente de Carafe lo "
+            "solucione.",
+        },
+        {
+            "El juego se ha quedado sin memoria",
+            "Ha pedido más memoria de la que este juego puede usar en la Switch y ha tenido que cerrarse.",
+            "Baja la resolución o la calidad de las texturas en las opciones del juego, o consulta los ajustes, y "
+            "vuelve a iniciarlo.",
+        },
+        {
+            "Faltan archivos del juego",
+            "El juego necesita un archivo de Windows que no está en este paquete, así que no puede iniciarse.",
+            "En tu ordenador, abre el juego en Carafe y vuelve a generarlo. Comprueba que la carpeta del juego esté "
+            "completa.",
+        },
+        {
+            "El entorno de Windows se ha detenido",
+            "La parte de Carafe que ejecuta juegos de Windows en la Switch ha tenido un error y el juego ha tenido "
+            "que cerrarse.",
+            "Vuelve a iniciar el juego. Si pasa siempre, puede que una versión más reciente de Carafe lo solucione.",
+        },
+    },
+    {
+        "El juego ha fallado con los ajustes nuevos",
+        "Era un inicio de prueba: el juego se ha cerrado por un error después de cambiar sus ajustes. Se conservan "
+        "los ajustes con los que funcionaba antes.",
+        "Recupéralos para iniciar el juego como funcionaba antes del cambio, o mantén los nuevos si el error no "
+        "parece deberse a ellos.",
+    },
+};
+
+static const Strings STRINGS_ES_419 = {
+    "Juego de Windows",
+    "Se cerró por un error",
+    "Reiniciar",
+    "Salir",
+    "Código",
+    "Módulo",
+    "Falta",
+    "Tiempo de juego",
+    "Configuración",
+    "Restaurar",
+    "Conservar",
+    "Recomendada",
+    "Falló el inicio de prueba",
+    "El juego falló más de una vez seguida. Puedes volver a la configuración con la que lo generó Carafe.",
+    {
+        {
+            "El juego dejó de funcionar",
+            "El juego tuvo un problema del que no pudo recuperarse y tuvo que cerrarse. Todo lo que el juego guardó "
+            "antes de esto se conserva.",
+            "Intenta iniciarlo de nuevo. Si sigue pasando en el mismo punto, revisa la configuración: ahí hay consejos "
+            "para este error.",
+        },
+        {
+            "El juego intentó hacer demasiado a la vez",
+            "La Switch permite que un juego ejecute solo una cantidad limitada de tareas al mismo tiempo. Este juego "
+            "necesitó una más y tuvo que cerrarse.",
+            "Volver a iniciar el juego suele ayudar. Si pasa cada vez, una versión más nueva de Carafe podría "
+            "solucionarlo.",
+        },
+        {
+            "El juego se quedó sin memoria",
+            "Pidió más memoria de la que este juego puede usar en la Switch y tuvo que cerrarse.",
+            "Baja la resolución o la calidad de las texturas en las opciones del juego, o revisa la configuración, y "
+            "vuelve a iniciarlo.",
+        },
+        {
+            "Faltan archivos del juego",
+            "El juego necesita un archivo de Windows que no está en este paquete, así que no puede iniciar.",
+            "En tu computadora, abre el juego en Carafe y vuelve a generarlo. Comprueba que la carpeta del juego esté "
+            "completa.",
+        },
+        {
+            "El entorno de Windows se detuvo",
+            "La parte de Carafe que ejecuta juegos de Windows en la Switch tuvo un error y el juego tuvo que cerrarse.",
+            "Vuelve a iniciar el juego. Si pasa cada vez, una versión más nueva de Carafe podría solucionarlo.",
+        },
+    },
+    {
+        "El juego falló con la nueva configuración",
+        "Era un inicio de prueba: el juego se cerró por un error después de cambiar su configuración. La "
+        "configuración con la que funcionaba antes se conserva.",
+        "Restáurala para iniciar el juego como funcionaba antes del cambio, o conserva la nueva si el error no parece "
+        "deberse a ella.",
+    },
+};
+
+static const Strings STRINGS_NL = {
+    "Windows-game",
+    "Afgesloten door een fout",
+    "Herstarten",
+    "Afsluiten",
+    "Code",
+    "Module",
+    "Ontbreekt",
+    "Gespeeld",
+    "Instellingen",
+    "Terugzetten",
+    "Behouden",
+    "Aanbevolen",
+    "Proefstart mislukt",
+    "De game is meer dan eens achter elkaar gecrasht. Je kunt teruggaan naar de instellingen waarmee Carafe hem heeft "
+    "gebouwd.",
+    {
+        {
+            "De game werkt niet meer",
+            "De game liep tegen een probleem aan waarvan hij niet kon herstellen en moest afsluiten. Alles wat de game "
+            "hiervoor heeft opgeslagen, blijft bewaard.",
+            "Probeer hem opnieuw te starten. Gebeurt het steeds op dezelfde plek, kijk dan in de instellingen — daar "
+            "staan tips voor deze fout.",
+        },
+        {
+            "De game probeerde te veel tegelijk te doen",
+            "De Switch laat een game maar een beperkt aantal taken tegelijk uitvoeren. Deze game had er nog één nodig "
+            "en moest afsluiten.",
+            "Opnieuw starten helpt meestal. Gebeurt het elke keer, dan lost een nieuwere versie van Carafe het "
+            "misschien op.",
+        },
+        {
+            "De game had te weinig geheugen",
+            "Hij vroeg meer geheugen dan deze game op de Switch kan gebruiken en moest afsluiten.",
+            "Verlaag de resolutie of de textuurkwaliteit in de opties van de game, of kijk in de instellingen, en "
+            "start hem dan opnieuw.",
+        },
+        {
+            "Er ontbreken bestanden van de game",
+            "De game heeft een Windows-bestand nodig dat niet in dit pakket zit, dus hij kan niet starten.",
+            "Open de game op je computer in Carafe en bouw hem opnieuw. Controleer of de gamemap compleet is.",
+        },
+        {
+            "De Windows-omgeving is gestopt",
+            "Het deel van Carafe dat Windows-games op de Switch draait, liep tegen een fout aan en de game moest "
+            "afsluiten.",
+            "Start de game opnieuw. Gebeurt het elke keer, dan lost een nieuwere versie van Carafe het misschien op.",
+        },
+    },
+    {
+        "De game is gecrasht met de nieuwe instellingen",
+        "Dit was een proefstart: de game sloot af met een fout nadat de instellingen waren gewijzigd. De instellingen "
+        "waarmee hij eerder draaide, zijn bewaard.",
+        "Zet ze terug om de game te starten zoals hij werkte vóór de wijziging, of behoud de nieuwe als de fout er "
+        "niet door lijkt te komen.",
+    },
+};
+
+static const Strings STRINGS_PT = {
+    "Jogo para Windows",
+    "Fechado devido a um erro",
+    "Reiniciar",
+    "Sair",
+    "Código",
+    "Módulo",
+    "Em falta",
+    "Tempo de jogo",
+    "Definições",
+    "Repor",
+    "Manter novas",
+    "Recomendadas",
+    "Arranque de teste falhou",
+    "O jogo falhou mais do que uma vez seguida. Pode voltar às definições com que o Carafe o compilou.",
+    {
+        {
+            "O jogo deixou de funcionar",
+            "O jogo encontrou um problema do qual não conseguiu recuperar e teve de fechar. Tudo o que o jogo "
+            "guardou antes disto foi mantido.",
+            "Tente iniciá-lo de novo. Se voltar a acontecer no mesmo ponto, consulte as definições — têm sugestões "
+            "para este erro.",
+        },
+        {
+            "O jogo tentou fazer demasiadas coisas ao mesmo tempo",
+            "A Switch só deixa um jogo executar um número limitado de tarefas em simultâneo. Este jogo precisou de "
+            "mais uma e teve de fechar.",
+            "Iniciar o jogo de novo costuma ajudar. Se acontecer sempre, uma versão mais recente do Carafe poderá "
+            "resolver o problema.",
+        },
+        {
+            "O jogo ficou sem memória",
+            "Pediu mais memória do que este jogo pode usar na Switch e teve de fechar.",
+            "Baixe a resolução ou a qualidade das texturas nas opções do jogo, ou consulte as definições, e depois "
+            "inicie-o de novo.",
+        },
+        {
+            "Faltam ficheiros do jogo",
+            "O jogo precisa de um ficheiro do Windows que não está neste pacote, por isso não consegue arrancar.",
+            "No computador, abra o jogo no Carafe e compile-o de novo. Confirme que a pasta do jogo está completa.",
+        },
+        {
+            "O ambiente Windows parou",
+            "A parte do Carafe que executa jogos para Windows na Switch encontrou um erro, e o jogo teve de fechar.",
+            "Inicie o jogo de novo. Se acontecer sempre, uma versão mais recente do Carafe poderá resolver o "
+            "problema.",
+        },
+    },
+    {
+        "O jogo falhou com as novas definições",
+        "Este foi um arranque de teste: o jogo fechou devido a um erro depois de as definições terem sido "
+        "alteradas. As definições com que funcionava antes foram mantidas.",
+        "Reponha-as para iniciar o jogo como funcionava antes da alteração, ou mantenha as novas se o erro não "
+        "parecer ser causado por elas.",
+    },
+};
+
+static const Strings STRINGS_PT_BR = {
+    "Jogo para Windows",
+    "Fechou com um erro",
+    "Reiniciar",
+    "Sair",
+    "Código",
+    "Módulo",
+    "Ausente",
+    "Tempo de jogo",
+    "Configurar",
+    "Restaurar",
+    "Manter novas",
+    "Recomendadas",
+    "Teste falhou",
+    "O jogo falhou mais de uma vez seguida. Você pode voltar às configurações com que o Carafe o criou.",
+    {
+        {
+            "O jogo parou de funcionar",
+            "O jogo encontrou um problema do qual não conseguiu se recuperar e precisou fechar. Tudo o que o jogo "
+            "salvou antes disso foi mantido.",
+            "Tente iniciá-lo de novo. Se continuar acontecendo no mesmo ponto, veja as configurações — lá há dicas "
+            "para este erro.",
+        },
+        {
+            "O jogo tentou fazer coisas demais ao mesmo tempo",
+            "O Switch só deixa um jogo executar um número limitado de tarefas ao mesmo tempo. Este jogo precisou de "
+            "mais uma e teve que fechar.",
+            "Iniciar o jogo de novo costuma resolver. Se acontecer toda vez, uma versão mais nova do Carafe pode "
+            "corrigir isso.",
+        },
+        {
+            "O jogo ficou sem memória",
+            "Ele pediu mais memória do que este jogo pode usar no Switch e teve que fechar.",
+            "Diminua a resolução ou a qualidade das texturas nas opções do jogo, ou veja as configurações, e depois "
+            "inicie-o de novo.",
+        },
+        {
+            "Faltam arquivos do jogo",
+            "O jogo precisa de um arquivo do Windows que não está neste pacote, por isso não pode iniciar.",
+            "No seu computador, abra o jogo no Carafe e crie-o de novo. Verifique se a pasta do jogo está completa.",
+        },
+        {
+            "O ambiente Windows parou",
+            "A parte do Carafe que roda jogos de Windows no Switch encontrou um erro, e o jogo teve que fechar.",
+            "Inicie o jogo de novo. Se acontecer toda vez, uma versão mais nova do Carafe pode corrigir isso.",
+        },
+    },
+    {
+        "O jogo falhou com as novas configurações",
+        "Este foi um teste: o jogo fechou com um erro depois que as configurações foram alteradas. As "
+        "configurações com que ele rodava antes foram mantidas.",
+        "Restaure-as para iniciar o jogo como funcionava antes da mudança, ou mantenha as novas se o erro não "
+        "parecer ser causado por elas.",
+    },
+};
+
+static const Strings* const STRINGS[CarafeLanguageCount] = {
+    [CarafeLanguageRu] = &STRINGS_RU,
+    [CarafeLanguageEn] = &STRINGS_EN,
+    [CarafeLanguageZhHans] = &STRINGS_ZH_HANS,
+    [CarafeLanguageJa] = &STRINGS_JA,
+    [CarafeLanguageKo] = &STRINGS_KO,
+    [CarafeLanguageZhHant] = &STRINGS_ZH_HANT,
+    [CarafeLanguageFr] = &STRINGS_FR,
+    [CarafeLanguageFrCa] = &STRINGS_FR_CA,
+    [CarafeLanguageDe] = &STRINGS_DE,
+    [CarafeLanguageIt] = &STRINGS_IT,
+    [CarafeLanguageEs] = &STRINGS_ES,
+    [CarafeLanguageEs419] = &STRINGS_ES_419,
+    [CarafeLanguageNl] = &STRINGS_NL,
+    [CarafeLanguagePt] = &STRINGS_PT,
+    [CarafeLanguagePtBr] = &STRINGS_PT_BR,
+};
+
 static const struct {
     unsigned int code;
     const char* name;
@@ -881,9 +1628,7 @@ static int errorScreen(void) {
         return 0;
     }
 
-    if (carafeLanguage() == 0) {
-        g_strings = &STRINGS_RU;
-    }
+    g_strings = STRINGS[carafeLanguage()];
     loadTitle();
     carafeLoadIcon(&g_icon);
 

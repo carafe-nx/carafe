@@ -12,7 +12,7 @@ use crate::settings_catalog::{self, Api, Catalog, Choice, Condition, Entry, Labe
 pub const MENU_FILE: &str = "carafe/menu.txt";
 
 /// Version written on the first line.
-pub const MENU_VERSION: u32 = 1;
+pub const MENU_VERSION: u32 = 2;
 
 /// A language of the console menu, in the order its texts are written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,11 +21,67 @@ pub enum MenuLanguage {
     Ru,
     En,
     ZhHans,
+    Ja,
+    Ko,
+    ZhHant,
+    Fr,
+    FrCa,
+    De,
+    It,
+    Es,
+    Es419,
+    Nl,
+    Pt,
+    PtBr,
 }
 
 impl MenuLanguage {
     /// All languages in file order.
-    pub const ALL: [Self; 3] = [Self::Ru, Self::En, Self::ZhHans];
+    pub const ALL: [Self; 15] = [
+        Self::Ru,
+        Self::En,
+        Self::ZhHans,
+        Self::Ja,
+        Self::Ko,
+        Self::ZhHant,
+        Self::Fr,
+        Self::FrCa,
+        Self::De,
+        Self::It,
+        Self::Es,
+        Self::Es419,
+        Self::Nl,
+        Self::Pt,
+        Self::PtBr,
+    ];
+
+    /// Returns the language's code, as the `languages` line and the app's i18n files name it.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Ru => "ru",
+            Self::En => "en",
+            Self::ZhHans => "zh-Hans",
+            Self::Ja => "ja",
+            Self::Ko => "ko",
+            Self::ZhHant => "zh-Hant",
+            Self::Fr => "fr",
+            Self::FrCa => "fr-CA",
+            Self::De => "de",
+            Self::It => "it",
+            Self::Es => "es",
+            Self::Es419 => "es-419",
+            Self::Nl => "nl",
+            Self::Pt => "pt",
+            Self::PtBr => "pt-BR",
+        }
+    }
+
+    /// Returns the language's position in [`MenuLanguage::ALL`].
+    #[must_use]
+    pub const fn index(self) -> usize {
+        self as usize
+    }
 }
 
 /// Returns the text of an i18n key in a language, or `None` when there is none.
@@ -59,6 +115,9 @@ pub fn render(apis: &[Api], texts: &Texts<'_>) -> Result<String, MenuError> {
         texts,
     };
     out.line(&["carafe-menu", &MENU_VERSION.to_string()]);
+    let mut languages = vec!["languages"];
+    languages.extend(MenuLanguage::ALL.map(MenuLanguage::code));
+    out.line(&languages);
     let mut sorted = apis.to_vec();
     sorted.sort();
     sorted.dedup();
@@ -289,11 +348,7 @@ mod tests {
     use super::*;
 
     fn texts(language: MenuLanguage, key: &str) -> Option<String> {
-        let tag = match language {
-            MenuLanguage::Ru => "ru",
-            MenuLanguage::En => "en",
-            MenuLanguage::ZhHans => "zh",
-        };
+        let tag = language.code();
         Some(if key.ends_with(".mib") || key.ends_with(".percent") {
             format!("{{{{value}}}} {tag}")
         } else {
@@ -309,10 +364,29 @@ mod tests {
     }
 
     #[test]
-    fn starts_with_the_version_and_the_game_apis() {
+    fn languages_have_unique_codes_in_file_order() {
+        let codes: Vec<&str> = MenuLanguage::ALL.map(MenuLanguage::code).to_vec();
+        let mut unique = codes.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(unique.len(), codes.len());
+        for (position, language) in MenuLanguage::ALL.iter().enumerate() {
+            assert_eq!(language.index(), position);
+        }
+        assert_eq!(&codes[..3], ["ru", "en", "zh-Hans"]);
+    }
+
+    #[test]
+    fn starts_with_the_version_the_languages_and_the_game_apis() {
         let menu = render(&[Api::D3d9, Api::D3d8, Api::D3d9], &texts).unwrap();
         let mut lines = menu.lines();
-        assert_eq!(lines.next(), Some("carafe-menu\t1"));
+        assert_eq!(lines.next(), Some("carafe-menu\t2"));
+        assert_eq!(
+            lines.next(),
+            Some(
+                "languages\tru\ten\tzh-Hans\tja\tko\tzh-Hant\tfr\tfr-CA\tde\tit\tes\tes-419\tnl\tpt\tpt-BR"
+            )
+        );
         assert_eq!(lines.next(), Some("api\td3d8"));
         assert_eq!(lines.next(), Some("api\td3d9"));
         assert_eq!(
@@ -354,9 +428,11 @@ mod tests {
                 "-"
             ]
         );
+        let count = MenuLanguage::ALL.len();
         assert_eq!(tso[8], "ru:catalog.settings.fex-tso.name");
-        assert_eq!(tso[13], "zh:catalog.settings.fex-tso.hint");
-        assert_eq!(tso.len(), 14);
+        assert_eq!(tso[8 + count - 1], "pt-BR:catalog.settings.fex-tso.name");
+        assert_eq!(tso[8 + count + 2], "zh-Hans:catalog.settings.fex-tso.hint");
+        assert_eq!(tso.len(), 8 + 2 * count);
         let budget = fields(&menu, "setting", "d3d9-maxAvailableMemory");
         assert_eq!(budget[7], "d3d8,d3d9");
         let fps = fields(&menu, "setting", "frame-limit");
@@ -375,7 +451,11 @@ mod tests {
             .unwrap();
         assert!(lines[at + 1].starts_with("value\t-\t"));
         assert!(lines[at + 2].starts_with("value\t0\t"));
-        assert_eq!(lines[at + 3], "value\t128\t128 ru\t128 en\t128 zh");
+        let labels: Vec<String> = MenuLanguage::ALL
+            .iter()
+            .map(|language| format!("128 {}", language.code()))
+            .collect();
+        assert_eq!(lines[at + 3], format!("value\t128\t{}", labels.join("\t")));
     }
 
     #[test]
@@ -416,14 +496,15 @@ mod tests {
     fn presets_suggestions_and_choices_are_written() {
         let menu = render(&[], &texts).unwrap();
         let preset = fields(&menu, "preset", "fast");
-        assert_eq!(preset.len(), 8);
+        assert_eq!(preset.len(), 2 + 2 * MenuLanguage::ALL.len());
         assert!(menu.contains("set\tfex-maxinst\t4\n"));
         let suggest: Vec<&str> = menu
             .lines()
             .filter(|line| line.starts_with("suggest\tmemory\t"))
             .collect();
         assert_eq!(suggest.len(), 3);
-        assert!(menu.contains("key\t0x20\tSpace\tSpace\tSpace\n"));
+        let space = vec!["Space"; MenuLanguage::ALL.len()].join("\t");
+        assert!(menu.contains(&format!("key\t0x20\t{space}\n")));
         assert!(menu.contains("key\t0x100\tru:mouseShort.left\t"));
         assert!(menu.contains("pad\t24\tru:padShort.t24\t"));
     }

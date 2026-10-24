@@ -9,10 +9,10 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
-- [ ] **`game` Need for Speed Carbon crashes at start-up: 32-bit games get addresses only up to 2 GB (#47)**
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] **`feature` Game settings on the console: a menu over the game and on the error screen**
 - [ ] **`feature` Game registry: entries from a .reg file in the app, the whole registry in the console menu**
+- [ ] **`feature` The app and the console screens in every Switch system language**
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
 - [ ] `research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls
@@ -43,6 +43,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` 32-bit games get addresses up to 4 GB instead of 2 GB (#47) — v0.3.1
+- [x] `bug` Saves keep the time they were changed, so games that check it load them (#47) — v0.3.1
 - [x] `feature` When a game fails, an error screen shows what failed and offers to restart it or exit — v0.3.0
 - [x] `bug` Games get about 80 of the Switch's 96 threads and wait at the limit instead of closing (#31) — v0.3.0
 - [x] `bug` NSP builds 2–3 times faster: hacBrewPack copied the game's files a few bytes at a time (#37)

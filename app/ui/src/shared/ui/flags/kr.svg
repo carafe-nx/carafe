@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 24">
+  <rect width="36" height="24" fill="#ffffff"/>
+  <g transform="rotate(33.69 18 12)">
+    <circle cx="18" cy="12" r="6" fill="#0047a0"/>
+    <path d="M12 12a6 6 0 0 1 12 0a3 3 0 0 1-6 0a3 3 0 0 0-6 0Z" fill="#cd2e3a"/>
+  </g>
+  <g fill="#000000">
+    <g transform="rotate(-56.31 7.5 5.5)">
+      <rect x="5.5" y="3.7" width="4" height="0.8"/>
+      <rect x="5.5" y="5.1" width="4" height="0.8"/>
+      <rect x="5.5" y="6.5" width="4" height="0.8"/>
+    </g>
+    <g transform="rotate(56.31 28.5 5.5)">
+      <rect x="26.5" y="3.7" width="1.7" height="0.8"/>
+      <rect x="28.8" y="3.7" width="1.7" height="0.8"/>
+      <rect x="26.5" y="5.1" width="4" height="0.8"/>
+      <rect x="26.5" y="6.5" width="1.7" height="0.8"/>
+      <rect x="28.8" y="6.5" width="1.7" height="0.8"/>
+    </g>
+    <g transform="rotate(56.31 7.5 18.5)">
+      <rect x="5.5" y="16.7" width="4" height="0.8"/>
+      <rect x="5.5" y="18.1" width="1.7" height="0.8"/>
+      <rect x="7.8" y="18.1" width="1.7" height="0.8"/>
+      <rect x="5.5" y="19.5" width="4" height="0.8"/>
+    </g>
+    <g transform="rotate(-56.31 28.5 18.5)">
+      <rect x="26.5" y="16.7" width="1.7" height="0.8"/>
+      <rect x="28.8" y="16.7" width="1.7" height="0.8"/>
+      <rect x="26.5" y="18.1" width="1.7" height="0.8"/>
+      <rect x="28.8" y="18.1" width="1.7" height="0.8"/>
+      <rect x="26.5" y="19.5" width="1.7" height="0.8"/>
+      <rect x="28.8" y="19.5" width="1.7" height="0.8"/>
+    </g>
+  </g>
+</svg>

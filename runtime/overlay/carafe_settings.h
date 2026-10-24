@@ -5,10 +5,29 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define CARAFE_LANGUAGES 3
+#define CARAFE_TEXTS 2
 #define CARAFE_SOURCES 24
 #define CARAFE_CHORD_MAX 4
 #define CARAFE_VALUE_SIZE 64
+
+typedef enum {
+    CarafeLanguageRu,
+    CarafeLanguageEn,
+    CarafeLanguageZhHans,
+    CarafeLanguageJa,
+    CarafeLanguageKo,
+    CarafeLanguageZhHant,
+    CarafeLanguageFr,
+    CarafeLanguageFrCa,
+    CarafeLanguageDe,
+    CarafeLanguageIt,
+    CarafeLanguageEs,
+    CarafeLanguageEs419,
+    CarafeLanguageNl,
+    CarafeLanguagePt,
+    CarafeLanguagePtBr,
+    CarafeLanguageCount,
+} CarafeLanguage;
 
 typedef enum {
     CarafeFileProgram,
@@ -43,7 +62,7 @@ typedef struct {
 
 typedef struct {
     const char* text;
-    const char* label[CARAFE_LANGUAGES];
+    const char* label[CARAFE_TEXTS];
 } CarafeValue;
 
 typedef struct {
@@ -54,8 +73,8 @@ typedef struct {
     int default_index;
     CarafeWhen when;
     uint32_t api;
-    const char* name[CARAFE_LANGUAGES];
-    const char* hint[CARAFE_LANGUAGES];
+    const char* name[CARAFE_TEXTS];
+    const char* hint[CARAFE_TEXTS];
     CarafeValue* values;
     int value_count;
     int base;
@@ -72,7 +91,7 @@ typedef struct {
 
 typedef struct {
     const char* id;
-    const char* name[CARAFE_LANGUAGES];
+    const char* name[CARAFE_TEXTS];
     CarafeRow* rows;
     int row_count;
 } CarafePage;
@@ -80,7 +99,7 @@ typedef struct {
 typedef struct {
     const char* id;
     CarafeWhen when;
-    const char* name[CARAFE_LANGUAGES];
+    const char* name[CARAFE_TEXTS];
     CarafePage* pages;
     int page_count;
 } CarafeGroup;
@@ -92,15 +111,15 @@ typedef struct {
 
 typedef struct {
     const char* id;
-    const char* name[CARAFE_LANGUAGES];
-    const char* hint[CARAFE_LANGUAGES];
+    const char* name[CARAFE_TEXTS];
+    const char* hint[CARAFE_TEXTS];
     CarafeSet* sets;
     int set_count;
 } CarafePreset;
 
 typedef struct {
     const char* id;
-    const char* name[CARAFE_LANGUAGES];
+    const char* name[CARAFE_TEXTS];
     CarafeRow* rows;
     int row_count;
     CarafePreset* presets;
@@ -111,12 +130,12 @@ typedef struct {
     CarafeFailure kind;
     int setting;
     int value;
-    const char* why[CARAFE_LANGUAGES];
+    const char* why[CARAFE_TEXTS];
 } CarafeSuggest;
 
 typedef struct {
     unsigned int code;
-    const char* label[CARAFE_LANGUAGES];
+    const char* label[CARAFE_TEXTS];
 } CarafeKey;
 
 typedef struct {
@@ -147,22 +166,23 @@ typedef struct {
 
 extern const char* const carafe_source_names[CARAFE_SOURCES];
 
-int carafeLanguage(void);
+CarafeLanguage carafeLanguage(void);
+int carafePluralForm(int count);
+const char* carafeText(const char* const texts[CARAFE_TEXTS]);
 CarafeCatalog* carafeCatalogLoad(void);
 void carafeCatalogFree(CarafeCatalog* catalog);
 int carafeCatalogFind(const CarafeCatalog* catalog, const char* id);
 int carafeCatalogFindKey(const CarafeCatalog* catalog, CarafeFile file, const char* key);
 bool carafeSettingVisible(const CarafeCatalog* catalog, const CarafeSetting* setting);
 bool carafeWhenHolds(const CarafeCatalog* catalog, const CarafeWhen* when, CarafeWhenKind kind);
-const char* carafeValueLabel(const CarafeSetting* setting, int language);
+const char* carafeValueLabel(const CarafeSetting* setting);
 bool carafeSettingSet(CarafeCatalog* catalog, int index, int value);
 bool carafeSettingPending(const CarafeSetting* setting);
 int carafePendingCount(const CarafeCatalog* catalog);
 int carafePresetCurrent(const CarafeCatalog* catalog, const CarafeSection* section);
 bool carafePresetApply(CarafeCatalog* catalog, const CarafePreset* preset);
 bool carafeBindingSet(CarafeCatalog* catalog, bool pad, int source, const CarafeChord* chord);
-void carafeChordLabel(const CarafeCatalog* catalog, bool pad, const CarafeChord* chord, int language, char* out,
-    size_t size);
+void carafeChordLabel(const CarafeCatalog* catalog, bool pad, const CarafeChord* chord, char* out, size_t size);
 bool carafeUndoPending(CarafeCatalog* catalog);
 bool carafeResetAll(CarafeCatalog* catalog, bool live);
 bool carafeSaveChanges(void);

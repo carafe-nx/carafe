@@ -17,6 +17,8 @@
 #include "carafe_loading.h"
 #include "carafe_menu.h"
 #include "carafe_overlay.h"
+#include "carafe_settings.h"
+#include "carafe_text.h"
 #include "osk.h"
 
 #define STALL_SECONDS 60
@@ -89,6 +91,167 @@ static const Strings STRINGS_RU = {
     "клавиатура",
     "R-стик",
     "настройки",
+};
+
+static const Strings STRINGS_ZH_HANS = {
+    "Windows 游戏",
+    { "正在启动 Windows 环境", "正在启动游戏", "游戏的第一个画面" },
+    "%u 秒  ·  已读取 %llu MB",
+    "已有 %u 秒没有进展：游戏可能已停止响应。",
+    "按下 HOME 按钮并关闭软件即可退出。",
+    "键盘",
+    "右摇杆",
+    "设置",
+};
+
+static const Strings STRINGS_JA = {
+    "Windowsのゲーム",
+    { "Windows環境を起動中", "ゲームを起動中", "ゲームの最初の画面" },
+    "%u秒  ·  %llu MB読み込み済み",
+    "%u秒間進んでいません。ゲームが応答していない可能性があります。",
+    "やめるときは、HOMEボタンを押してソフトを終了してください。",
+    "キーボード",
+    "Rスティック",
+    "設定",
+};
+
+static const Strings STRINGS_KO = {
+    "Windows 게임",
+    { "Windows 환경을 시작하는 중", "게임을 시작하는 중", "게임의 첫 화면" },
+    "%u초  ·  %llu MB 읽음",
+    "%u초 동안 진행되지 않았습니다. 게임이 응답하지 않을 수 있습니다.",
+    "끝내려면 HOME 버튼을 누르고 소프트웨어를 종료하세요.",
+    "키보드",
+    "R스틱",
+    "설정",
+};
+
+static const Strings STRINGS_ZH_HANT = {
+    "Windows 遊戲",
+    { "啟動 Windows 環境", "啟動遊戲", "遊戲的第一個畫面" },
+    "%u 秒  ·  已讀取 %llu MB",
+    "已有 %u 秒沒有進度：遊戲可能沒有回應。",
+    "按下 HOME 按鈕並關閉軟體即可結束。",
+    "鍵盤",
+    "R 搖桿",
+    "設定",
+};
+
+static const Strings STRINGS_FR = {
+    "Jeu Windows",
+    { "Démarrage de l’environnement Windows", "Démarrage du jeu", "Première image du jeu" },
+    "%u s  ·  %llu Mo lus",
+    "Aucun progrès depuis %u s : le jeu ne répond peut-être plus.",
+    "Appuyez sur le bouton HOME et fermez le logiciel pour quitter.",
+    "clavier",
+    "Stick R",
+    "paramètres",
+};
+
+static const Strings STRINGS_FR_CA = {
+    "Jeu Windows",
+    { "Démarrage de l’environnement Windows", "Démarrage du jeu", "Première image du jeu" },
+    "%u s  ·  %llu Mo lus",
+    "Aucune progression depuis %u s : le jeu ne répond peut-être plus.",
+    "Appuyez sur le bouton HOME et fermez le logiciel pour quitter.",
+    "clavier",
+    "joystick R",
+    "paramètres",
+};
+
+static const Strings STRINGS_DE = {
+    "Windows-Spiel",
+    { "Windows-Umgebung wird gestartet", "Spiel wird gestartet", "Das erste Bild des Spiels" },
+    "%u s  ·  %llu MB gelesen",
+    "Seit %u s kein Fortschritt: Das Spiel reagiert vielleicht nicht mehr.",
+    "Drücke die HOME-Taste und schließe die Software, um das Spiel zu beenden.",
+    "Tastatur",
+    "R-Stick",
+    "Einstellungen",
+};
+
+static const Strings STRINGS_IT = {
+    "Gioco per Windows",
+    { "Avvio dell'ambiente Windows", "Avvio del gioco", "La prima immagine del gioco" },
+    "%u s  ·  %llu MB letti",
+    "Nessun progresso da %u s: il gioco potrebbe non rispondere più.",
+    "Premi HOME e chiudi il software per uscire.",
+    "tastiera",
+    "stick R",
+    "impostazioni",
+};
+
+static const Strings STRINGS_ES = {
+    "Juego de Windows",
+    { "Iniciando el entorno de Windows", "Iniciando el juego", "Primera imagen del juego" },
+    "%u s  ·  %llu MB leídos",
+    "Sin avances desde hace %u s: puede que el juego no responda.",
+    "Pulsa el botón HOME y cierra el programa para salir.",
+    "teclado",
+    "palanca R",
+    "ajustes",
+};
+
+static const Strings STRINGS_ES_419 = {
+    "Juego de Windows",
+    { "Iniciando el entorno de Windows", "Iniciando el juego", "Primera imagen del juego" },
+    "%u s  ·  %llu MB leídos",
+    "Sin avances durante %u s: puede que el juego no responda.",
+    "Presiona el botón HOME y cierra el programa para salir.",
+    "teclado",
+    "palanca R",
+    "configuración",
+};
+
+static const Strings STRINGS_NL = {
+    "Windows-game",
+    { "Windows-omgeving starten", "Game starten", "Eerste beeld van de game" },
+    "%u s  ·  %llu MB gelezen",
+    "Al %u s geen voortgang: de game reageert misschien niet meer.",
+    "Druk op de HOME-knop en sluit de software om te stoppen.",
+    "toetsenbord",
+    "R-stick",
+    "instellingen",
+};
+
+static const Strings STRINGS_PT = {
+    "Jogo para Windows",
+    { "A iniciar o ambiente Windows", "A iniciar o jogo", "A primeira imagem do jogo" },
+    "%u s  ·  %llu MB lidos",
+    "Sem progresso há %u s: o jogo pode ter deixado de responder.",
+    "Prima o botão HOME e feche o software para sair.",
+    "teclado",
+    "Manípulo R",
+    "definições",
+};
+
+static const Strings STRINGS_PT_BR = {
+    "Jogo para Windows",
+    { "Iniciando o ambiente Windows", "Iniciando o jogo", "Primeira imagem do jogo" },
+    "%u s  ·  %llu MB lidos",
+    "Sem progresso há %u s: o jogo pode ter parado de responder.",
+    "Pressione HOME e feche o software para sair.",
+    "teclado",
+    "Direcional R",
+    "configurações",
+};
+
+static const Strings* const STRINGS[CarafeLanguageCount] = {
+    [CarafeLanguageRu] = &STRINGS_RU,
+    [CarafeLanguageEn] = &STRINGS_EN,
+    [CarafeLanguageZhHans] = &STRINGS_ZH_HANS,
+    [CarafeLanguageJa] = &STRINGS_JA,
+    [CarafeLanguageKo] = &STRINGS_KO,
+    [CarafeLanguageZhHant] = &STRINGS_ZH_HANT,
+    [CarafeLanguageFr] = &STRINGS_FR,
+    [CarafeLanguageFrCa] = &STRINGS_FR_CA,
+    [CarafeLanguageDe] = &STRINGS_DE,
+    [CarafeLanguageIt] = &STRINGS_IT,
+    [CarafeLanguageEs] = &STRINGS_ES,
+    [CarafeLanguageEs419] = &STRINGS_ES_419,
+    [CarafeLanguageNl] = &STRINGS_NL,
+    [CarafeLanguagePt] = &STRINGS_PT,
+    [CarafeLanguagePtBr] = &STRINGS_PT_BR,
 };
 
 extern unsigned int wine_nx_gl_swaps __attribute__((weak));
@@ -399,29 +562,25 @@ static int drawText(Picture* picture, const char* text, int size, int x0, int to
     }
 
     TTF_Font* font = fontAt(size);
-    int w = 0;
-    int h = 0;
-    if (font == NULL || TTF_SizeUTF8(font, text, &w, &h) != 0) {
+    if (font == NULL) {
+        return 0;
+    }
+    int w = carafeTextMeasure(font, size, false, text);
+    if (w <= 0) {
         return 0;
     }
     if (w > max_width) {
-        int smaller = size * max_width / w;
-        if (smaller < 8) {
+        size = size * max_width / w;
+        if (size < 8) {
             return 0;
         }
-        font = fontAt(smaller);
+        font = fontAt(size);
         if (font == NULL) {
             return 0;
         }
     }
 
-    SDL_Color white = { 255, 255, 255, 255 };
-    SDL_Surface* drawn = TTF_RenderUTF8_Blended(font, text, white);
-    if (drawn == NULL) {
-        return 0;
-    }
-    SDL_Surface* surface = SDL_ConvertSurfaceFormat(drawn, SDL_PIXELFORMAT_ARGB8888, 0);
-    SDL_FreeSurface(drawn);
+    SDL_Surface* surface = carafeTextRender(font, size, false, text);
     if (surface == NULL) {
         return 0;
     }
@@ -957,16 +1116,7 @@ void carafeLoadingTick(void) {
 }
 
 static void chooseLanguage(void) {
-    if (R_FAILED(setInitialize())) {
-        return;
-    }
-    u64 code = 0;
-    SetLanguage language = SetLanguage_ENUS;
-    if (R_SUCCEEDED(setGetSystemLanguage(&code)) && R_SUCCEEDED(setMakeLanguage(code, &language))
-        && language == SetLanguage_RU) {
-        g_strings = &STRINGS_RU;
-    }
-    setExit();
+    g_strings = STRINGS[carafeLanguage()];
 }
 
 static void loadIcon(void) {
