@@ -619,7 +619,7 @@ fn graphics() -> Vec<Setting> {
                 is("fsr", text("FSR 1.0")),
                 is("integer", key("graphics.upscalingInteger")),
             ],
-            0,
+            1,
         )
         .typed(),
         Setting::new(
@@ -1274,7 +1274,7 @@ fn system() -> Vec<Setting> {
                 is("horizon", text("Horizon")),
                 is("standard", key("advanced.syncStandard")),
             ],
-            1,
+            0,
         )
         .typed(),
         Setting::new("four-cores", Program, "four-cores", Restart, on_off(), 0).typed(),

@@ -318,6 +318,23 @@ mod tests {
     }
 
     #[test]
+    fn typed_catalog_defaults_match_the_default_settings() {
+        let files = AutorunFiles::render("game.exe", &AutorunSettings::default());
+        for setting in settings_catalog::catalog().settings() {
+            if setting.storage != Storage::Typed {
+                continue;
+            }
+            let text = match setting.file {
+                SettingFile::Program => &files.program,
+                SettingFile::Keys => &files.keys,
+                _ => continue,
+            };
+            let expected = setting.values[setting.default].text.as_deref();
+            assert_eq!(value(text, &setting.key), expected, "{}", setting.id);
+        }
+    }
+
+    #[test]
     fn every_picture_value_reaches_its_line() {
         let upscaling = [
             (Upscaling::Off, "off"),
