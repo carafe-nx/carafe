@@ -10,9 +10,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 ## Planned
 
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
-- [ ] **`feature` Game settings on the console: a menu over the game and on the error screen**
-- [ ] **`feature` Game registry: entries from a .reg file in the app, the whole registry in the console menu**
-- [ ] **`feature` The app and the console screens in every Switch system language**
+- [ ] `bug` The + of the menu combination reaches the game: NFSU skips its intro
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
 - [ ] `research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls
@@ -24,7 +22,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
 - [ ] `bug` With verbose traces a 32-bit game does not start: the address space search at start-up logs each of ~3000 tries
-- [ ] `feature` Buttons mapped by their labels, as on the Switch (A → A), with a choice to map them by position
+- [ ] `feature` A choice to map controller buttons by position instead of by their labels
 - [ ] `feature` Back up and restore game saves over USB
 - [ ] `research` Smaller save data on the console: measure what games really write
 - [ ] `feature` Move saves from the PC version of a game to the Switch
@@ -43,7 +41,11 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
-- [x] `bug` 32-bit games no longer run out of address space while FEX compiles on many threads at once (#47)
+- [x] `feature` Game settings on the console: a menu over the game and on the error screen — v0.4.0
+- [x] `feature` Game registry: entries from a .reg file in the app, the whole registry in the console menu — v0.4.0
+- [x] `feature` The app and the console screens in every Switch system language — v0.4.0
+- [x] `feature` The default controller layout keeps the button labels, as on the Switch (A → A) — v0.4.0
+- [x] `bug` 32-bit games no longer run out of address space while FEX compiles on many threads at once (#47) — v0.4.0
 - [x] `bug` 32-bit games get addresses up to 4 GB instead of 2 GB (#47) — v0.3.1
 - [x] `bug` Saves keep the time they were changed, so games that check it load them (#47) — v0.3.1
 - [x] `feature` When a game fails, an error screen shows what failed and offers to restart it or exit — v0.3.0
