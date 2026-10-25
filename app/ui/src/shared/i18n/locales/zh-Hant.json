@@ -10,7 +10,8 @@
       "graphics": "圖形",
       "directx": "DirectX",
       "processor": "處理器",
-      "system": "系統"
+      "system": "系統",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "DXVK 選項",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "第四核心用於圖形", "hint": "繪製與著色器在第四個核心上執行，遊戲使用另外三個。" },
       "windows": { "name": "視窗輸出", "hint": "遊戲視窗顯示錯誤時，可改用備用的畫面緩衝區。" },
       "verbose": { "name": "詳細記錄", "hint": "Wine 的詳細記錄。會讓遊戲大幅變慢，僅用於找錯誤。" },
-      "profile": { "name": "效能分析工具", "hint": "把遊戲花費時間的地方寫入記錄。會拖慢啟動。" }
+      "profile": { "name": "效能分析工具", "hint": "把遊戲花費時間的地方寫入記錄。會拖慢啟動。" },
+      "code-cache": { "name": "已轉譯程式碼快取", "hint": "在多次啟動之間保留為處理器轉譯的遊戲程式碼，之後啟動時需要轉譯的更少。實驗性功能。" }
     }
   },
   "common": {

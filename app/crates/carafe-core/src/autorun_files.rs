@@ -476,9 +476,12 @@ mod tests {
         let program = program_with(|_| {});
         assert_eq!(
             program.lines().filter(|l| l.starts_with("FEX_")).count(),
-            19
+            20
         );
         assert_eq!(value(&program, "FEX_TSOENABLED"), Some("0"));
+        assert_eq!(value(&program, "FEX_DISKCACHE"), Some("0"));
+        let cached = program_with(|s| s.options.set("code-cache", Some("1")));
+        assert_eq!(value(&cached, "FEX_DISKCACHE"), Some("1"));
         assert_eq!(value(&program, "FEX_MAXINST"), Some("1000"));
         assert_eq!(value(&program, "FEX_SMCCHECKS"), Some("none"));
         assert_eq!(value(&program, "FEX_DISABLEL2CACHE"), Some("1"));

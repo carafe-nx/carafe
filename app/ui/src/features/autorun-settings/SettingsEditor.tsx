@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AutorunSettings } from "@/shared/api/bindings/AutorunSettings";
 import type { SectionId } from "@/shared/api/bindings/SectionId";
+import { CarafeEditor } from "./CarafeEditor";
 import { DirectXEditor } from "./DirectXEditor";
 import { GraphicsEditor } from "./GraphicsEditor";
 import { InputEditor } from "./InputEditor";
@@ -70,6 +71,9 @@ export function SettingsEditor({ value, onChange, withRegistry = false }: Settin
               </div>
             ) : null}
           </div>
+        ) : null}
+        {current === "carafe" && catalog && section ? (
+          <CarafeEditor catalog={catalog} section={section} value={value} onChange={onChange} />
         ) : null}
       </section>
     </div>

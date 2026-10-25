@@ -35,6 +35,7 @@
 #define COMMIT_EARLY_BYTES (CARAFE_SAVE_JOURNAL_SIZE / 2)
 #define USERS_DIR "/drive_c/users/"
 #define DXVK_CACHE_DIR "/AppData/Local/dxvk"
+#define FEX_CACHE_DIR "/AppData/Local/fex-emu"
 #define EARLIEST_FILE_TIME 946684800
 #define TIMES_DIR RW_DEVICE ":/carafe"
 #define TIMES_PATH TIMES_DIR "/file-times"
@@ -265,20 +266,21 @@ static bool indexAdd(const char* actual) {
     return true;
 }
 
-static bool isDxvkCache(const char* rel) {
+static bool isUserCache(const char* rel, const char* cache_dir) {
     const size_t users_len = strlen(USERS_DIR);
     if (strncasecmp(rel, USERS_DIR, users_len) != 0) {
         return false;
     }
     const char* user_end = strchr(rel + users_len, '/');
-    const size_t cache_len = strlen(DXVK_CACHE_DIR);
+    const size_t cache_len = strlen(cache_dir);
     return user_end != NULL
-        && strncasecmp(user_end, DXVK_CACHE_DIR, cache_len) == 0
+        && strncasecmp(user_end, cache_dir, cache_len) == 0
         && (user_end[cache_len] == '\0' || user_end[cache_len] == '/');
 }
 
 static bool isVolatile(const char* rel) {
-    return isDxvkCache(rel)
+    return isUserCache(rel, DXVK_CACHE_DIR)
+        || isUserCache(rel, FEX_CACHE_DIR)
         || strcmp(rel, "/logs") == 0
         || startsWith(rel, "/logs/")
         || (startsWith(rel, "/wine-nx-session-") && strchr(rel + 1, '/') == NULL)

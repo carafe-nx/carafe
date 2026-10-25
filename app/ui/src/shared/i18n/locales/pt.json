@@ -10,7 +10,8 @@
       "graphics": "Gráficos",
       "directx": "DirectX",
       "processor": "Processador",
-      "system": "Sistema"
+      "system": "Sistema",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "Opções do DXVK",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "Quarto núcleo para gráficos", "hint": "O desenho e os shaders correm no quarto núcleo, o jogo nos outros três." },
       "windows": { "name": "Saída das janelas", "hint": "Framebuffer é a alternativa quando as janelas do jogo aparecem mal." },
       "verbose": { "name": "Relatório detalhado", "hint": "O relatório detalhado do Wine. Torna o jogo muito mais lento — só para encontrar erros." },
-      "profile": { "name": "Criador de perfis", "hint": "Escreve no relatório onde o jogo gasta o tempo. Torna o arranque mais lento." }
+      "profile": { "name": "Criador de perfis", "hint": "Escreve no relatório onde o jogo gasta o tempo. Torna o arranque mais lento." },
+      "code-cache": { "name": "Cache de código traduzido", "hint": "Guarda entre arranques o código do jogo traduzido para o processador, para que os arranques seguintes traduzam menos. Experimental." }
     }
   },
   "common": {

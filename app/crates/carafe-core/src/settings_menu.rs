@@ -407,7 +407,14 @@ mod tests {
             .collect();
         assert_eq!(
             sections,
-            ["controls", "graphics", "directx", "processor", "system"]
+            [
+                "controls",
+                "graphics",
+                "directx",
+                "processor",
+                "system",
+                "carafe"
+            ]
         );
     }
 

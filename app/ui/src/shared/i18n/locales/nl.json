@@ -10,7 +10,8 @@
       "graphics": "Graphics",
       "directx": "DirectX",
       "processor": "Processor",
-      "system": "Systeem"
+      "system": "Systeem",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "DXVK-opties",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "Vierde core voor graphics", "hint": "Tekenen en shaders draaien op de vierde core, de game op de andere drie." },
       "windows": { "name": "Vensteruitvoer", "hint": "Framebuffer is de terugvaloptie als de vensters van de game verkeerd verschijnen." },
       "verbose": { "name": "Uitgebreid log", "hint": "Het gedetailleerde log van Wine. Maakt de game veel trager — alleen om bugs te zoeken." },
-      "profile": { "name": "Profiler", "hint": "Schrijft in het log waar de game zijn tijd aan besteedt. Vertraagt het starten." }
+      "profile": { "name": "Profiler", "hint": "Schrijft in het log waar de game zijn tijd aan besteedt. Vertraagt het starten." },
+      "code-cache": { "name": "Cache voor vertaalde code", "hint": "Bewaart de voor de processor vertaalde code van de game tussen starts, zodat latere starts minder hoeven te vertalen. Experimenteel." }
     }
   },
   "common": {

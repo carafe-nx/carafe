@@ -252,6 +252,7 @@ pub enum SectionId {
     Directx,
     Processor,
     System,
+    Carafe,
 }
 
 impl SectionId {
@@ -264,6 +265,7 @@ impl SectionId {
             Self::Directx => "directx",
             Self::Processor => "processor",
             Self::System => "system",
+            Self::Carafe => "carafe",
         }
     }
 }
@@ -549,6 +551,7 @@ fn build() -> Catalog {
             section(SectionId::Directx, directx(), Vec::new()),
             section(SectionId::Processor, processor(), fex_presets()),
             section(SectionId::System, rows(system()), Vec::new()),
+            section(SectionId::Carafe, rows(carafe()), Vec::new()),
         ],
         suggestions: suggestions(),
         keys: keys(),
@@ -1261,6 +1264,10 @@ fn fex_presets() -> Vec<Preset> {
     ]
 }
 
+fn carafe() -> Vec<Setting> {
+    vec![fex("code-cache", "FEX_DISKCACHE", off_on(), 0).show("cpu", &[0])]
+}
+
 fn system() -> Vec<Setting> {
     use Apply::Restart;
     use SettingFile::Program;
@@ -1450,7 +1457,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 19);
+        assert_eq!(fex, 20);
         let box64 = catalog
             .settings()
             .into_iter()

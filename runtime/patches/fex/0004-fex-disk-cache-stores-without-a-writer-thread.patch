@@ -1,0 +1,35 @@
+Carafe: on Horizon the disk cache stores a block on the thread that compiled it, without a writer thread.
+FEX starts its writer with NtCreateThreadEx at an ARM64 function. On Horizon every new thread of a 32-bit game
+starts as an x86 thread, so the writer ran FEX's own code as x86 and the game ended with an access violation in
+libwow64fex.dll as soon as the cache was on. Without a writer, Store writes the blob and its index entry at once,
+one store at a time, as the writer did.
+MIT, as the files it changes.
+
+--- a/FEXCore/Source/Interface/Core/DiskCache.cpp
++++ b/FEXCore/Source/Interface/Core/DiskCache.cpp
+@@ -457,10 +457,12 @@
+     WritingDiskCache = (bool)RWCacheDB;
+     ReadingDiskCache = !ROCacheDBs.empty() || RWCacheDB != nullptr;
+ 
++#ifndef FEX_HORIZON
+     if (IsWritingDiskCache()) {
+       FEXCore::Threads::Flags WriterThreadFlags = {.LowPriority = true, .Internal = true};
+       Writer = fextl::make_unique<WorkQueueThread>(WriterThreadFlags);
+     }
++#endif
+   }
+ 
+   uint64_t DiskCache::MakeLookupKey(Core::InternalThreadState* Thread, const uint64_t CodeKey, bool Writable, bool MonoBackpatcher) {
+@@ -1039,6 +1041,12 @@
+     memcpy(IndexBlob.data(), &IndexBlobHeader, sizeof(IndexExtraBlobHeader));
+     memcpy(IndexBlob.data() + sizeof(IndexExtraBlobHeader), ExactGuestCodeExtents.data(), ExactGuestCodeExtents.size() * sizeof(uint32_t));
+ 
++    if (!Writer) {
++      static std::mutex InlineStoreMutex;
++      std::scoped_lock InlineStoreLock(InlineStoreMutex);
++      RWCacheDB->StoreCacheBlob(Key, LookupKey, Blob, Index, IndexLock, IndexBlob);
++      return true;
++    }
+     // hand the rest off to the writer thread
+     Writer->QueueWork(fextl::make_unique<CacheStoreWorkItem>(this, RWCacheDB.get(), Key, LookupKey, std::move(Blob), std::move(IndexBlob)));
+     return true;

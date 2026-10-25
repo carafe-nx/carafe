@@ -10,7 +10,8 @@
       "graphics": "Graphismes",
       "directx": "DirectX",
       "processor": "Processeur",
-      "system": "Système"
+      "system": "Système",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "Options DXVK",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "Quatrième cœur pour le graphisme", "hint": "L’affichage et les nuanceurs tournent sur le quatrième cœur, le jeu sur les trois autres." },
       "windows": { "name": "Affichage des fenêtres", "hint": "« Tampon d’image » est la solution de secours quand les fenêtres du jeu s’affichent mal." },
       "verbose": { "name": "Journal détaillé", "hint": "Le journal détaillé de Wine. Ralentit beaucoup le jeu — seulement pour trouver des bogues." },
-      "profile": { "name": "Profileur", "hint": "Note dans le journal où le jeu passe son temps. Ralentit le démarrage." }
+      "profile": { "name": "Profileur", "hint": "Note dans le journal où le jeu passe son temps. Ralentit le démarrage." },
+      "code-cache": { "name": "Cache du code traduit", "hint": "Garde entre les lancements le code du jeu traduit pour le processeur, pour en traduire moins aux lancements suivants. Expérimental." }
     }
   },
   "common": {

@@ -10,7 +10,8 @@
       "graphics": "Grafik",
       "directx": "DirectX",
       "processor": "Prozessor",
-      "system": "System"
+      "system": "System",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "DXVK-Optionen",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "Vierter Kern für Grafik", "hint": "Zeichnen und Shader laufen auf dem vierten Kern, das Spiel auf den anderen drei." },
       "windows": { "name": "Fensterausgabe", "hint": "Framebuffer ist die Notlösung, wenn die Fenster des Spiels falsch erscheinen." },
       "verbose": { "name": "Ausführliches Log", "hint": "Das detaillierte Log von Wine. Verlangsamt das Spiel stark – nur zur Fehlersuche." },
-      "profile": { "name": "Profiler", "hint": "Schreibt ins Log, wo das Spiel seine Zeit verbringt. Verlangsamt den Start." }
+      "profile": { "name": "Profiler", "hint": "Schreibt ins Log, wo das Spiel seine Zeit verbringt. Verlangsamt den Start." },
+      "code-cache": { "name": "Cache für übersetzten Code", "hint": "Bewahrt den für den Prozessor übersetzten Code des Spiels zwischen Starts auf, damit spätere Starts weniger übersetzen. Experimentell." }
     }
   },
   "common": {

@@ -10,7 +10,8 @@
       "graphics": "图形",
       "directx": "DirectX",
       "processor": "处理器",
-      "system": "系统"
+      "system": "系统",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "DXVK 选项",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "第四核心用于图形", "hint": "渲染和着色器在第四个核心上运行，游戏在其余三个上运行。" },
       "windows": { "name": "窗口输出", "hint": "帧缓冲是窗口显示异常时的备用方式。" },
       "verbose": { "name": "详细日志", "hint": "Wine 的详细日志。会严重拖慢游戏，仅用于排查问题。" },
-      "profile": { "name": "性能分析器", "hint": "把游戏耗时的位置写入日志。会拖慢启动。" }
+      "profile": { "name": "性能分析器", "hint": "把游戏耗时的位置写入日志。会拖慢启动。" },
+      "code-cache": { "name": "已转译代码缓存", "hint": "在多次启动之间保留为处理器转译的游戏代码，之后启动时需要转译的更少。实验性功能。" }
     }
   },
   "common": {

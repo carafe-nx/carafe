@@ -10,7 +10,8 @@
       "graphics": "Graphics",
       "directx": "DirectX",
       "processor": "Processor",
-      "system": "System"
+      "system": "System",
+      "carafe": "Carafe"
     },
     "groups": {
       "dxvk": "DXVK options",
@@ -208,7 +209,8 @@
       "four-cores": { "name": "Fourth core for graphics", "hint": "Drawing and shaders run on the fourth core, the game on the other three." },
       "windows": { "name": "Window output", "hint": "Framebuffer is the fallback when the game's windows show wrong." },
       "verbose": { "name": "Verbose log", "hint": "Wine's detailed log. Slows the game a lot — only for finding bugs." },
-      "profile": { "name": "Profiler", "hint": "Writes where the game spends its time into the log. Slows the start." }
+      "profile": { "name": "Profiler", "hint": "Writes where the game spends its time into the log. Slows the start." },
+      "code-cache": { "name": "Translated code cache", "hint": "Keeps the game's code translated for the processor between starts, so later starts translate less. Experimental." }
     }
   },
   "common": {

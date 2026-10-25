@@ -18,8 +18,9 @@ cache (`sd_cache.c`). It is installed by a constructor, after libnx mounts `sdmc
   data. Everything else under `sdmc:` goes to the SD card.
 - Lookups ignore letter case, like FAT: Wine on Horizon expects a case-insensitive file system, while RomFS names are
   exact. The overlay builds a lower-case index of RomFS and creates new files with the spelling that already exists.
-- Logs and Wine's session file `wine-nx-session-*.shm` go to `sdmc:/switch/carafe/<Title ID>/`, and so does DXVK's
-  shader cache (`drive_c/users/*/AppData/Local/dxvk/…`). They stay open for writing the whole session, and save data
+- Logs and Wine's session file `wine-nx-session-*.shm` go to `sdmc:/switch/carafe/<Title ID>/`, and so do DXVK's
+  shader cache (`drive_c/users/*/AppData/Local/dxvk/…`) and FEX's cache of translated code
+  (`drive_c/users/*/AppData/Local/fex-emu/…`). They stay open for writing the whole session, and save data
   cannot be committed while anything in it is open for writing.
 - Save data is committed by a thread with its own static stack after 2 s without writes, and at exit, only when
   nothing in it is open for writing. The log names the files that hold a commit back (`open for writing: …`).
