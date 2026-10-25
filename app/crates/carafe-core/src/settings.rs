@@ -307,9 +307,12 @@ impl Default for InputSettings {
                 codes: vec![code],
             })
             .collect();
+        const PAD: [u16; 24] = [
+            2, 1, 4, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        ];
         let pad = SwitchButton::ALL
             .iter()
-            .zip(1..=PAD_TARGET_COUNT)
+            .zip(PAD)
             .map(|(&button, target)| Binding {
                 button,
                 codes: vec![target],
@@ -614,6 +617,24 @@ mod tests {
                 codes: vec![24]
             }
         );
+    }
+
+    #[test]
+    fn default_pad_keeps_button_letters() {
+        let input = InputSettings::default();
+        let target = |button: SwitchButton| {
+            input
+                .pad
+                .iter()
+                .find(|binding| binding.button == button)
+                .unwrap()
+                .codes
+                .clone()
+        };
+        assert_eq!(target(SwitchButton::A), vec![2]);
+        assert_eq!(target(SwitchButton::B), vec![1]);
+        assert_eq!(target(SwitchButton::X), vec![4]);
+        assert_eq!(target(SwitchButton::Y), vec![3]);
     }
 
     #[test]
