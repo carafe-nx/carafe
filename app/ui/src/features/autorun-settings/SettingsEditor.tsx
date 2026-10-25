@@ -20,7 +20,7 @@ type SettingsEditorProps = {
 export function SettingsEditor({ value, onChange, withRegistry = false }: SettingsEditorProps) {
   const { t } = useTranslation();
   const catalog = useSettingsCatalog();
-  const [current, setCurrent] = useState<SectionId | "registry">("controls");
+  const [current, setCurrent] = useState<SectionId>("controls");
   const section = catalog?.sections.find((item) => item.id === current);
   const registryCount = value.registry.entries.length + value.registry.menu.length;
 
@@ -38,22 +38,8 @@ export function SettingsEditor({ value, onChange, withRegistry = false }: Settin
             {t(item.name)}
           </button>
         ))}
-        {withRegistry ? (
-          <button
-            type="button"
-            className={`${styles.navItem} ${styles.navSub}`}
-            aria-current={current === "registry" ? "page" : undefined}
-            onClick={() => setCurrent("registry")}
-          >
-            {t("registry.nav")}
-            {registryCount > 0 ? <span className={styles.navCount}>{registryCount}</span> : null}
-          </button>
-        ) : null}
       </nav>
-      <section
-        className={styles.content}
-        aria-label={current === "registry" ? t("registry.nav") : section ? t(section.name) : undefined}
-      >
+      <section className={styles.content} aria-label={section ? t(section.name) : undefined}>
         {current === "controls" ? (
           <InputEditor value={value.input} onChange={(input) => onChange({ ...value, input })} />
         ) : null}
@@ -67,15 +53,23 @@ export function SettingsEditor({ value, onChange, withRegistry = false }: Settin
           <ProcessorEditor catalog={catalog} section={section} value={value} onChange={onChange} />
         ) : null}
         {current === "system" ? (
-          <SystemEditor
-            system={value.system}
-            debug={value.debug}
-            onSystemChange={(system) => onChange({ ...value, system })}
-            onDebugChange={(debug) => onChange({ ...value, debug })}
-          />
-        ) : null}
-        {current === "registry" && withRegistry ? (
-          <RegistryEditor value={value.registry} onChange={(registry) => onChange({ ...value, registry })} />
+          <div className={styles.system}>
+            <SystemEditor
+              system={value.system}
+              debug={value.debug}
+              onSystemChange={(system) => onChange({ ...value, system })}
+              onDebugChange={(debug) => onChange({ ...value, debug })}
+            />
+            {withRegistry ? (
+              <div className={styles.registry}>
+                <span className={styles.registryTitle}>
+                  {t("registry.nav")}
+                  {registryCount > 0 ? <span className={styles.registryCount}>{registryCount}</span> : null}
+                </span>
+                <RegistryEditor value={value.registry} onChange={(registry) => onChange({ ...value, registry })} />
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </section>
     </div>

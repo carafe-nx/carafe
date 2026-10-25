@@ -12,7 +12,7 @@ The look was chosen with the user on the "Registry" page of the menu canvas.
 
 ## Decision
 
-- **In the app**, the build wizard's "Settings" step gets "Registry" under "System". It holds:
+- **In the app**, the build wizard's "Settings" step gets a "Registry" block at the end of the "System" page. It holds:
   - entries — set a value, delete a value, delete a key — imported from a `.reg` file or added by hand, shown in a
     table and edited in place, and exported back to a `.reg` file;
   - rows for the console menu: a name, a hint, the values the row writes together and its choices, each giving every

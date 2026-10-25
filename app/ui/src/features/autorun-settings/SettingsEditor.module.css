@@ -53,15 +53,33 @@
   }
 }
 
-.navSub {
-  margin-left: 14px;
+.system {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.navCount {
+.registry {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.registryTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.registryCount {
+  letter-spacing: 0;
   padding: 1px 7px;
   border-radius: 9px;
   background: var(--accent-soft);
