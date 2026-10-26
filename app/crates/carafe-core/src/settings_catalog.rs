@@ -1021,6 +1021,7 @@ fn processor() -> Vec<Entry> {
         [
             fex("fex-tso", "FEX_TSOENABLED", off_on(), 0),
             fex("fex-x87", "FEX_X87REDUCEDPRECISION", off_on(), 1),
+            fex("fex-x87-rounding", "FEX_X87CONVERSIONROUNDING", off_on(), 0).on("fex-x87", &[1]),
             fex(
                 "fex-smc",
                 "FEX_SMCCHECKS",
@@ -1457,7 +1458,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 20);
+        assert_eq!(fex, 21);
         let box64 = catalog
             .settings()
             .into_iter()

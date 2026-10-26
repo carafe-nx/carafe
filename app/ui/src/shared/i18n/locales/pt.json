@@ -169,6 +169,7 @@
       "d3d9-hideNvkGpu": { "name": "Ocultar o controlador NVK (DX9)", "hint": "O jogo não vê que o controlador é o NVK." },
       "cpu": { "name": "Emulador de CPU", "hint": "O FEX é o principal, para jogos de 32 e 64 bits. O Box64 é o de reserva, só para jogos de 32 bits." },
       "fex-tso": { "name": "Ordem de memória estrita", "hint": "Ordena os acessos à memória como o x86. Mais lento; ligue-o quando um jogo multithread falha, bloqueia ou corrompe dados." },
+      "fex-x87-rounding": { "name": "Arredondamento x87 só nas conversões", "hint": "Conversões de decimal para inteiro mais rápidas: as mudanças do modo de arredondamento do jogo aplicam-se só a elas. Desligue se os números ou a física parecerem errados." },
       "fex-x87": { "name": "Precisão x87 reduzida", "hint": "Os cálculos antigos x87 em 64 bits em vez de 80 — muito mais rápido. Desligue se a câmara tremer, a física se portar mal ou os objetos desaparecerem." },
       "fex-smc": { "name": "Verificação de código automodificável", "hint": "Necessária em jogos com proteção, compactador, .NET, Mono ou LuaJIT. MTrack é o modo normal; Full é muito lento." },
       "fex-maxinst": { "name": "Tamanho do bloco de tradução", "hint": "Quantas instruções do jogo são traduzidas de uma vez. Mais é mais rápido em cenas pesadas; menos poupa memória e encurta os engasgos." },

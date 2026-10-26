@@ -169,6 +169,7 @@
       "d3d9-hideNvkGpu": { "name": "NVK-driver verbergen (DX9)", "hint": "De game ziet niet dat de driver NVK is." },
       "cpu": { "name": "CPU-emulator", "hint": "FEX is de hoofdemulator, voor 32- en 64-bit-games. Box64 is de reserve, alleen voor 32-bit-games." },
       "fex-tso": { "name": "Strikte geheugenvolgorde", "hint": "Ordent geheugentoegang zoals x86 dat doet. Trager; zet aan als een multithreaded game crasht, vastloopt of gegevens beschadigt." },
+      "fex-x87-rounding": { "name": "x87-afronding alleen bij omzettingen", "hint": "Snellere omzetting van kommagetallen naar gehele getallen: wijzigingen van de afrondingsmodus gelden alleen daarvoor. Zet uit als getallen of natuurkunde niet kloppen." },
       "fex-x87": { "name": "Lagere x87-precisie", "hint": "Oude x87-berekeningen in 64 bits in plaats van 80 — veel sneller. Zet uit als de camera trilt, physics raar doen of objecten verdwijnen." },
       "fex-smc": { "name": "Controle op zelfwijzigende code", "hint": "Nodig voor games met beveiliging, een packer, .NET, Mono of LuaJIT. MTrack is de normale modus; Full is erg traag." },
       "fex-maxinst": { "name": "Grootte vertaalblok", "hint": "Hoeveel instructies van de game tegelijk worden vertaald. Meer is sneller in zware scènes; minder bespaart geheugen en verkort haperingen." },
