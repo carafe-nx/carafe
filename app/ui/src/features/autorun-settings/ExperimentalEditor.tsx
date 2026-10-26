@@ -4,14 +4,14 @@ import type { Section } from "@/shared/api/bindings/Section";
 import { CatalogField } from "./CatalogField";
 import styles from "./editors.module.css";
 
-type CarafeEditorProps = {
+type ExperimentalEditorProps = {
   catalog: Catalog;
   section: Section;
   value: AutorunSettings;
   onChange: (next: AutorunSettings) => void;
 };
 
-export function CarafeEditor({ catalog, section, value, onChange }: CarafeEditorProps) {
+export function ExperimentalEditor({ catalog, section, value, onChange }: ExperimentalEditorProps) {
   return (
     <div className={styles.stack}>
       <div className={styles.grid2}>

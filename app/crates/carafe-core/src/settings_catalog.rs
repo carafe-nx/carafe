@@ -252,7 +252,7 @@ pub enum SectionId {
     Directx,
     Processor,
     System,
-    Carafe,
+    Experimental,
 }
 
 impl SectionId {
@@ -265,7 +265,7 @@ impl SectionId {
             Self::Directx => "directx",
             Self::Processor => "processor",
             Self::System => "system",
-            Self::Carafe => "carafe",
+            Self::Experimental => "experimental",
         }
     }
 }
@@ -551,7 +551,7 @@ fn build() -> Catalog {
             section(SectionId::Directx, directx(), Vec::new()),
             section(SectionId::Processor, processor(), fex_presets()),
             section(SectionId::System, rows(system()), Vec::new()),
-            section(SectionId::Carafe, rows(carafe()), Vec::new()),
+            section(SectionId::Experimental, rows(experimental()), Vec::new()),
         ],
         suggestions: suggestions(),
         keys: keys(),
@@ -1021,7 +1021,6 @@ fn processor() -> Vec<Entry> {
         [
             fex("fex-tso", "FEX_TSOENABLED", off_on(), 0),
             fex("fex-x87", "FEX_X87REDUCEDPRECISION", off_on(), 1),
-            fex("fex-x87-rounding", "FEX_X87CONVERSIONROUNDING", off_on(), 0).on("fex-x87", &[1]),
             fex(
                 "fex-smc",
                 "FEX_SMCCHECKS",
@@ -1265,8 +1264,11 @@ fn fex_presets() -> Vec<Preset> {
     ]
 }
 
-fn carafe() -> Vec<Setting> {
-    vec![fex("code-cache", "FEX_DISKCACHE", off_on(), 0).show("cpu", &[0])]
+fn experimental() -> Vec<Setting> {
+    vec![
+        fex("code-cache", "FEX_DISKCACHE", off_on(), 0).show("cpu", &[0]),
+        fex("fex-x87-rounding", "FEX_X87CONVERSIONROUNDING", off_on(), 0).on("fex-x87", &[1]),
+    ]
 }
 
 fn system() -> Vec<Setting> {

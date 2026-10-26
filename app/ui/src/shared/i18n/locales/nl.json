@@ -11,7 +11,7 @@
       "directx": "DirectX",
       "processor": "Processor",
       "system": "Systeem",
-      "carafe": "Carafe"
+      "experimental": "Experimenteel"
     },
     "groups": {
       "dxvk": "DXVK-opties",

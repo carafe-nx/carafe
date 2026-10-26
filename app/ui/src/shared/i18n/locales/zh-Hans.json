@@ -11,7 +11,7 @@
       "directx": "DirectX",
       "processor": "处理器",
       "system": "系统",
-      "carafe": "Carafe"
+      "experimental": "实验性功能"
     },
     "groups": {
       "dxvk": "DXVK 选项",

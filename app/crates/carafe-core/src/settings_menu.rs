@@ -413,7 +413,7 @@ mod tests {
                 "directx",
                 "processor",
                 "system",
-                "carafe"
+                "experimental"
             ]
         );
     }

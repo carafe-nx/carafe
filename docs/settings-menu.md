@@ -37,7 +37,7 @@ pad	1	B	B	B	…
 - `api <name>` — a Direct3D the game's executable imports: `d3d8`, `d3d9`, `d3d10`, `d3d11`, `d3d12`. No `api`
   line means the app does not know, and every option is shown.
 - `section <id> <name ×15>` — a tab of the menu. The ids are `controls`, `graphics`, `directx`, `processor`,
-  `system`, `carafe`, in this order. The menu draws `controls` itself (the console map, from `key` and `pad`); its `setting`
+  `system`, `experimental`, in this order. The menu draws `controls` itself (the console map, from `key` and `pad`); its `setting`
   lines are the row above the map.
 - `setting <id> <file> <key> <apply> <default> <when> <api> <name ×15> <hint ×15>` — a row:
   - `<file>` — `program` (`<exe>.wine-nx.txt`), `keys` (`<exe>.keys.txt`) or `box64` (`<exe>.box64.txt`);

@@ -135,8 +135,8 @@ kept in the same cache.
 
 What is built for it:
 
-- **The Carafe section of the settings** (the app and the console menu, the last tab) with one row, "Translated code
-  cache", off by default and shown only with FEX. It writes `FEX_DISKCACHE` into the program's settings.
+- **The Experimental section of the settings** (the app and the console menu, the last tab) with a row "Translated
+  code cache", off by default and shown only with FEX. It writes `FEX_DISKCACHE` into the program's settings.
 - **`runtime/patches/autorun/0051`**: Autorun passes FEX only the options of its list (`fex_options.h`); the patch adds
   `FEX_DISKCACHE` and `FEX_DISKCACHEFILEMAPPING`, the second always off, as Horizon's unix side has no `MapFile`
   (`fex_unix.c` answers it `STATUS_NOT_SUPPORTED`) and FEX then reads the files.
@@ -195,7 +195,7 @@ The cache held 68 MB, its index 2.4 MB. All three runs ended cleanly, without st
 Next: hit and miss counters with the time spent reading and translating; the whole cache read into memory at start
 instead of one read per blob; stores batched instead of one per block on the game's thread; a frame-time log on the
 console with the number of long frames per interval. Then one console check of the same route with the cache on and
-off, switched in the Carafe menu.
+off, switched in the Experimental section of the console menu.
 
 ## The profiler under FEX
 
