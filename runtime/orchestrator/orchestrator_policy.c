@@ -46,12 +46,13 @@ static bool findThread(const OrchestratorThread* threads, size_t count, unsigned
     return false;
 }
 
-static void busiest(const OrchestratorThread* threads, size_t count, unsigned int skipTid, size_t* index,
-    unsigned int* load) {
+static void busiest(const OrchestratorThread* threads, size_t count, unsigned int skipTid, unsigned int appMask,
+    size_t* index, unsigned int* load) {
     *load = 0;
     *index = count;
     for (size_t i = 0; i < count; i++) {
-        if (threads[i].kind != 'w' || threads[i].tid == skipTid) {
+        if (threads[i].kind != 'w' || threads[i].tid == skipTid ||
+            (threads[i].mask != 0 && (threads[i].mask & appMask) == 0)) {
             continue;
         }
         unsigned int l = clientLoad(threads, count, i);
@@ -94,11 +95,11 @@ void orchestratorDecide(const OrchestratorThread* threads, size_t count, unsigne
 
     size_t top;
     unsigned int topLoad;
-    busiest(threads, count, 0, &top, &topLoad);
+    busiest(threads, count, 0, appMask, &top, &topLoad);
     size_t second;
     unsigned int secondLoad = 0;
     if (top < count) {
-        busiest(threads, count, threads[top].tid, &second, &secondLoad);
+        busiest(threads, count, threads[top].tid, appMask, &second, &secondLoad);
     }
 
     if (state->mode == OrchestratorModeWatch) {
@@ -133,7 +134,7 @@ void orchestratorDecide(const OrchestratorThread* threads, size_t count, unsigne
             unsigned int mainLoad = clientLoad(threads, count, main);
             size_t other;
             unsigned int otherLoad;
-            busiest(threads, count, state->mainTid, &other, &otherLoad);
+            busiest(threads, count, state->mainTid, appMask, &other, &otherLoad);
             bool light = mainLoad < ORCHESTRATOR_RELEASE_PERMILLE || otherLoad >= ORCHESTRATOR_SECOND_PERMILLE;
             state->lightPeriods = light ? state->lightPeriods + 1 : 0;
             if (state->lightPeriods >= ORCHESTRATOR_LEAVE_PERIODS) {

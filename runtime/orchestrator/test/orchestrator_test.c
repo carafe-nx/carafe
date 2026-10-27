@@ -163,6 +163,20 @@ static void theModeEndsWhenTheMainThreadIsGone(void) {
     CHECK(plan.mode == OrchestratorModeWatch && plan.modeChanged);
 }
 
+static void aBusyGraphicsWorkerOnCoreThreeKeepsTheMode(void) {
+    OrchestratorThread threads[] = {program(4, 960, 2), helper(44, 440), program(40, 70, 1)};
+    OrchestratorState state;
+    OrchestratorPlan plan;
+    orchestratorStart(&state);
+    orchestratorDecide(threads, 3, 7, &state, &plan);
+    orchestratorDecide(threads, 3, 7, &state, &plan);
+    CHECK(plan.mode == OrchestratorModeSingle && plan.secondPermille == 70);
+    for (int period = 0; period < 5; period++) {
+        orchestratorDecide(threads, 3, 7, &state, &plan);
+        CHECK(plan.mode == OrchestratorModeSingle && !plan.modeChanged);
+    }
+}
+
 static void oneCoreMovesNothing(void) {
     OrchestratorThread threads[] = {program(4, 960, 1), program(40, 70, 1)};
     OrchestratorState state;
@@ -184,6 +198,7 @@ int main(void) {
     aMainThreadTheProgramSpreadIsLeftWatching();
     theModeEndsWhenTheMainThreadGoesQuiet();
     theModeEndsWhenTheMainThreadIsGone();
+    aBusyGraphicsWorkerOnCoreThreeKeepsTheMode();
     oneCoreMovesNothing();
     if (failures != 0) {
         printf("%d checks failed\n", failures);
