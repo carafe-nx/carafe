@@ -48,9 +48,31 @@ impl AutorunSettings {
 
 /// Chosen values of the catalog's settings kept by id ([`Storage::Option`]): a setting that is not here has its
 /// default value.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, TS)]
 #[ts(export, type = "Record<string, string>")]
 pub struct OptionValues(BTreeMap<String, String>);
+
+impl<'de> Deserialize<'de> for OptionValues {
+    /// Keeps only the values the catalog has: a setting it no longer has, or a text that is not one of its values,
+    /// falls back to the default.
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let mut values = BTreeMap::<String, String>::deserialize(deserializer)?;
+        values.retain(|id, text| option_fits(id, text));
+        Ok(Self(values))
+    }
+}
+
+fn option_fits(id: &str, text: &str) -> bool {
+    settings_catalog::catalog()
+        .setting(id)
+        .is_some_and(|setting| {
+            setting.storage == Storage::Option
+                && setting
+                    .values
+                    .iter()
+                    .any(|value| value.text.as_deref() == Some(text))
+        })
+}
 
 impl OptionValues {
     /// Returns the file text chosen for a setting, or `None` when it has its default value.
@@ -100,16 +122,8 @@ impl OptionValues {
     ///
     /// [`SettingsError::Option`] with the first id that does not fit.
     pub fn validate(&self) -> Result<(), SettingsError> {
-        let catalog = settings_catalog::catalog();
         for (id, text) in &self.0 {
-            let fits = catalog.setting(id).is_some_and(|setting| {
-                setting.storage == Storage::Option
-                    && setting
-                        .values
-                        .iter()
-                        .any(|value| value.text.as_deref() == Some(text.as_str()))
-            });
-            if !fits {
+            if !option_fits(id, text) {
                 return Err(SettingsError::Option(id.clone()));
             }
         }
@@ -573,6 +587,18 @@ pub struct DebugSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn options_the_catalog_no_longer_has_fall_back_to_default() {
+        let options: OptionValues = serde_json::from_str(
+            r#"{"fex-3dnow":"enable3dnow","fex-flags":"0","fex-x87-single":"0"}"#,
+        )
+        .unwrap();
+        assert_eq!(options.get("fex-3dnow"), None);
+        assert_eq!(options.get("fex-flags"), None);
+        assert_eq!(options.get("fex-x87-single"), Some("0"));
+        assert_eq!(options.validate(), Ok(()));
+    }
 
     #[test]
     fn defaults_are_valid() {
