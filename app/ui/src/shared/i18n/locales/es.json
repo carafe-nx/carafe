@@ -172,6 +172,7 @@
       "fex-x87-single": { "name": "x87 en precisión simple", "hint": "Calcula los decimales x87 con la precisión que fija Direct3D 9, sin conversiones de más. Más rápido. Desactívalo si los números, la física o la imagen fallan." },
       "fex-gdb-symbols": { "name": "Mapa exacto del código para el perfilador", "hint": "El perfilador ve cada instrucción del juego, no solo una parte. Solo para mediciones; no afecta a la velocidad." },
       "orchestrator": { "name": "Orquestador", "hint": "Vigila lo ocupado que está cada hilo del juego. Cuando un hilo hace casi todo el trabajo, le da un núcleo propio y aparta de él todo lo demás. Desactívalo si el juego da tirones o va más lento." },
+      "d3d9-front-end-thread": { "name": "Gráficos en su propio hilo (DX9)", "hint": "El trabajo de Direct3D 9 pasa a un hilo en un núcleo libre y al hilo del juego le queda menos. Desactívalo si la imagen falla, el juego se cuelga o va más lento." },
       "fex-x87": { "name": "Precisión x87 reducida", "hint": "Los cálculos x87 antiguos en 64 bits en lugar de 80: mucho más rápido. Desactívalo si la cámara tiembla, la física falla o desaparecen objetos." },
       "fex-smc": { "name": "Comprobar código automodificable", "hint": "Lo necesitan los juegos con protección, empaquetador, .NET, Mono o LuaJIT. MTrack es el modo normal; Full es muy lento." },
       "fex-maxinst": { "name": "Tamaño del bloque de traducción", "hint": "Cuántas instrucciones del juego se traducen de una vez. Más es más rápido en escenas exigentes; menos ahorra memoria y acorta los tirones." },

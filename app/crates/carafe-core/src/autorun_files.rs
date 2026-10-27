@@ -516,6 +516,14 @@ mod tests {
     }
 
     #[test]
+    fn the_front_end_thread_is_off_until_turned_on() {
+        let program = program_with(|_| {});
+        assert_eq!(value(&program, "d3d9.frontEndThread"), None);
+        let on = program_with(|s| s.options.set("d3d9-front-end-thread", Some("True")));
+        assert_eq!(value(&on, "d3d9.frontEndThread"), Some("True"));
+    }
+
+    #[test]
     fn single_precision_follows_the_direct3d_version() {
         let settings = AutorunSettings::default();
         let plain = AutorunFiles::render("game.exe", &settings, &[]).program;

@@ -172,6 +172,7 @@
       "fex-x87-single": { "name": "x87 in single precision", "hint": "Computes x87 float math at the precision Direct3D 9 sets, without extra conversions. Faster. Turn off if numbers, physics or the picture look wrong." },
       "fex-gdb-symbols": { "name": "Exact code map for the profiler", "hint": "The profiler sees every instruction of the game, not only some. For measurements only; no effect on speed." },
       "orchestrator": { "name": "Orchestrator", "hint": "Watches how busy each of the game's threads is. When one thread does most of the work, it gets a core of its own and everything else moves off it. Turn off if the game stutters or runs slower." },
+      "d3d9-front-end-thread": { "name": "Graphics on its own thread (DX9)", "hint": "Direct3D 9 work moves to a thread on a free core, so the game's own thread has less to do. Turn off if the picture breaks, the game hangs or runs slower." },
       "fex-x87": { "name": "Reduced x87 precision", "hint": "Old x87 math in 64 bits instead of 80 — much faster. Turn off if the camera shakes, physics act up or objects vanish." },
       "fex-smc": { "name": "Self-modifying code checks", "hint": "Needed by games with protection, a packer, .NET, Mono or LuaJIT. MTrack is the normal mode; Full is very slow." },
       "fex-maxinst": { "name": "Translation block size", "hint": "How many game instructions are translated at once. More is faster in heavy scenes; fewer saves memory and shortens stutters." },

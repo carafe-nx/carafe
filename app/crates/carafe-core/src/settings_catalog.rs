@@ -1318,6 +1318,15 @@ fn experimental() -> Vec<Setting> {
             off_on(),
             0,
         ),
+        Setting::new(
+            "d3d9-front-end-thread",
+            SettingFile::Program,
+            "d3d9.frontEndThread",
+            Apply::Restart,
+            vec![absent(word("off")), is("True", word("on"))],
+            0,
+        )
+        .apis(&[Api::D3d9]),
     ]
 }
 
