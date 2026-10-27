@@ -13,7 +13,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `bug` The + of the menu combination reaches the game: NFSU skips its intro
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
-- [ ] `research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls
+- [ ] **`research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls**
 - [ ] `research` Keep translated code between runs and prepare it at the first start
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
@@ -42,6 +42,10 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` DXVK settings now reach 32-bit games
+- [x] `bug` A game that makes a probe Direct3D device on its first start no longer stays on the loading screen
+- [x] `bug` Verbose traces no longer make the start take minutes
+- [x] `feature` Faster x87 math, CPU flags and repeated D3D9 states built into the runtime
 - [x] `feature` Game settings on the console: a menu over the game and on the error screen — v0.4.0
 - [x] `feature` Game registry: entries from a .reg file in the app, the whole registry in the console menu — v0.4.0
 - [x] `feature` The app and the console screens in every Switch system language — v0.4.0
