@@ -24,6 +24,7 @@ git -C "$src" submodule update --init --recursive --depth=1
 wanted="$(cat "$@" | sha256sum | cut -d' ' -f1)"
 if [ "$(cat "$src/.git/carafe-applied" 2>/dev/null || true)" != "$wanted" ]; then
     git -C "$src" checkout -q --force HEAD -- src
+    git -C "$src" clean -fdq -- src
     for patch in "$@"; do
         git -C "$src" apply "$patch"
         echo "DXVK: applied $(basename "$patch")"
