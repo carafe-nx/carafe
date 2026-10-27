@@ -16,6 +16,11 @@ for each are named in the last column; the details of how to measure are there.
 | K6 | Indirect branch with periodic target patterns against a compare chain; `PRFM` forms and the latency of a prefetch issued on core 3 for core 1 | `[A57] branch`, `[A57] prefetch` | how jump tables are compiled; whether any prefetch from another core pays | a57-translation, run-ahead-prefetch |
 | K7 | DRAM latency and stream bandwidth at the loading screen and every tenth race report | `[A57] dram` | whether the GPU's traffic slows the CPU's misses | memory-bandwidth |
 
+K4 and K5 wait for their own work: forcing 4 KB entries needs an alias mapping in address space Autorun manages,
+and code-size steps need code generated at run time. The core-idle reading of P1 reads each core's counter from that
+core: the kernel answers `InfoType_IdleTickCount` for the calling core only
+(`libmesosphere/source/svc/kern_svc_info.cpp:226-240`), so the report's thread visits each core in turn.
+
 ## Profiler and runtime counters (every report)
 
 | # | Measurement | Where it is logged | Decision it switches | From |
@@ -29,6 +34,12 @@ for each are named in the last column; the details of how to measure are there.
 | P7 | FEX's own counters in process memory: compile count and time, lookup misses, map lock waits, SMC invalidations, disk-cache hits; long frames with the compile time inside them | `[FEX]` | the compile service's priority and its gain on stutter | translate-ahead, closed-loop-profile |
 | P8 | PMU, only where the user has opened it: set A (cycles, instructions, L1D and L2 refills, L1D TLB refills, mispredicts) and set B (L1I refills, L1I TLB refills, indirect branches, loads, stores, event 0x12C), alternating | `[PMU]` | the front-end share against the 28 % estimate; DRAM share; order of layout against prefetch | pmu |
 | P9 | Sampler from 1 % of a core instead of 3 %, one run | `[PROF]` | none; closes the threads not sampled | threads-in-a-race |
+
+P6 and P7 come from FEX's own per-thread counters: Autorun's FEX unix call table had no entry for the call that gives
+FEX their area, so the runtime now gives it (Autorun `0066`, `0067`), and a return that misses the call-return stack
+counts itself in the struct's spare field (FEX `0015`). The A/B of P6 needs `SyscallReturnStack` back as an option; it
+waits for the count. P4 needs a counter in every block's entry and waits for its own work; the lab trace (L1) answers
+the same question without it.
 
 ## Direct3D 9 and D3DX counters (with the profiler)
 
