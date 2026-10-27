@@ -14,6 +14,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
 - [ ] **`research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls**
+- [ ] **`research` Orchestrator: one part of the runtime that makes translated games use every resource of the Switch**
 - [ ] `research` Keep translated code between runs and prepare it at the first start
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
@@ -22,7 +23,6 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
-- [ ] `bug` With verbose traces a 32-bit game does not start: the address space search at start-up logs each of ~3000 tries
 - [ ] `feature` A choice to map controller buttons by position instead of by their labels
 - [ ] `feature` Back up and restore game saves over USB
 - [ ] `research` Smaller save data on the console: measure what games really write

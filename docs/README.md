@@ -18,6 +18,8 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/threads/REPORT.md](research/threads/REPORT.md) — the 96-thread limit and what the runtime spends of it.
 - [research/game-speed/REPORT.md](research/game-speed/REPORT.md) — where CPU time goes in a translated game and how to win
   it back.
+- [research/orchestrator/REPORT.md](research/orchestrator/REPORT.md) — the orchestrator, a part of the
+  runtime that makes a game use every resource of the Switch: the design, its gain, the stages and the console checks.
 - [research/translated-code-cache/REPORT.md](research/translated-code-cache/REPORT.md) — translated code kept between
   runs: where it lives, preparation at the first start, the decisions so far.
 - [research/in-game-menu/REPORT.md](research/in-game-menu/REPORT.md) — a settings menu over a running game.
