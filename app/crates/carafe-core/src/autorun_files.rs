@@ -6,7 +6,7 @@ use crate::settings::{
     AutorunSettings, Binding, CpuEmulator, Direct3d, DxvkHud, DxvkSource, InputMode, LsfgFlow,
     SyncMode, Upscaling, WindowOutput,
 };
-use crate::settings_catalog::{self, SettingFile, Storage};
+use crate::settings_catalog::{self, Api, SettingFile, Storage};
 
 /// Autorun settings files placed in RomFS next to the game's `.exe`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,19 +26,22 @@ pub struct AutorunFiles {
 }
 
 impl AutorunFiles {
-    /// Creates the files for a game whose executable is `executable`.
+    /// Creates the files for a game whose executable is `executable` and which uses the Direct3D versions `apis`.
     ///
-    /// Every typed value and every FEX option is written explicitly, so the result does not depend on Autorun
-    /// defaults. DXVK options are written only when they differ from "Default", so DXVK's own profile for the game
+    /// `apis` decides the value of settings left at [`settings_catalog::AUTO`].
+    ///
+    /// Every typed value and every FEX option of the catalog is written explicitly, so the result does not depend
+    /// on Autorun defaults; the speed-ups built into the runtime have no key here. DXVK options are written only when they differ from "Default", so DXVK's own profile for the game
     /// stays in force; Box64 options only when they differ from their default.
     #[must_use]
-    pub fn render(executable: &str, settings: &AutorunSettings) -> Self {
+    pub fn render(executable: &str, settings: &AutorunSettings, apis: &[Api]) -> Self {
         let stem = executable_stem(executable);
         let mut program = render_program(settings);
         program.push_str(&render_options(
             settings,
             SettingFile::Program,
             "{key} = {text}",
+            apis,
         ));
         Self {
             keys_name: format!("{stem}.keys.txt"),
@@ -46,12 +49,17 @@ impl AutorunFiles {
             program_name: format!("{stem}.wine-nx.txt"),
             program,
             box64_name: format!("{stem}.box64.txt"),
-            box64: render_options(settings, SettingFile::Box64, "{key}={text}"),
+            box64: render_options(settings, SettingFile::Box64, "{key}={text}", apis),
         }
     }
 }
 
-fn render_options(settings: &AutorunSettings, file: SettingFile, form: &str) -> String {
+fn render_options(
+    settings: &AutorunSettings,
+    file: SettingFile,
+    form: &str,
+    apis: &[Api],
+) -> String {
     let mut out = String::new();
     for setting in settings_catalog::catalog().settings() {
         if setting.storage != Storage::Option || setting.file != file {
@@ -63,7 +71,7 @@ fn render_options(settings: &AutorunSettings, file: SettingFile, form: &str) -> 
         if skip_default && index == setting.default {
             continue;
         }
-        if let Some(text) = setting.values[index].text.as_deref() {
+        if let Some(text) = setting.written_text(index, apis) {
             out.push_str(&form.replace("{key}", &setting.key).replace("{text}", text));
             out.push('\n');
         }
@@ -210,7 +218,7 @@ mod tests {
 
     #[test]
     fn names_files_after_executable() {
-        let files = AutorunFiles::render("bin\\OpenTTD.EXE", &AutorunSettings::default());
+        let files = AutorunFiles::render("bin\\OpenTTD.EXE", &AutorunSettings::default(), &[]);
         assert_eq!(files.keys_name, "OpenTTD.keys.txt");
         assert_eq!(files.program_name, "OpenTTD.wine-nx.txt");
     }
@@ -224,7 +232,7 @@ mod tests {
             codes: vec![0x11, 0x43],
         };
         settings.input.keys[1].codes.clear();
-        let keys = AutorunFiles::render("game.exe", &settings).keys;
+        let keys = AutorunFiles::render("game.exe", &settings, &[]).keys;
         assert_eq!(value(&keys, "input-mode"), Some("2"));
         assert_eq!(value(&keys, "key.A"), Some("0x11+0x43"));
         assert_eq!(value(&keys, "key.B"), Some("none"));
@@ -233,30 +241,30 @@ mod tests {
 
     #[test]
     fn plain_dxvk_leaves_d3d_unset() {
-        let program = AutorunFiles::render("game.exe", &AutorunSettings::default()).program;
+        let program = AutorunFiles::render("game.exe", &AutorunSettings::default(), &[]).program;
         assert_eq!(value(&program, "d3d"), None);
         let mut settings = AutorunSettings::default();
         settings.graphics.direct3d = Direct3d::DxvkVkd3d;
-        let program = AutorunFiles::render("game.exe", &settings).program;
+        let program = AutorunFiles::render("game.exe", &settings, &[]).program;
         assert_eq!(value(&program, "d3d"), Some("dxvk+vkd3d"));
     }
 
     #[test]
     fn sharpness_carries_percent_sign() {
-        let program = AutorunFiles::render("game.exe", &AutorunSettings::default()).program;
+        let program = AutorunFiles::render("game.exe", &AutorunSettings::default(), &[]).program;
         assert_eq!(value(&program, "upscaling-sharpness"), Some("40%"));
     }
 
     fn program_with(change: impl Fn(&mut AutorunSettings)) -> String {
         let mut settings = AutorunSettings::default();
         change(&mut settings);
-        AutorunFiles::render("game.exe", &settings).program
+        AutorunFiles::render("game.exe", &settings, &[]).program
     }
 
     fn keys_with(change: impl Fn(&mut AutorunSettings)) -> String {
         let mut settings = AutorunSettings::default();
         change(&mut settings);
-        AutorunFiles::render("game.exe", &settings).keys
+        AutorunFiles::render("game.exe", &settings, &[]).keys
     }
 
     #[test]
@@ -319,7 +327,7 @@ mod tests {
 
     #[test]
     fn typed_catalog_defaults_match_the_default_settings() {
-        let files = AutorunFiles::render("game.exe", &AutorunSettings::default());
+        let files = AutorunFiles::render("game.exe", &AutorunSettings::default(), &[]);
         for setting in settings_catalog::catalog().settings() {
             if setting.storage != Storage::Typed {
                 continue;
@@ -476,7 +484,7 @@ mod tests {
         let program = program_with(|_| {});
         assert_eq!(
             program.lines().filter(|l| l.starts_with("FEX_")).count(),
-            21
+            22
         );
         assert_eq!(value(&program, "FEX_TSOENABLED"), Some("0"));
         assert_eq!(value(&program, "FEX_DISKCACHE"), Some("0"));
@@ -488,6 +496,30 @@ mod tests {
         assert_eq!(value(&program, "FEX_X87REDUCEDPRECISION"), Some("1"));
         let reliable = program_with(|s| s.options.set("fex-tso", Some("1")));
         assert_eq!(value(&reliable, "FEX_TSOENABLED"), Some("1"));
+    }
+
+    #[test]
+    fn built_in_speed_ups_are_left_to_the_runtime() {
+        let program = program_with(|_| {});
+        assert_eq!(value(&program, "FEX_X87CONVERSIONROUNDING"), None);
+        assert_eq!(value(&program, "FEX_X87FASTSTACK"), None);
+        assert_eq!(value(&program, "FEX_FLAGSWITHOUTFLAGM"), None);
+        assert!(!program.contains("d3d9.unchangedStateFastPath"));
+    }
+
+    #[test]
+    fn single_precision_follows_the_direct3d_version() {
+        let settings = AutorunSettings::default();
+        let plain = AutorunFiles::render("game.exe", &settings, &[]).program;
+        assert_eq!(value(&plain, "FEX_X87SINGLEPRECISION"), Some("0"));
+        let d3d9 = AutorunFiles::render("game.exe", &settings, &[Api::D3d9]).program;
+        assert_eq!(value(&d3d9, "FEX_X87SINGLEPRECISION"), Some("1"));
+        let d3d11 = AutorunFiles::render("game.exe", &settings, &[Api::D3d11]).program;
+        assert_eq!(value(&d3d11, "FEX_X87SINGLEPRECISION"), Some("0"));
+        let mut forced = AutorunSettings::default();
+        forced.options.set("fex-x87-single", Some("0"));
+        let off = AutorunFiles::render("game.exe", &forced, &[Api::D3d9]).program;
+        assert_eq!(value(&off, "FEX_X87SINGLEPRECISION"), Some("0"));
     }
 
     #[test]
@@ -509,13 +541,13 @@ mod tests {
 
     #[test]
     fn box64_file_holds_only_changed_options() {
-        let files = AutorunFiles::render("bin\\Game.exe", &AutorunSettings::default());
+        let files = AutorunFiles::render("bin\\Game.exe", &AutorunSettings::default(), &[]);
         assert_eq!(files.box64_name, "Game.box64.txt");
         assert_eq!(files.box64, "");
         let mut settings = AutorunSettings::default();
         settings.options.set("box64-strongmem", Some("3"));
         settings.options.set("box64-forward", Some("128"));
-        let files = AutorunFiles::render("game.exe", &settings);
+        let files = AutorunFiles::render("game.exe", &settings, &[]);
         assert_eq!(files.box64, "BOX64_DYNAREC_STRONGMEM=3\n");
     }
 
@@ -523,7 +555,7 @@ mod tests {
     fn horizon_sync_is_written() {
         let mut settings = AutorunSettings::default();
         settings.system.sync = SyncMode::Horizon;
-        let program = AutorunFiles::render("game.exe", &settings).program;
+        let program = AutorunFiles::render("game.exe", &settings, &[]).program;
         assert_eq!(value(&program, "sync"), Some("horizon"));
     }
 }

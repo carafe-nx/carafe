@@ -168,6 +168,8 @@ pub struct Setting {
     pub condition: Condition,
     /// Direct3D versions the setting is for; empty means every game.
     pub apis: Vec<Api>,
+    /// Direct3D versions for which the value [`AUTO`] is written as `1`; for other games it is written as `0`.
+    pub auto_on: Vec<Api>,
     /// i18n key of the name.
     pub name: String,
     /// i18n key of the hint.
@@ -465,6 +467,7 @@ impl Setting {
             apply,
             condition: Condition::Always,
             apis: Vec::new(),
+            auto_on: Vec::new(),
             name: format!("catalog.settings.{id}.name"),
             hint: format!("catalog.settings.{id}.hint"),
             storage: Storage::Option,
@@ -496,7 +499,34 @@ impl Setting {
         self.apis = apis.to_vec();
         self
     }
+
+    fn auto_on(mut self, apis: &[Api]) -> Self {
+        self.auto_on = apis.to_vec();
+        self
+    }
+
+    /// Returns the text written for the value at `index` in a game that uses `apis`.
+    ///
+    /// # Returns
+    ///
+    /// The value's own text; [`AUTO`] becomes `1` when the game uses one of [`Setting::auto_on`] and `0` otherwise.
+    /// `None` for a value that is not written.
+    #[must_use]
+    pub fn written_text(&self, index: usize, apis: &[Api]) -> Option<&str> {
+        let text = self.values.get(index)?.text.as_deref()?;
+        if text != AUTO || self.auto_on.is_empty() {
+            return Some(text);
+        }
+        Some(if apis.iter().any(|api| self.auto_on.contains(api)) {
+            "1"
+        } else {
+            "0"
+        })
+    }
 }
+
+/// Text of a value that Carafe resolves when it builds the NSP, by the game's Direct3D version.
+pub const AUTO: &str = "auto";
 
 fn group(id: &str, condition: Condition, pages: Vec<Page>) -> Entry {
     Entry::Group(Group {
@@ -1267,7 +1297,19 @@ fn fex_presets() -> Vec<Preset> {
 fn experimental() -> Vec<Setting> {
     vec![
         fex("code-cache", "FEX_DISKCACHE", off_on(), 0).show("cpu", &[0]),
-        fex("fex-x87-rounding", "FEX_X87CONVERSIONROUNDING", off_on(), 0).on("fex-x87", &[1]),
+        fex(
+            "fex-x87-single",
+            "FEX_X87SINGLEPRECISION",
+            vec![
+                is(AUTO, word("auto")),
+                is("0", word("off")),
+                is("1", word("on")),
+            ],
+            0,
+        )
+        .auto_on(&[Api::D3d8, Api::D3d9])
+        .on("fex-x87", &[1]),
+        fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0).show("cpu", &[0]),
     ]
 }
 
@@ -1460,7 +1502,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 21);
+        assert_eq!(fex, 22);
         let box64 = catalog
             .settings()
             .into_iter()

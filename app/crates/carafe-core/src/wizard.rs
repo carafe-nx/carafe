@@ -267,7 +267,7 @@ pub fn plan(
         metadata: request.metadata,
         settings: request.settings,
     };
-    package(&record)?;
+    package(&record, &[])?;
     Ok(record)
 }
 

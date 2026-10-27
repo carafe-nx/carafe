@@ -296,8 +296,9 @@ impl Packer for HacBrewPacker {
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<StoredGame, AdapterError> {
         cancel.check()?;
-        let mut package = package(record).map_err(|error| AdapterError::Tool(error.to_string()))?;
         let apis = direct3d(Path::new(&record.source.folder), &record.source.executable);
+        let mut package =
+            package(record, &apis).map_err(|error| AdapterError::Tool(error.to_string()))?;
         let menu = settings_menu::file(&apis, &menu_texts::lookup).map_err(|error| {
             AdapterError::Tool(format!("{}: {error}", settings_menu::MENU_FILE))
         })?;

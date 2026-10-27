@@ -43,6 +43,10 @@ condition: Condition,
  */
 apis: Array<Api>, 
 /**
+ * Direct3D versions for which the value [`AUTO`] is written as `1`; for other games it is written as `0`.
+ */
+autoOn: Array<Api>, 
+/**
  * i18n key of the name.
  */
 name: string, 
