@@ -347,6 +347,26 @@ static void reportFrames(void) {
     last_frames = frames;
 }
 
+static unsigned int g_bench_mhz;
+
+static void* benchMain(void* arg) {
+    (void)arg;
+    runBenches(g_bench_mhz);
+    runMemoryBenches(g_bench_mhz);
+    carafeBenchCores(g_bench_mhz, tracePieces);
+    carafeBenchMemory(g_bench_mhz, tracePieces);
+    carafeBenchBranches(g_bench_mhz, tracePieces);
+    return NULL;
+}
+
+static void startBenches(unsigned int mhz) {
+    pthread_t thread;
+    g_bench_mhz = mhz;
+    if (pthread_create(&thread, NULL, benchMain, NULL) == 0) {
+        pthread_detach(thread);
+    }
+}
+
 static bool measuring(void) {
     static int known = -1;
     if (known < 0) {
@@ -462,11 +482,7 @@ void __wrap_wine_nx_thread_report(void) {
     wine_nx_runtime_trace(line);
     unsigned int mhz = cpu != 0 ? cpu : NOMINAL_MHZ;
     if (reports == BENCH_REPORT && measuring()) {
-        runBenches(mhz);
-        runMemoryBenches(mhz);
-        carafeBenchCores(mhz, tracePieces);
-        carafeBenchMemory(mhz, tracePieces);
-        carafeBenchBranches(mhz, tracePieces);
+        startBenches(mhz);
     }
     if (reports > BENCH_REPORT && reports % PLAY_BENCH_EVERY == 0 && measuring()) {
         runPlayMemoryBench(mhz);

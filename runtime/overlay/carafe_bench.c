@@ -9,7 +9,7 @@
 #include "carafe_bench.h"
 
 #define HANDOFF_ROUNDS 2000
-#define BUSY_ROUNDS 8
+#define BUSY_ROUNDS 4
 #define ATOMIC_ROUNDS 200000
 #define UNCACHED_BYTES (256 * 1024)
 #define LINE_BYTES 64
@@ -17,6 +17,11 @@
 #define WORKER_PRIORITY 58
 #define GAME_PRIORITY 59
 #define HOME_CORE 2
+#define BUSY_CORE 0
+#define TEST_LIMIT_MS 250
+#define BUSY_LIMIT_MS 60
+#define WAIT_SLICE_NS 1000000
+#define TICKS_PER_MS 19200
 
 Result __real_svcSetThreadCoreMask(Handle handle, s32 core, u32 mask);
 
@@ -26,12 +31,14 @@ typedef struct {
     bool sleep;
     volatile u32* word;
     u32 rounds;
+    u64 deadline;
     volatile bool ready;
 } Partner;
 
 typedef struct {
     unsigned int core;
     volatile bool* stop;
+    u64 deadline;
     volatile bool ready;
 } Spinner;
 
@@ -40,6 +47,7 @@ typedef struct {
     volatile u64* counter;
     u32 rounds;
     volatile bool* go;
+    u64 deadline;
     volatile bool ready;
 } Adder;
 
@@ -48,6 +56,14 @@ static volatile u64 g_counter __attribute__((aligned(LINE_BYTES)));
 
 static double cycles(u64 ticks, unsigned int mhz, u64 count) {
     return count == 0 ? 0 : (double)armTicksToNs(ticks) * mhz / 1000.0 / (double)count;
+}
+
+static u64 deadlineIn(unsigned int ms) {
+    return armGetSystemTick() + (u64)ms * TICKS_PER_MS;
+}
+
+static bool past(u64 deadline) {
+    return armGetSystemTick() > deadline;
 }
 
 static bool pinTo(unsigned int core) {
@@ -60,12 +76,17 @@ static bool pinTo(unsigned int core) {
     return svcGetCurrentProcessorNumber() == core;
 }
 
-static void waitFor(volatile u32* word, u32 value, bool sleep) {
+static bool waitFor(volatile u32* word, u32 value, bool sleep, u64 deadline) {
+    unsigned int spins = 0;
     while (__atomic_load_n(word, __ATOMIC_ACQUIRE) != value) {
         if (sleep) {
-            svcWaitForAddress((void*)word, ArbitrationType_WaitIfEqual, (s64)(value - 1), -1);
+            svcWaitForAddress((void*)word, ArbitrationType_WaitIfEqual, (s64)(value - 1), WAIT_SLICE_NS);
+        }
+        if ((sleep || (++spins & 1023) == 0) && past(deadline)) {
+            return false;
         }
     }
+    return true;
 }
 
 static void post(volatile u32* word, u32 value, bool sleep) {
@@ -81,7 +102,9 @@ static void* partnerMain(void* arg) {
     svcSetThreadPriority(CUR_THREAD_HANDLE, partner->priority);
     partner->ready = true;
     for (u32 i = 0; i < partner->rounds; i++) {
-        waitFor(partner->word, 2 * i + 1, partner->sleep);
+        if (!waitFor(partner->word, 2 * i + 1, partner->sleep, partner->deadline)) {
+            break;
+        }
         post(partner->word, 2 * i + 2, partner->sleep);
     }
     return NULL;
@@ -92,33 +115,50 @@ static void* spinnerMain(void* arg) {
     pinTo(spinner->core);
     svcSetThreadPriority(CUR_THREAD_HANDLE, GAME_PRIORITY);
     spinner->ready = true;
-    while (!*spinner->stop) {
+    unsigned int spins = 0;
+    while (!*spinner->stop && ((++spins & 1023) != 0 || !past(spinner->deadline))) {
     }
     return NULL;
 }
 
-static double handoff(unsigned int core, bool sleep, s32 priority, u32 rounds, unsigned int mhz, bool busy) {
-    volatile bool stop = false;
-    Spinner spinner = {core, &stop, false};
-    pthread_t spinning;
-    if (busy && pthread_create(&spinning, NULL, spinnerMain, &spinner) != 0) {
-        return 0;
-    }
-    g_word = 0;
-    Partner partner = {core, priority, sleep, &g_word, rounds, false};
-    pthread_t thread;
-    double result = 0;
-    if (pthread_create(&thread, NULL, partnerMain, &partner) == 0) {
-        while (!partner.ready || (busy && !spinner.ready)) {
-            svcSleepThread(1000000);
+static bool started(volatile bool* ready, u64 deadline) {
+    while (!*ready) {
+        if (past(deadline)) {
+            return false;
         }
         svcSleepThread(1000000);
-        u64 start = armGetSystemTick();
-        for (u32 i = 0; i < rounds; i++) {
-            post(&g_word, 2 * i + 1, sleep);
-            waitFor(&g_word, 2 * i + 2, sleep);
+    }
+    return true;
+}
+
+static double handoff(unsigned int core, bool sleep, s32 priority, u32 rounds, unsigned int mhz, bool busy) {
+    u64 deadline = deadlineIn(busy ? BUSY_LIMIT_MS : TEST_LIMIT_MS);
+    volatile bool stop = false;
+    Spinner spinner = {core, &stop, deadline, false};
+    pthread_t spinning;
+    if (busy && pthread_create(&spinning, NULL, spinnerMain, &spinner) != 0) {
+        return -1;
+    }
+    g_word = 0;
+    Partner partner = {core, priority, sleep, &g_word, rounds, deadline, false};
+    pthread_t thread;
+    double result = -1;
+    if (pthread_create(&thread, NULL, partnerMain, &partner) == 0) {
+        if (started(&partner.ready, deadline) && (!busy || started(&spinner.ready, deadline))) {
+            u64 start = armGetSystemTick();
+            u32 done = 0;
+            while (done < rounds) {
+                post(&g_word, 2 * done + 1, sleep);
+                if (!waitFor(&g_word, 2 * done + 2, sleep, deadline)) {
+                    break;
+                }
+                done++;
+            }
+            if (done == rounds) {
+                result = cycles(armGetSystemTick() - start, mhz, 2ull * rounds);
+            }
         }
-        result = cycles(armGetSystemTick() - start, mhz, 2ull * rounds);
+        post(&g_word, UINT32_MAX, sleep);
         pthread_join(thread, NULL);
     }
     if (busy) {
@@ -133,7 +173,11 @@ static void* adderMain(void* arg) {
     pinTo(adder->core);
     svcSetThreadPriority(CUR_THREAD_HANDLE, WORKER_PRIORITY);
     adder->ready = true;
+    unsigned int spins = 0;
     while (!*adder->go) {
+        if ((++spins & 1023) == 0 && past(adder->deadline)) {
+            return NULL;
+        }
     }
     for (u32 i = 0; i < adder->rounds; i++) {
         __atomic_fetch_add(adder->counter, 1, __ATOMIC_ACQ_REL);
@@ -142,16 +186,19 @@ static void* adderMain(void* arg) {
 }
 
 static double contended(int other, unsigned int mhz) {
+    u64 deadline = deadlineIn(TEST_LIMIT_MS);
     volatile bool go = false;
     g_counter = 0;
-    Adder adder = {(unsigned int)(other < 0 ? HOME_CORE : other), &g_counter, ATOMIC_ROUNDS, &go, false};
+    Adder adder = {(unsigned int)(other < 0 ? HOME_CORE : other), &g_counter, ATOMIC_ROUNDS, &go, deadline, false};
     pthread_t thread;
     bool together = other >= 0;
     if (together && pthread_create(&thread, NULL, adderMain, &adder) != 0) {
-        return 0;
+        return -1;
     }
-    while (together && !adder.ready) {
-        svcSleepThread(1000000);
+    if (together && !started(&adder.ready, deadline)) {
+        go = true;
+        pthread_join(thread, NULL);
+        return -1;
     }
     u64 start = armGetSystemTick();
     go = true;
@@ -165,6 +212,15 @@ static double contended(int other, unsigned int mhz) {
     return cycles(ticks, mhz, ATOMIC_ROUNDS);
 }
 
+static void appendCycles(char* text, size_t size, const char* label, double value, int decimals) {
+    size_t used = strlen(text);
+    if (value < 0) {
+        snprintf(text + used, size - used, "%s no answer", label);
+    } else {
+        snprintf(text + used, size - used, "%s %.*f", label, decimals, value);
+    }
+}
+
 void carafeBenchCores(unsigned int mhz, CarafeBenchTrace trace) {
     s32 home_core;
     u64 home_mask;
@@ -174,25 +230,30 @@ void carafeBenchCores(unsigned int mhz, CarafeBenchTrace trace) {
         return;
     }
     svcSetThreadPriority(CUR_THREAD_HANDLE, WORKER_PRIORITY);
-    double spin_same = handoff(HOME_CORE, false, WORKER_PRIORITY, 200, mhz, false);
     double spin_0 = handoff(0, false, WORKER_PRIORITY, HANDOFF_ROUNDS, mhz, false);
     double spin_3 = handoff(3, false, WORKER_PRIORITY, HANDOFF_ROUNDS, mhz, false);
     double sleep_same = handoff(HOME_CORE, true, WORKER_PRIORITY, HANDOFF_ROUNDS, mhz, false);
     double sleep_0 = handoff(0, true, WORKER_PRIORITY, HANDOFF_ROUNDS, mhz, false);
     double sleep_3 = handoff(3, true, WORKER_PRIORITY, HANDOFF_ROUNDS, mhz, false);
-    double busy_59 = handoff(0, true, GAME_PRIORITY, BUSY_ROUNDS, mhz, true);
-    double busy_58 = handoff(0, true, WORKER_PRIORITY, BUSY_ROUNDS, mhz, true);
+    double busy_59 = handoff(BUSY_CORE, true, GAME_PRIORITY, BUSY_ROUNDS, mhz, true);
+    double busy_58 = handoff(BUSY_CORE, true, WORKER_PRIORITY, BUSY_ROUNDS, mhz, true);
     double alone = contended(-1, mhz);
     double with_0 = contended(0, mhz);
     double with_3 = contended(3, mhz);
     __real_svcSetThreadCoreMask(CUR_THREAD_HANDLE, home_core, (u32)home_mask);
     svcSetThreadPriority(CUR_THREAD_HANDLE, home_priority);
-    char text[512];
-    snprintf(text, sizeof(text),
-        "between cores at %u MHz, cycles one way: spinning on a line, core 2 to 2 %.0f, 2 to 0 %.0f, 2 to 3 %.0f; "
-        "waking a sleeping thread, 2 to 2 %.0f, 2 to 0 %.0f, 2 to 3 %.0f; waking one on a core busy at 59, at 59 "
-        "%.0f, at 58 %.0f; an atomic increment alone %.1f, with core 0 %.1f, with core 3 %.1f",
-        mhz, spin_same, spin_0, spin_3, sleep_same, sleep_0, sleep_3, busy_59, busy_58, alone, with_0, with_3);
+    char text[640];
+    snprintf(text, sizeof(text), "between cores at %u MHz, cycles one way: spinning on a line,", mhz);
+    appendCycles(text, sizeof(text), " core 2 to 0", spin_0, 0);
+    appendCycles(text, sizeof(text), ", 2 to 3", spin_3, 0);
+    appendCycles(text, sizeof(text), "; waking a sleeping thread, 2 to 2", sleep_same, 0);
+    appendCycles(text, sizeof(text), ", 2 to 0", sleep_0, 0);
+    appendCycles(text, sizeof(text), ", 2 to 3", sleep_3, 0);
+    appendCycles(text, sizeof(text), "; waking one on a core busy at 59, at 59", busy_59, 0);
+    appendCycles(text, sizeof(text), ", at 58", busy_58, 0);
+    appendCycles(text, sizeof(text), "; an atomic increment alone", alone, 1);
+    appendCycles(text, sizeof(text), ", with core 0", with_0, 1);
+    appendCycles(text, sizeof(text), ", with core 3", with_3, 1);
     trace("[A57] ", text);
 }
 

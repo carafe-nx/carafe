@@ -1,8 +1,9 @@
-Carafe: the profiler counts each sampled thread's time by the calls nearest the thread's start, so the stages of a
-game's frame loop show without knowing the game. While the thread is paused it follows the x86 frame chain from the
-guest's EBP to the thread's start, up to 64 frames; a chain that breaks before it is left out. The return addresses
-one to six calls from the start each count the sample, and every report adds a stages line with the three busiest
-at each level, as shares of the samples that reached the start.
+Carafe: the profiler counts each sampled thread's time by the calls nearest the start of the game's own code, so the
+stages of a game's frame loop show without knowing the game. While the thread is paused it follows the x86 frame
+chain from the guest's EBP to the thread's start, up to 64 frames; a chain that breaks before it is left out. From the
+start it skips the system's frames to the first one inside the game's .exe, and the return addresses one to eight
+calls from there each count the sample; every report adds a stages line with the three busiest at each level, as
+shares of the samples that reached the game's code.
 LGPL-2.1-or-later, as the file it changes.
 
 --- a/horizon-wine/source/thread_profile.c
@@ -16,13 +17,13 @@ LGPL-2.1-or-later, as the file it changes.
  };
  
 +#define NX_PROF_STAGE_DEPTH  64
-+#define NX_PROF_STAGE_LEVELS 6
++#define NX_PROF_STAGE_LEVELS 8
 +#define NX_PROF_STAGE_SHOWN  3
 +
  static pthread_mutex_t registry_mutex = PTHREAD_MUTEX_INITIALIZER;
  static struct nx_prof_thread registry[NX_PROF_MAX_THREADS];
  /* Held by the sampler for a round of samples, by the report and by threads
-@@ -647,6 +653,63 @@
+@@ -647,6 +653,68 @@
      return nx_prof_x86_frames( esp, ebp, info.addr, info.addr + info.size, read_word32, callers, NX_PROF_DEPTH );
  }
  
@@ -56,7 +57,9 @@ LGPL-2.1-or-later, as the file it changes.
 +{
 +    uint32_t chain[NX_PROF_STAGE_DEPTH], esp, ebp;
 +    uint64_t cpu, context;
-+    unsigned int n, level;
++    unsigned int n, level, anchor;
++    char module[64];
++    void *base;
 +    int rooted;
 +
 +    if (fex)
@@ -78,15 +81,18 @@ LGPL-2.1-or-later, as the file it changes.
 +    }
 +    n = walk_x86_root( esp, ebp, chain, &rooted );
 +    if (!rooted || !n) return;
++    for (anchor = n; anchor > 0; anchor--)
++        if (image_at( chain[anchor - 1], &base, module, sizeof(module) ) && !module[0]) break;
++    if (!anchor) return;
 +    target->rooted++;
-+    for (level = 1; level <= NX_PROF_STAGE_LEVELS && level <= n; level++)
-+        nx_prof_add( &target->stages, ((uint64_t)level << 32) | chain[n - level] );
++    for (level = 1; level <= NX_PROF_STAGE_LEVELS && level <= anchor; level++)
++        nx_prof_add( &target->stages, ((uint64_t)level << 32) | chain[anchor - level] );
 +}
 +
  static int fex_block_pc_to_x86( uint64_t block, uint64_t pc, uintptr_t *x86 )
  {
      uint64_t tail, host, guest, entry, end;
-@@ -850,6 +913,7 @@
+@@ -850,6 +918,7 @@
                  x86_count = fex ? walk_x86_frames( &ctx, NX_PROF_FEX_ESP, NX_PROF_FEX_EBP, x86_callers ) :
                              translated ? walk_x86_frames( &ctx, NX_PROF_BOX64_ESP, NX_PROF_BOX64_EBP, x86_callers ) :
                                           walk_x86( target->teb, x86_callers );
@@ -94,7 +100,7 @@ LGPL-2.1-or-later, as the file it changes.
              }
              svcSetThreadActivity( target->handle, ThreadActivity_Runnable );
              if (R_SUCCEEDED( rc )) record( target, &ctx, translated, x86, callers, count, x86_callers, x86_count );
-@@ -1097,6 +1161,42 @@
+@@ -1097,6 +1166,43 @@
      wine_nx_runtime_trace( line );
  }
  
@@ -104,7 +110,8 @@ LGPL-2.1-or-later, as the file it changes.
 +    char name[96];
 +    int len;
 +
-+    len = appendf( line, 0, "[PROF] %u%c stages, %u.%u%% of samples reach the thread's start:", target->tid,
++    len = appendf( line, 0, "[PROF] %u%c stages from the game's first frame on the stack, "
++                            "%u.%u%% of samples reach it:", target->tid,
 +                   target->kind, share( target->rooted, target->samples ) / 10,
 +                   share( target->rooted, target->samples ) % 10 );
 +    for (level = 1; level <= NX_PROF_STAGE_LEVELS; level++)
@@ -137,7 +144,7 @@ LGPL-2.1-or-later, as the file it changes.
  static void profile_report( const struct nx_prof_row *rows, unsigned int count )
  {
      static const char *const table_names[NX_PROF_TABLES] = { "x86", "pe", "native", "svc", "callers", "x86 callers",
-@@ -1149,6 +1249,7 @@
+@@ -1149,6 +1255,7 @@
              if (table->dropped) len = appendf( line, len, " (+%u in no bucket)", table->dropped );
              wine_nx_runtime_trace( line );
          }

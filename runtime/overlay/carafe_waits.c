@@ -156,6 +156,9 @@ void carafeWaitsReport(void) {
                 continue;
             }
             u64 permille = rows[r].ticks[k] * 1000 / interval;
+            if (permille > 1000) {
+                permille = 1000;
+            }
             used += snprintf(line + used, sizeof(line) - (size_t)used, " %s %u.%u%% (%llu)", names[k],
                 (unsigned int)(permille / 10), (unsigned int)(permille % 10), (unsigned long long)rows[r].count[k]);
         }
