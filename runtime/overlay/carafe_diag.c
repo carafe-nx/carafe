@@ -7,15 +7,23 @@
 
 #include <switch.h>
 
+#include "carafe_bench.h"
+#include "carafe_fex_stats.h"
 #include "carafe_settings.h"
+#include "carafe_waits.h"
 
 #define NATIVE_KINDS 64
 #define BENCH_LOOPS 20000
 #define BENCH_REPEATS 32
 #define BENCH_REPORT 3
 #define TRACE_PIECE 220
+#define CORE_COUNT 4
+#define PLAY_BENCH_EVERY 10
+#define PLAY_BENCH_CORE 0
+#define NOMINAL_MHZ 1000
 
 void __real_wine_nx_threads_report_stalled(void);
+Result __real_svcSetThreadCoreMask(Handle handle, s32 core, u32 mask);
 void __real_wine_nx_thread_report(void);
 int __real_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*start)(void*), void* arg);
 void carafe_diag_dump(void) __attribute__((weak));
@@ -232,6 +240,22 @@ static void runMemoryBenches(unsigned int mhz) {
     tracePieces("[A57] ", text);
 }
 
+static void runPlayMemoryBench(unsigned int mhz) {
+    s32 home_core;
+    u64 home_mask;
+    if (R_FAILED(svcGetThreadCoreMask(&home_core, &home_mask, CUR_THREAD_HANDLE)) ||
+        R_FAILED(__real_svcSetThreadCoreMask(CUR_THREAD_HANDLE, PLAY_BENCH_CORE, 1u << PLAY_BENCH_CORE))) {
+        return;
+    }
+    double dram = chaseCycles(4 * 1024 * 1024, LINE_BYTES, mhz);
+    double large = chaseCycles(32 * 1024 * 1024, LINE_BYTES, mhz);
+    __real_svcSetThreadCoreMask(CUR_THREAD_HANDLE, home_core, (u32)home_mask);
+    char text[160];
+    snprintf(text, sizeof(text), "memory while the game runs, at %u MHz on core %d, cycles a dependent load: "
+        "4 MB %.1f, 32 MB %.1f", mhz, PLAY_BENCH_CORE, dram, large);
+    tracePieces("[A57] ", text);
+}
+
 static void runBenches(unsigned int mhz) {
     static u64 buffer[8] __attribute__((aligned(64)));
     char text[1024];
@@ -323,6 +347,66 @@ static void reportFrames(void) {
     last_frames = frames;
 }
 
+static bool measuring(void) {
+    static int known = -1;
+    if (known < 0) {
+        known = carafeMeasuring() ? 1 : 0;
+    }
+    return known == 1;
+}
+
+static bool idleTicksOn(unsigned int core, u64* ticks) {
+    if (R_FAILED(__real_svcSetThreadCoreMask(CUR_THREAD_HANDLE, (s32)core, 1u << core))) {
+        return false;
+    }
+    for (int tries = 0; tries < 8 && svcGetCurrentProcessorNumber() != core; tries++) {
+        svcSleepThread(0);
+    }
+    return svcGetCurrentProcessorNumber() == core &&
+        R_SUCCEEDED(svcGetInfo(ticks, InfoType_IdleTickCount, INVALID_HANDLE, UINT64_MAX));
+}
+
+static void reportCoreIdle(void) {
+    static u64 last_tick;
+    static u64 last_idle[CORE_COUNT];
+    static bool last_valid[CORE_COUNT];
+    u64 process_mask;
+    s32 home_core;
+    u64 home_mask;
+    if (R_FAILED(svcGetInfo(&process_mask, InfoType_CoreMask, CUR_PROCESS_HANDLE, 0)) ||
+        R_FAILED(svcGetThreadCoreMask(&home_core, &home_mask, CUR_THREAD_HANDLE))) {
+        return;
+    }
+    u64 idle[CORE_COUNT];
+    bool valid[CORE_COUNT] = {false};
+    for (unsigned int core = 0; core < CORE_COUNT; core++) {
+        if ((process_mask & (1ull << core)) != 0) {
+            valid[core] = idleTicksOn(core, &idle[core]);
+        }
+    }
+    __real_svcSetThreadCoreMask(CUR_THREAD_HANDLE, home_core, (u32)home_mask);
+    u64 now = armGetSystemTick();
+    if (last_tick != 0 && now > last_tick) {
+        char line[160];
+        int used = snprintf(line, sizeof(line), "[CORES] busy, every thread and the system:");
+        for (unsigned int core = 0; core < CORE_COUNT && used > 0 && (size_t)used < sizeof(line); core++) {
+            if (!valid[core] || !last_valid[core] || idle[core] < last_idle[core]) {
+                continue;
+            }
+            u64 idle_part = (idle[core] - last_idle[core]) * 1000 / (now - last_tick);
+            unsigned int busy = idle_part >= 1000 ? 0 : (unsigned int)(1000 - idle_part);
+            used += snprintf(line + used, sizeof(line) - (size_t)used, " core %u %u.%u%%", core, busy / 10,
+                busy % 10);
+        }
+        wine_nx_runtime_trace(line);
+    }
+    last_tick = now;
+    for (unsigned int core = 0; core < CORE_COUNT; core++) {
+        last_idle[core] = idle[core];
+        last_valid[core] = valid[core];
+    }
+}
+
 void __wrap_wine_nx_thread_report(void) {
     static int ready;
     static Result failed;
@@ -332,6 +416,12 @@ void __wrap_wine_nx_thread_report(void) {
         return;
     }
     reportFrames();
+    if (measuring()) {
+        reportCoreIdle();
+        carafeWaitsEnable();
+        carafeWaitsReport();
+        carafeFexStatsReport();
+    }
     if (++reports == 1) {
         char summary[1024];
         if (carafeOptionsSummary(summary, sizeof(summary))) {
@@ -370,9 +460,16 @@ void __wrap_wine_nx_thread_report(void) {
         load
     );
     wine_nx_runtime_trace(line);
-    if (reports == BENCH_REPORT && cpu != 0 && carafeMeasuring()) {
-        runBenches(cpu);
-        runMemoryBenches(cpu);
+    unsigned int mhz = cpu != 0 ? cpu : NOMINAL_MHZ;
+    if (reports == BENCH_REPORT && measuring()) {
+        runBenches(mhz);
+        runMemoryBenches(mhz);
+        carafeBenchCores(mhz, tracePieces);
+        carafeBenchMemory(mhz, tracePieces);
+        carafeBenchBranches(mhz, tracePieces);
+    }
+    if (reports > BENCH_REPORT && reports % PLAY_BENCH_EVERY == 0 && measuring()) {
+        runPlayMemoryBench(mhz);
     }
 }
 

@@ -9,8 +9,13 @@ set(CARAFE_SETTINGS_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_settings.c")
 set(CARAFE_MENU_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_menu.c")
 set(CARAFE_REGISTRY_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_registry.c")
 set(CARAFE_DIAG_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_diag.c")
+set(CARAFE_BENCH_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_bench.c")
+set(CARAFE_WAITS_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_waits.c")
+set(CARAFE_FEX_STATS_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_fex_stats.c")
 set(CARAFE_LOCK_BOOST_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_lock_boost.c")
 set(CARAFE_MESA_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_mesa.c")
+set(CARAFE_ORCHESTRATOR_FILE "${CMAKE_CURRENT_LIST_DIR}/../orchestrator/orchestrator.c")
+set(CARAFE_ORCHESTRATOR_POLICY_FILE "${CMAKE_CURRENT_LIST_DIR}/../orchestrator/orchestrator_policy.c")
 set(CARAFE_PATCH_DIR "${CMAKE_CURRENT_LIST_DIR}/../patches/autorun")
 set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_osk_visible
@@ -20,9 +25,12 @@ set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_osk_input
     wine_nx_threads_report_stalled
     wine_nx_thread_report
+    wine_nx_thread_balance
     wine_nx_compositor_cursor
     wine_nx_vk_reserve_window
     svcArbitrateLock
+    horizon_futex_wait
+    horizon_server_sync_call
     main
     pthread_create
     util_queue_init
@@ -102,8 +110,10 @@ function(carafe_add_overlay)
     target_sources(
         wine-nx-runtime
         PRIVATE "${CARAFE_OVERLAY_FILE}" "${CARAFE_LOADING_FILE}" "${CARAFE_ERROR_FILE}" "${CARAFE_DIAG_FILE}"
+            "${CARAFE_BENCH_FILE}" "${CARAFE_WAITS_FILE}" "${CARAFE_FEX_STATS_FILE}"
             "${CARAFE_LOCK_BOOST_FILE}" "${CARAFE_MESA_FILE}" "${CARAFE_DRAW_FILE}" "${CARAFE_TEXT_FILE}"
-            "${CARAFE_SETTINGS_FILE}" "${CARAFE_MENU_FILE}" "${CARAFE_REGISTRY_FILE}"
+            "${CARAFE_SETTINGS_FILE}" "${CARAFE_MENU_FILE}" "${CARAFE_REGISTRY_FILE}" "${CARAFE_ORCHESTRATOR_FILE}"
+            "${CARAFE_ORCHESTRATOR_POLICY_FILE}"
     )
     target_compile_definitions(wine-nx-runtime PRIVATE ${CARAFE_OVERLAY_DEFINITIONS})
     set_source_files_properties(
