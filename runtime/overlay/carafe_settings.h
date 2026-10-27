@@ -201,5 +201,7 @@ void carafeFailuresClear(void);
 bool carafeChangesExist(void);
 void carafeSettingsTick(void);
 bool carafeGameArgv(char* out, size_t size);
+bool carafeOptionsSummary(char* out, size_t size);
+bool carafeMeasuring(void);
 
 #endif

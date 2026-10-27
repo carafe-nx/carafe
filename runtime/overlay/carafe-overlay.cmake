@@ -19,6 +19,7 @@ set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_osk_copy
     wine_nx_osk_input
     wine_nx_threads_report_stalled
+    wine_nx_thread_report
     wine_nx_compositor_cursor
     wine_nx_vk_reserve_window
     svcArbitrateLock
