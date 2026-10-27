@@ -1310,6 +1310,14 @@ fn experimental() -> Vec<Setting> {
         .auto_on(&[Api::D3d8, Api::D3d9])
         .on("fex-x87", &[1]),
         fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0).show("cpu", &[0]),
+        Setting::new(
+            "orchestrator",
+            SettingFile::Program,
+            "orchestrator",
+            Apply::Restart,
+            off_on(),
+            0,
+        ),
     ]
 }
 

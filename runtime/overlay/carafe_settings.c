@@ -505,6 +505,14 @@ bool carafeMeasuring(void) {
     return profiling;
 }
 
+bool carafeOrchestrating(void) {
+    char* text = programText();
+    char value[16] = "";
+    bool on = textValue(text, "orchestrator", value, sizeof(value)) && strcmp(value, "1") == 0;
+    free(text);
+    return on;
+}
+
 bool carafeOptionsSummary(char* out, size_t size) {
     char* text = programText();
     if (text == NULL || size == 0) {

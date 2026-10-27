@@ -508,6 +508,14 @@ mod tests {
     }
 
     #[test]
+    fn the_orchestrator_is_off_until_turned_on() {
+        let program = program_with(|_| {});
+        assert_eq!(value(&program, "orchestrator"), Some("0"));
+        let on = program_with(|s| s.options.set("orchestrator", Some("1")));
+        assert_eq!(value(&on, "orchestrator"), Some("1"));
+    }
+
+    #[test]
     fn single_precision_follows_the_direct3d_version() {
         let settings = AutorunSettings::default();
         let plain = AutorunFiles::render("game.exe", &settings, &[]).program;

@@ -171,6 +171,7 @@
       "fex-tso": { "name": "Strikte geheugenvolgorde", "hint": "Ordent geheugentoegang zoals x86 dat doet. Trager; zet aan als een multithreaded game crasht, vastloopt of gegevens beschadigt." },
       "fex-x87-single": { "name": "x87 in enkele precisie", "hint": "Rekent x87-kommagetallen met de precisie die Direct3D 9 instelt, zonder extra omzettingen. Sneller. Zet uit als getallen, natuurkunde of beeld niet kloppen." },
       "fex-gdb-symbols": { "name": "Exacte codekaart voor de profiler", "hint": "De profiler ziet elke instructie van de game, niet maar een deel. Alleen voor metingen; geen invloed op de snelheid." },
+      "orchestrator": { "name": "Orchestrator", "hint": "Houdt bij hoe druk elke thread van het spel is. Doet één thread bijna al het werk, dan krijgt die een eigen kern en gaat al het andere daar weg. Zet uit als het spel hapert of trager loopt." },
       "fex-x87": { "name": "Lagere x87-precisie", "hint": "Oude x87-berekeningen in 64 bits in plaats van 80 — veel sneller. Zet uit als de camera trilt, physics raar doen of objecten verdwijnen." },
       "fex-smc": { "name": "Controle op zelfwijzigende code", "hint": "Nodig voor games met beveiliging, een packer, .NET, Mono of LuaJIT. MTrack is de normale modus; Full is erg traag." },
       "fex-maxinst": { "name": "Grootte vertaalblok", "hint": "Hoeveel instructies van de game tegelijk worden vertaald. Meer is sneller in zware scènes; minder bespaart geheugen en verkort haperingen." },

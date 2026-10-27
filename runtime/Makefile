@@ -14,6 +14,7 @@ SAVE_SIZE ?= 0x10000000
 SAVE_JOURNAL_SIZE ?= 0x4000000
 
 OVERLAY_OBJECTS := $(SWITCH)/CMakeFiles/wine-nx-runtime.dir$(CURDIR)/overlay
+ORCHESTRATOR_OBJECTS := $(SWITCH)/CMakeFiles/wine-nx-runtime.dir$(CURDIR)/orchestrator
 FEX_SRC := $(BUILD)/fex-src
 FEX_BUILD := $(BUILD)/fex-wow64
 FEX_PATCHES := $(sort $(wildcard $(CURDIR)/patches/fex/*.patch))
@@ -21,7 +22,7 @@ DXVK_SRC := $(BUILD)/dxvk-src
 DXVK_BUILD := $(BUILD)/dxvk
 DXVK_PATCHES := $(sort $(wildcard $(CURDIR)/patches/dxvk/*.patch))
 
-.PHONY: all fetch check-image headers wine fex dxvk loader layout clean
+.PHONY: all fetch check-image headers orchestrator-test wine fex dxvk loader layout clean
 
 all: layout
 
@@ -59,8 +60,14 @@ $(SWITCH)/build.ninja: | headers
 		-DCMAKE_PROJECT_INCLUDE=$(CURDIR)/overlay/carafe-overlay.cmake \
 		"-DCARAFE_OVERLAY_DEFINITIONS=CARAFE_SAVE_SIZE=$(SAVE_SIZE);CARAFE_SAVE_JOURNAL_SIZE=$(SAVE_JOURNAL_SIZE)"
 
-wine: headers $(SWITCH)/build.ninja
-	rm -rf $(OVERLAY_OBJECTS)
+orchestrator-test:
+	mkdir -p $(BUILD)
+	cc -std=c11 -O2 -Wall -Wextra -Werror -o $(BUILD)/orchestrator-test \
+		$(CURDIR)/orchestrator/test/orchestrator_test.c $(CURDIR)/orchestrator/orchestrator_policy.c
+	$(BUILD)/orchestrator-test
+
+wine: headers orchestrator-test $(SWITCH)/build.ninja
+	rm -rf $(OVERLAY_OBJECTS) $(ORCHESTRATOR_OBJECTS)
 	cmake --build $(SWITCH) --target wine-nx-runtime-nro -j $(JOBS)
 	rm -rf $(SWITCH)/stage
 	python3 $(WINE)/tools/package-amd64.py --build $(SWITCH) --fex --vulkan --dxvk --vkd3d \

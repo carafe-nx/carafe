@@ -171,6 +171,7 @@
       "fex-tso": { "name": "Ordre mémoire strict", "hint": "Ordonne les accès mémoire comme un x86. Plus lent ; activez-le quand un jeu multithread plante, se fige ou corrompt des données." },
       "fex-x87-single": { "name": "x87 en simple précision", "hint": "Calcule les décimaux x87 avec la précision fixée par Direct3D 9, sans conversions en trop. Plus rapide. À désactiver si les nombres, la physique ou l'image semblent faux." },
       "fex-gdb-symbols": { "name": "Carte exacte du code pour le profileur", "hint": "Le profileur voit chaque instruction du jeu, pas seulement une partie. Pour les mesures uniquement, sans effet sur la vitesse." },
+      "orchestrator": { "name": "Orchestrateur", "hint": "Surveille la charge de chaque thread du jeu. Quand un thread fait presque tout le travail, il reçoit un cœur à lui seul et tout le reste en est écarté. Désactivez-le si le jeu saccade ou ralentit." },
       "fex-x87": { "name": "Précision x87 réduite", "hint": "Les anciens calculs x87 en 64 bits au lieu de 80 — bien plus rapide. Désactivez si la caméra tremble, si la physique déraille ou si des objets disparaissent." },
       "fex-smc": { "name": "Contrôle du code automodifiant", "hint": "Nécessaire aux jeux avec une protection, un packer, .NET, Mono ou LuaJIT. MTrack est le mode normal ; Full est très lent." },
       "fex-maxinst": { "name": "Taille des blocs de traduction", "hint": "Nombre d’instructions du jeu traduites d’un coup. Plus, c’est plus rapide dans les scènes lourdes ; moins économise la mémoire et raccourcit les saccades." },
