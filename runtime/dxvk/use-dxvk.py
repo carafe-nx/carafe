@@ -1,8 +1,10 @@
+import copy
 import hashlib
 import json
 import shutil
 import struct
 import sys
+import zlib
 from pathlib import Path
 
 romfs, build = Path(sys.argv[1]), Path(sys.argv[2])
@@ -56,5 +58,19 @@ for name in DLLS:
 (dxvk64 / 'dxvk-manifest.json').write_text(json.dumps(dxvk_manifest, indent=2) + '\n', encoding='utf-8')
 record('drive_c/dxvk64', 'dxvk-manifest.json')
 
+dxvk32_manifest = dict(dxvk_manifest, architecture='i386', files={'d3d9.dll': hashlib.sha256(target.read_bytes()).hexdigest()})
+(target.parent / 'dxvk-manifest.json').write_text(json.dumps(dxvk32_manifest, indent=2) + '\n', encoding='utf-8')
+if not any(f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk' for f in manifest['files']):
+    entry = copy.deepcopy(next(f for f in manifest['files'] if f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk64'))
+    entry.update(path='drive_c/dxvk', arch='i386', url=entry['url'].replace('/dxvk64/', '/dxvk/'))
+    entry['source']['extra'] = 'dxvk32'
+    entry['compressed']['url'] = entry['compressed']['url'].replace('/dxvk64/', '/dxvk/')
+    manifest['files'].append(entry)
+record('drive_c/dxvk', 'dxvk-manifest.json')
+packed = zlib.compress((target.parent / 'dxvk-manifest.json').read_bytes(), 9)
+for f in manifest['files']:
+    if f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk':
+        f['compressed'].update(size=len(packed), sha256=hashlib.sha256(packed).hexdigest())
+
 manifest_path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
-print(f'DXVK: Carafe build of d3d9 (32-bit) and {len(DLLS)} 64-bit modules')
+print(f'DXVK: Carafe build of d3d9 (32-bit, version {dxvk32_manifest["version"]}) and {len(DLLS)} 64-bit modules')
