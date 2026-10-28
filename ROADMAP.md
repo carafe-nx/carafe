@@ -21,6 +21,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
+- [ ] `research` NFSU2: rare crash at the start of a race in the game's own sound code, two threads racing
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
 - [ ] `feature` A choice to map controller buttons by position instead of by their labels
