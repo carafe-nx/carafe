@@ -2,6 +2,8 @@
 
 Date: 2026-10-28
 
+Replaced by [0042](0042-orchestrator-lays-out-all-four-cores.md).
+
 Builds on [decision 36](0036-orchestrator.md) and [decision 37](0037-d3d9-front-end-inside-dxvk.md).
 
 ## Context
