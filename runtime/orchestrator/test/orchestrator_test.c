@@ -259,10 +259,47 @@ static void aBetterLayoutWaitsTwoPeriods(void) {
     decide(threads, 7, 370, &state, &plan);
     decide(threads, 7, 370, &state, &plan);
     apply(threads, 7, &plan);
-    threads[2].permille = 50;
-    threads[3].permille = 700;
+    threads[2].permille = 900;
     decide(threads, 7, 370, &state, &plan);
-    CHECK(plan.mode == OrchestratorModePlace && !plan.seatsChanged);
+    CHECK(plan.mode == OrchestratorModePlace && !plan.seatsChanged && plan.busiestCorePermille >= 850);
+    decide(threads, 7, 370, &state, &plan);
+    CHECK(plan.mode == OrchestratorModePlace && plan.seatsChanged && plan.moveCount != 0);
+}
+
+static void aMainThreadQuietWhileLoadingStaysOffTheSystemCore(void) {
+    OrchestratorThread menu[] = {
+        program(4, 990, 2), graphics(44, 80), program(48, 50, 4), program(52, 50, 1), program(40, 30, 4),
+    };
+    OrchestratorThread loading[] = {
+        program(4, 283, 2), graphics(44, 682), program(48, 444, 4), program(52, 416, 1), program(40, 59, 4),
+    };
+    OrchestratorState state;
+    OrchestratorPlan plan;
+    orchestratorStart(&state);
+    decide(menu, 5, 300, &state, &plan);
+    decide(menu, 5, 300, &state, &plan);
+    CHECK(plan.mode == OrchestratorModeWatch);
+    decide(loading, 5, 300, &state, &plan);
+    decide(loading, 5, 300, &state, &plan);
+    CHECK(plan.mode == OrchestratorModePlace);
+    const OrchestratorMove* main = moveOf(&plan, 4);
+    CHECK(main == NULL || (main->core != 3 && !main->side));
+    for (size_t i = 0; i < plan.seatCount; i++) {
+        CHECK(plan.seats[i].tid != 4 || plan.seats[i].core != 3);
+    }
+}
+
+static void aVisitorThatGetsBusyLeavesTheSystemCoreAtOnce(void) {
+    OrchestratorThread threads[7];
+    openWorld(threads);
+    OrchestratorState state;
+    OrchestratorPlan plan;
+    orchestratorStart(&state);
+    decide(threads, 7, 370, &state, &plan);
+    decide(threads, 7, 370, &state, &plan);
+    apply(threads, 7, &plan);
+    CHECK(threads[3].side && threads[3].mask == 8);
+    threads[3].permille = 520;
     decide(threads, 7, 370, &state, &plan);
     CHECK(plan.mode == OrchestratorModePlace && plan.seatsChanged);
     const OrchestratorMove* frontEnd = moveOf(&plan, 52);
@@ -296,6 +333,8 @@ int main(void) {
     withoutMeasurementsTheSystemShareIsAssumed();
     aNewThreadWhilePlacingGetsTheQuietestCore();
     aBetterLayoutWaitsTwoPeriods();
+    aMainThreadQuietWhileLoadingStaysOffTheSystemCore();
+    aVisitorThatGetsBusyLeavesTheSystemCoreAtOnce();
     oneCoreStaysWatching();
     if (failures != 0) {
         printf("%d checks failed\n", failures);

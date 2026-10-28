@@ -81,19 +81,66 @@ static unsigned int highest(const unsigned int* load, unsigned int mask) {
     return top;
 }
 
-static bool allowed(const OrchestratorCores* cores, int core, const OrchestratorThread* thread, unsigned int load,
-    bool heaviest) {
+static bool visitor(const OrchestratorState* state, unsigned int tid) {
+    for (size_t i = 0; i < state->crossingCount; i++) {
+        if (state->crossings[i].tid == tid) {
+            return !state->crossings[i].wasSide;
+        }
+    }
+    return false;
+}
+
+static unsigned int peakOf(const OrchestratorState* state, unsigned int tid) {
+    for (size_t i = 0; i < state->peakCount; i++) {
+        if (state->peaks[i].tid == tid) {
+            return state->peaks[i].permille;
+        }
+    }
+    return 0;
+}
+
+static void updatePeaks(const OrchestratorThread* threads, size_t count, OrchestratorState* state) {
+    OrchestratorPeak peaks[ORCHESTRATOR_MAX_THREADS];
+    size_t kept = 0;
+    for (size_t i = 0; i < count && kept < ORCHESTRATOR_MAX_THREADS; i++) {
+        if (threads[i].kind != 'w') {
+            continue;
+        }
+        unsigned int load = clientLoad(threads, count, i);
+        unsigned int old = peakOf(state, threads[i].tid);
+        unsigned int faded = old - old / ORCHESTRATOR_PEAK_FADE;
+        peaks[kept++] = (OrchestratorPeak){threads[i].tid, load > faded ? load : faded};
+    }
+    memcpy(state->peaks, peaks, sizeof(peaks[0]) * kept);
+    state->peakCount = kept;
+}
+
+static bool allowed(const OrchestratorCores* cores, const OrchestratorState* state, int core,
+    const OrchestratorThread* thread, unsigned int load, bool heaviest) {
     if (!isSide(cores, core)) {
         return (cores->appMask & (1u << core)) != 0;
     }
-    if (thread->side) {
+    if (thread->side && !visitor(state, thread->tid)) {
         return !heaviest || cores->appMask == 0;
     }
-    return !heaviest && load >= ORCHESTRATOR_SIDE_MIN_PERMILLE && load < ORCHESTRATOR_HEAVY_PERMILLE;
+    return !heaviest && load >= ORCHESTRATOR_SIDE_MIN_PERMILLE && load < ORCHESTRATOR_HEAVY_PERMILLE &&
+        peakOf(state, thread->tid) < ORCHESTRATOR_HEAVY_PERMILLE;
+}
+
+static bool crowdedVisitor(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
+    const OrchestratorState* state) {
+    unsigned int domain = domainOf(cores);
+    for (size_t i = 0; i < count; i++) {
+        if (placeable(&threads[i], domain) && isSide(cores, currentCore(&threads[i], domain)) &&
+            visitor(state, threads[i].tid) && clientLoad(threads, count, i) >= ORCHESTRATOR_HEAVY_PERMILLE) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static size_t assign(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
-    const unsigned int* base, OrchestratorSeat* seats, unsigned int* total) {
+    const OrchestratorState* state, const unsigned int* base, OrchestratorSeat* seats, unsigned int* total) {
     unsigned int domain = domainOf(cores);
     size_t order[ORCHESTRATOR_MAX_THREADS];
     unsigned int loads[ORCHESTRATOR_MAX_THREADS];
@@ -122,7 +169,7 @@ static size_t assign(const OrchestratorThread* threads, size_t count, const Orch
         unsigned int load = loads[n];
         int best = -1;
         for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
-            if ((domain & (1u << core)) == 0 || !allowed(cores, core, thread, load, n == 0)) {
+            if ((domain & (1u << core)) == 0 || !allowed(cores, state, core, thread, load, n == 0)) {
                 continue;
             }
             if (best < 0 || total[core] < total[best]) {
@@ -133,7 +180,7 @@ static size_t assign(const OrchestratorThread* threads, size_t count, const Orch
             continue;
         }
         int stay = currentCore(thread, domain);
-        if (stay >= 0 && stay != best && allowed(cores, stay, thread, load, n == 0) &&
+        if (stay >= 0 && stay != best && allowed(cores, state, stay, thread, load, n == 0) &&
             total[stay] <= total[best] + ORCHESTRATOR_STAY_PERMILLE) {
             best = stay;
         }
@@ -215,7 +262,12 @@ static void leave(const OrchestratorThread* threads, size_t count, const Orchest
             addMove(plan, state->crossings[i].tid, firstCore(cores->appMask), cores->appMask, false);
         }
     }
+    OrchestratorPeak peaks[ORCHESTRATOR_MAX_THREADS];
+    size_t peakCount = state->peakCount;
+    memcpy(peaks, state->peaks, sizeof(peaks[0]) * peakCount);
     orchestratorStart(state);
+    memcpy(state->peaks, peaks, sizeof(peaks[0]) * peakCount);
+    state->peakCount = peakCount;
     plan->modeChanged = true;
 }
 
@@ -272,12 +324,14 @@ void orchestratorDecide(const OrchestratorThread* threads, size_t count, const O
     unsigned int current[ORCHESTRATOR_MAX_CORES];
     unsigned int total[ORCHESTRATOR_MAX_CORES];
     OrchestratorSeat seats[ORCHESTRATOR_MAX_THREADS];
+    updatePeaks(threads, count, state);
     measure(threads, count, cores, base, current);
-    size_t seated = assign(threads, count, cores, base, seats, total);
+    size_t seated = assign(threads, count, cores, state, base, seats, total);
     unsigned int now = highest(current, domain);
     unsigned int planned = highest(total, domain);
-    bool better = now >= ORCHESTRATOR_DOMINANT_PERMILLE && planned + ORCHESTRATOR_GAIN_PERMILLE <= now &&
-        differs(threads, count, seats, seated, domain);
+    bool moves = differs(threads, count, seats, seated, domain);
+    bool better = now >= ORCHESTRATOR_DOMINANT_PERMILLE && planned + ORCHESTRATOR_GAIN_PERMILLE <= now && moves;
+    bool urgent = moves && crowdedVisitor(threads, count, cores, state);
     plan->busiestCorePermille = now;
     plan->plannedCorePermille = planned;
 
@@ -296,8 +350,8 @@ void orchestratorDecide(const OrchestratorThread* threads, size_t count, const O
         state->lightPeriods = now < ORCHESTRATOR_RELEASE_PERMILLE ? state->lightPeriods + 1 : 0;
         if (state->lightPeriods >= ORCHESTRATOR_LEAVE_PERIODS) {
             leave(threads, count, cores, state, plan);
-        } else if (better) {
-            if (++state->changePeriods >= ORCHESTRATOR_CHANGE_PERIODS) {
+        } else if (better || urgent) {
+            if (++state->changePeriods >= ORCHESTRATOR_CHANGE_PERIODS || urgent) {
                 adopt(threads, count, cores, seats, seated, state, plan);
                 state->changePeriods = 0;
                 plan->seatsChanged = true;

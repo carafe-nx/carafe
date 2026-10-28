@@ -23,6 +23,12 @@ loads up.
   its core when that core is at most 3 points worse.
 - **Core 3 runs at priority 63**, so it takes only its graphics workers and threads of 15–30 %: never the heaviest
   thread, no other thread above 30 % that the system could starve there, no small threads that would gain nothing.
+  A thread counts as above 30 % while its peak is: the highest load it had, losing a sixteenth each period. In a
+  console race the game's main thread, at 28 % while the race loaded, went to core 3 and held the race at 50–57 fps
+  for 40 s until the next layout.
+- **A guest on core 3 that grows leaves at once.** A game thread the orchestrator moved there, once it holds 30 % or
+  more, makes the next period lay threads out again without waiting a second period. The runtime marks every thread
+  on core 3 as a graphics worker, so the orchestrator tells its guests apart by the moves it made.
 - **When it acts.** It lays threads out when the busiest core is at 85 % or more and the new layout lowers it by 5
   points, for two periods running; it changes a layout under the same rule. After three periods with every core below
   60 % it hands back to the runtime's balancer and moves every thread it took onto or off core 3 back.

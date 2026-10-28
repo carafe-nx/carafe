@@ -13,6 +13,7 @@
 #define ORCHESTRATOR_RELEASE_PERMILLE 600
 #define ORCHESTRATOR_GAIN_PERMILLE 50
 #define ORCHESTRATOR_STAY_PERMILLE 30
+#define ORCHESTRATOR_PEAK_FADE 16
 #define ORCHESTRATOR_ENTER_PERIODS 2
 #define ORCHESTRATOR_CHANGE_PERIODS 2
 #define ORCHESTRATOR_LEAVE_PERIODS 3
@@ -57,7 +58,14 @@ typedef struct {
 } OrchestratorCrossing;
 
 typedef struct {
+    unsigned int tid;
+    unsigned int permille;
+} OrchestratorPeak;
+
+typedef struct {
     OrchestratorMode mode;
+    OrchestratorPeak peaks[ORCHESTRATOR_MAX_THREADS];
+    size_t peakCount;
     OrchestratorSeat seats[ORCHESTRATOR_MAX_THREADS];
     size_t seatCount;
     OrchestratorCrossing crossings[ORCHESTRATOR_MAX_THREADS];
