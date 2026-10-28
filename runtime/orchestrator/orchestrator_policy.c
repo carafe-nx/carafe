@@ -16,197 +16,205 @@ static int singleCore(unsigned int mask) {
     return mask != 0 && (mask & (mask - 1)) == 0 ? __builtin_ctz(mask) : -1;
 }
 
-static bool eligible(const OrchestratorThread* thread, unsigned int appMask) {
-    return thread->kind == 'w' && (thread->mask == 0 || (thread->mask & appMask) != 0);
+static unsigned int domainOf(const OrchestratorCores* cores) {
+    return cores->appMask | cores->sideMask;
 }
 
-static bool placeable(const OrchestratorThread* thread, unsigned int appMask) {
-    return thread->movable || singleCore(thread->mask & appMask) >= 0;
+static bool isSide(const OrchestratorCores* cores, int core) {
+    return core >= 0 && (cores->sideMask & (1u << core)) != 0;
 }
 
-static bool findThread(const OrchestratorThread* threads, size_t count, unsigned int tid, size_t* index) {
+static bool placeable(const OrchestratorThread* thread, unsigned int domain) {
+    return thread->kind == 'w' && thread->movable && (thread->mask == 0 || (thread->mask & domain) != 0);
+}
+
+static int currentCore(const OrchestratorThread* thread, unsigned int domain) {
+    int core = singleCore(thread->mask);
+    return core >= 0 && (domain & (1u << core)) != 0 ? core : -1;
+}
+
+static void spread(unsigned int* load, unsigned int mask, unsigned int amount) {
+    unsigned int cores = (unsigned int)__builtin_popcount(mask);
+    for (int core = 0; core < ORCHESTRATOR_MAX_CORES && cores != 0; core++) {
+        if ((mask & (1u << core)) != 0) {
+            load[core] += amount / cores;
+        }
+    }
+}
+
+static void measure(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
+    unsigned int* base, unsigned int* current) {
+    unsigned int domain = domainOf(cores);
+    unsigned int moving[ORCHESTRATOR_MAX_CORES] = {0};
+    unsigned int staying[ORCHESTRATOR_MAX_CORES] = {0};
+    for (size_t i = 0; i < count; i++) {
+        if (threads[i].kind != 'w') {
+            continue;
+        }
+        unsigned int load = clientLoad(threads, count, i);
+        unsigned int mask = threads[i].mask != 0 ? threads[i].mask & domain : domain;
+        unsigned int* into = placeable(&threads[i], domain) ? moving : staying;
+        spread(into, mask, load);
+    }
+    for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
+        if ((domain & (1u << core)) == 0) {
+            base[core] = 0;
+            current[core] = 0;
+        } else if (cores->measured) {
+            unsigned int busy = cores->busyPermille[core];
+            base[core] = busy > moving[core] ? busy - moving[core] : 0;
+            current[core] = busy;
+        } else {
+            base[core] = staying[core] + (isSide(cores, core) ? ORCHESTRATOR_SIDE_SYSTEM_PERMILLE : 0);
+            current[core] = base[core] + moving[core];
+        }
+    }
+}
+
+static unsigned int highest(const unsigned int* load, unsigned int mask) {
+    unsigned int top = 0;
+    for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
+        if ((mask & (1u << core)) != 0 && load[core] > top) {
+            top = load[core];
+        }
+    }
+    return top;
+}
+
+static bool allowed(const OrchestratorCores* cores, int core, const OrchestratorThread* thread, unsigned int load,
+    bool heaviest) {
+    if (!isSide(cores, core)) {
+        return (cores->appMask & (1u << core)) != 0;
+    }
+    if (thread->side) {
+        return !heaviest || cores->appMask == 0;
+    }
+    return !heaviest && load >= ORCHESTRATOR_SIDE_MIN_PERMILLE && load < ORCHESTRATOR_HEAVY_PERMILLE;
+}
+
+static size_t assign(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
+    const unsigned int* base, OrchestratorSeat* seats, unsigned int* total) {
+    unsigned int domain = domainOf(cores);
+    size_t order[ORCHESTRATOR_MAX_THREADS];
+    unsigned int loads[ORCHESTRATOR_MAX_THREADS];
+    size_t found = 0;
+    for (size_t i = 0; i < count && found < ORCHESTRATOR_MAX_THREADS; i++) {
+        if (!placeable(&threads[i], domain)) {
+            continue;
+        }
+        unsigned int load = clientLoad(threads, count, i);
+        size_t at = found++;
+        while (at > 0 && (loads[at - 1] < load || (loads[at - 1] == load && threads[order[at - 1]].tid >
+            threads[i].tid))) {
+            order[at] = order[at - 1];
+            loads[at] = loads[at - 1];
+            at--;
+        }
+        order[at] = i;
+        loads[at] = load;
+    }
+    for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
+        total[core] = base[core];
+    }
+    size_t seated = 0;
+    for (size_t n = 0; n < found; n++) {
+        const OrchestratorThread* thread = &threads[order[n]];
+        unsigned int load = loads[n];
+        int best = -1;
+        for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
+            if ((domain & (1u << core)) == 0 || !allowed(cores, core, thread, load, n == 0)) {
+                continue;
+            }
+            if (best < 0 || total[core] < total[best]) {
+                best = core;
+            }
+        }
+        if (best < 0) {
+            continue;
+        }
+        int stay = currentCore(thread, domain);
+        if (stay >= 0 && stay != best && allowed(cores, stay, thread, load, n == 0) &&
+            total[stay] <= total[best] + ORCHESTRATOR_STAY_PERMILLE) {
+            best = stay;
+        }
+        total[best] += load;
+        seats[seated++] = (OrchestratorSeat){thread->tid, best, load};
+    }
+    return seated;
+}
+
+static const OrchestratorThread* findThread(const OrchestratorThread* threads, size_t count, unsigned int tid) {
     for (size_t i = 0; i < count; i++) {
         if (threads[i].kind == 'w' && threads[i].tid == tid) {
-            *index = i;
+            return &threads[i];
+        }
+    }
+    return NULL;
+}
+
+static bool differs(const OrchestratorThread* threads, size_t count, const OrchestratorSeat* seats, size_t seated,
+    unsigned int domain) {
+    for (size_t i = 0; i < seated; i++) {
+        const OrchestratorThread* thread = findThread(threads, count, seats[i].tid);
+        if (thread != NULL && currentCore(thread, domain) != seats[i].core) {
             return true;
         }
     }
     return false;
 }
 
-static void busiest(const OrchestratorThread* threads, size_t count, unsigned int skipTid, unsigned int appMask,
-    size_t* index, unsigned int* load) {
-    *load = 0;
-    *index = count;
-    for (size_t i = 0; i < count; i++) {
-        if (!eligible(&threads[i], appMask) || threads[i].tid == skipTid) {
+static void addMove(OrchestratorPlan* plan, unsigned int tid, int core, unsigned int mask, bool side) {
+    if (plan->moveCount < ORCHESTRATOR_MAX_THREADS) {
+        plan->moves[plan->moveCount++] = (OrchestratorMove){tid, core, mask, side};
+    }
+}
+
+static void noteCrossing(OrchestratorState* state, unsigned int tid, bool fromSide, bool toSide) {
+    for (size_t i = 0; i < state->crossingCount; i++) {
+        if (state->crossings[i].tid == tid) {
+            if (state->crossings[i].wasSide == toSide) {
+                state->crossings[i] = state->crossings[--state->crossingCount];
+            }
+            return;
+        }
+    }
+    if (fromSide != toSide && state->crossingCount < ORCHESTRATOR_MAX_THREADS) {
+        state->crossings[state->crossingCount++] = (OrchestratorCrossing){tid, fromSide};
+    }
+}
+
+static void adopt(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
+    const OrchestratorSeat* seats, size_t seated, OrchestratorState* state, OrchestratorPlan* plan) {
+    for (size_t i = 0; i < seated; i++) {
+        const OrchestratorThread* thread = findThread(threads, count, seats[i].tid);
+        if (thread == NULL || thread->mask == (1u << seats[i].core)) {
             continue;
         }
-        unsigned int l = clientLoad(threads, count, i);
-        if (*index == count || l > *load) {
-            *index = i;
-            *load = l;
-        }
-    }
-}
-
-static size_t heavyThreads(const OrchestratorThread* threads, size_t count, unsigned int appMask, size_t* heavy,
-    unsigned int* loads) {
-    size_t found = 0;
-    for (size_t i = 0; i < count && found < ORCHESTRATOR_MAX_THREADS; i++) {
-        if (!eligible(&threads[i], appMask)) {
-            continue;
-        }
-        unsigned int load = clientLoad(threads, count, i);
-        if (load < ORCHESTRATOR_HEAVY_PERMILLE) {
-            continue;
-        }
-        size_t at = found++;
-        while (at > 0 && loads[at - 1] < load) {
-            heavy[at] = heavy[at - 1];
-            loads[at] = loads[at - 1];
-            at--;
-        }
-        heavy[at] = i;
-        loads[at] = load;
-    }
-    return found;
-}
-
-static unsigned int coreCount(unsigned int mask) {
-    return (unsigned int)__builtin_popcount(mask);
-}
-
-static unsigned int coreLoad(const OrchestratorThread* threads, size_t count, int core, unsigned int skipTid) {
-    unsigned int load = 0;
-    for (size_t i = 0; i < count; i++) {
-        if (threads[i].kind == 'w' && threads[i].tid != skipTid && singleCore(threads[i].mask) == core) {
-            load += clientLoad(threads, count, i);
-        }
-    }
-    return load;
-}
-
-static int quietestCore(const OrchestratorThread* threads, size_t count, unsigned int cores, unsigned int skipTid) {
-    int best = -1;
-    unsigned int bestLoad = 0;
-    for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
-        if ((cores & (1u << core)) == 0) {
-            continue;
-        }
-        unsigned int load = coreLoad(threads, count, core, skipTid);
-        if (best < 0 || load < bestLoad) {
-            best = core;
-            bestLoad = load;
-        }
-    }
-    return best;
-}
-
-static int firstCoreFor(const OrchestratorThread* threads, size_t count, size_t index, unsigned int freeCores) {
-    int core = singleCore(threads[index].mask & freeCores);
-    if (core >= 0 && (threads[index].mask == (1u << core) || !threads[index].movable)) {
-        return core;
-    }
-    if (!threads[index].movable) {
-        return -1;
-    }
-    return quietestCore(threads, count, freeCores, threads[index].tid);
-}
-
-static const OrchestratorSeat* seatOf(const OrchestratorState* state, unsigned int tid) {
-    for (size_t i = 0; i < state->seatCount; i++) {
-        if (state->seats[i].tid == tid) {
-            return &state->seats[i];
-        }
-    }
-    return NULL;
-}
-
-static size_t wantedSeats(const OrchestratorThread* threads, size_t count, unsigned int appMask, size_t* wanted,
-    unsigned int* loads) {
-    size_t heavy[ORCHESTRATOR_MAX_THREADS];
-    unsigned int heavyLoads[ORCHESTRATOR_MAX_THREADS];
-    size_t found = heavyThreads(threads, count, appMask, heavy, heavyLoads);
-    size_t taken = 0;
-    unsigned int cores = coreCount(appMask);
-    for (size_t i = 0; i < found && taken < cores; i++) {
-        if (placeable(&threads[heavy[i]], appMask)) {
-            wanted[taken] = heavy[i];
-            loads[taken] = heavyLoads[i];
-            taken++;
-        }
-    }
-    return taken;
-}
-
-static bool sameSeats(const OrchestratorState* state, const OrchestratorThread* threads, const size_t* wanted,
-    size_t wantedCount) {
-    if (wantedCount != state->seatCount) {
-        return false;
-    }
-    for (size_t i = 0; i < wantedCount; i++) {
-        if (seatOf(state, threads[wanted[i]].tid) == NULL) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static void seat(const OrchestratorThread* threads, size_t count, unsigned int appMask, const size_t* wanted,
-    const unsigned int* loads, size_t wantedCount, OrchestratorState* state) {
-    OrchestratorSeat seats[ORCHESTRATOR_MAX_CORES];
-    size_t seated = 0;
-    unsigned int freeCores = appMask;
-    bool placed[ORCHESTRATOR_MAX_CORES] = {false};
-    for (size_t i = 0; i < wantedCount; i++) {
-        const OrchestratorSeat* old = seatOf(state, threads[wanted[i]].tid);
-        if (old != NULL && (freeCores & (1u << old->core)) != 0 && threads[wanted[i]].movable) {
-            seats[seated++] = (OrchestratorSeat){old->tid, old->core, loads[i]};
-            freeCores &= ~(1u << old->core);
-            placed[i] = true;
-        }
-    }
-    for (size_t i = 0; i < wantedCount && freeCores != 0; i++) {
-        if (placed[i]) {
-            continue;
-        }
-        int core = firstCoreFor(threads, count, wanted[i], freeCores);
-        if (core < 0) {
-            continue;
-        }
-        seats[seated++] = (OrchestratorSeat){threads[wanted[i]].tid, core, loads[i]};
-        freeCores &= ~(1u << core);
-    }
-    for (size_t i = 1; i < seated; i++) {
-        OrchestratorSeat moving = seats[i];
-        size_t at = i;
-        while (at > 0 && seats[at - 1].permille < moving.permille) {
-            seats[at] = seats[at - 1];
-            at--;
-        }
-        seats[at] = moving;
+        bool toSide = isSide(cores, seats[i].core);
+        addMove(plan, seats[i].tid, seats[i].core, 1u << seats[i].core, toSide);
+        noteCrossing(state, seats[i].tid, thread->side, toSide);
     }
     memcpy(state->seats, seats, sizeof(seats[0]) * seated);
     state->seatCount = seated;
 }
 
-static void refreshLoads(const OrchestratorThread* threads, size_t count, OrchestratorState* state) {
-    for (size_t i = 0; i < state->seatCount; i++) {
-        size_t index;
-        if (findThread(threads, count, state->seats[i].tid, &index)) {
-            state->seats[i].permille = clientLoad(threads, count, index);
+static int firstCore(unsigned int mask) {
+    return mask != 0 ? __builtin_ctz(mask) : -1;
+}
+
+static void leave(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
+    OrchestratorState* state, OrchestratorPlan* plan) {
+    for (size_t i = 0; i < state->crossingCount; i++) {
+        if (findThread(threads, count, state->crossings[i].tid) == NULL) {
+            continue;
+        }
+        if (state->crossings[i].wasSide && cores->sideMask != 0) {
+            int core = firstCore(cores->sideMask);
+            addMove(plan, state->crossings[i].tid, core, 1u << core, true);
+        } else if (!state->crossings[i].wasSide) {
+            addMove(plan, state->crossings[i].tid, firstCore(cores->appMask), cores->appMask, false);
         }
     }
-}
-
-static void addMove(OrchestratorPlan* plan, unsigned int tid, int core, unsigned int mask) {
-    if (plan->moveCount < ORCHESTRATOR_MAX_THREADS) {
-        plan->moves[plan->moveCount++] = (OrchestratorMove){tid, core, mask};
-    }
-}
-
-static void leave(OrchestratorState* state, OrchestratorPlan* plan) {
     orchestratorStart(state);
     plan->modeChanged = true;
 }
@@ -216,112 +224,93 @@ void orchestratorStart(OrchestratorState* state) {
     state->mode = OrchestratorModeWatch;
 }
 
-static unsigned int lightCores(const OrchestratorState* state, unsigned int appMask) {
-    unsigned int seated = 0;
-    for (size_t i = 0; i < state->seatCount; i++) {
-        seated |= 1u << state->seats[i].core;
+static void tidyNewThreads(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
+    const unsigned int* current, OrchestratorPlan* plan) {
+    unsigned int domain = domainOf(cores);
+    for (size_t i = 0; i < count; i++) {
+        const OrchestratorThread* thread = &threads[i];
+        if (!placeable(thread, domain) || currentCore(thread, domain) >= 0) {
+            continue;
+        }
+        unsigned int choice = (thread->mask != 0 ? thread->mask : domain) & cores->appMask;
+        int best = -1;
+        for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
+            if ((choice & (1u << core)) != 0 && (best < 0 || current[core] < current[best])) {
+                best = core;
+            }
+        }
+        if (best >= 0) {
+            addMove(plan, thread->tid, best, 1u << best, false);
+        }
     }
-    unsigned int light = appMask & ~seated;
-    if (light == 0 && state->seatCount > 1) {
-        light = 1u << state->seats[state->seatCount - 1].core;
-    }
-    return light != 0 ? light : appMask;
 }
 
-void orchestratorDecide(const OrchestratorThread* threads, size_t count, unsigned int appMask,
+static void describe(const OrchestratorState* state, const OrchestratorCores* cores, const unsigned int* base,
+    OrchestratorPlan* plan) {
+    unsigned int domain = domainOf(cores);
+    for (int core = 0; core < ORCHESTRATOR_MAX_CORES; core++) {
+        plan->corePermille[core] = (domain & (1u << core)) != 0 ? base[core] : 0;
+    }
+    for (size_t i = 0; i < state->seatCount; i++) {
+        plan->corePermille[state->seats[i].core] += state->seats[i].permille;
+    }
+    memcpy(plan->seats, state->seats, sizeof(state->seats[0]) * state->seatCount);
+    plan->seatCount = state->seatCount;
+    if (state->seatCount != 0) {
+        plan->mainTid = state->seats[0].tid;
+        plan->mainCore = state->seats[0].core;
+    }
+}
+
+void orchestratorDecide(const OrchestratorThread* threads, size_t count, const OrchestratorCores* cores,
     OrchestratorState* state, OrchestratorPlan* plan) {
     memset(plan, 0, sizeof(*plan));
     plan->mainCore = -1;
 
-    size_t top;
-    unsigned int topLoad;
-    busiest(threads, count, 0, appMask, &top, &topLoad);
-    size_t second;
-    unsigned int secondLoad = 0;
-    if (top < count) {
-        busiest(threads, count, threads[top].tid, appMask, &second, &secondLoad);
-    }
-
-    size_t heavy[ORCHESTRATOR_MAX_THREADS];
-    unsigned int heavyLoads[ORCHESTRATOR_MAX_THREADS];
-    bool crowded = heavyThreads(threads, count, appMask, heavy, heavyLoads) > coreCount(appMask);
-    size_t wanted[ORCHESTRATOR_MAX_CORES];
-    unsigned int wantedLoads[ORCHESTRATOR_MAX_CORES];
-    size_t wantedCount = wantedSeats(threads, count, appMask, wanted, wantedLoads);
+    unsigned int domain = domainOf(cores);
+    unsigned int base[ORCHESTRATOR_MAX_CORES];
+    unsigned int current[ORCHESTRATOR_MAX_CORES];
+    unsigned int total[ORCHESTRATOR_MAX_CORES];
+    OrchestratorSeat seats[ORCHESTRATOR_MAX_THREADS];
+    measure(threads, count, cores, base, current);
+    size_t seated = assign(threads, count, cores, base, seats, total);
+    unsigned int now = highest(current, domain);
+    unsigned int planned = highest(total, domain);
+    bool better = now >= ORCHESTRATOR_DOMINANT_PERMILLE && planned + ORCHESTRATOR_GAIN_PERMILLE <= now &&
+        differs(threads, count, seats, seated, domain);
+    plan->busiestCorePermille = now;
+    plan->plannedCorePermille = planned;
 
     if (state->mode == OrchestratorModeWatch) {
-        bool dominant = top < count && placeable(&threads[top], appMask) &&
-            topLoad >= ORCHESTRATOR_DOMINANT_PERMILLE && !crowded;
-        if (!dominant) {
-            state->candidateTid = 0;
-            state->heavyPeriods = 0;
-        } else if (state->candidateTid == threads[top].tid) {
-            state->heavyPeriods++;
-        } else {
-            state->candidateTid = threads[top].tid;
-            state->heavyPeriods = 1;
-        }
-        if (state->heavyPeriods >= ORCHESTRATOR_ENTER_PERIODS) {
-            seat(threads, count, appMask, wanted, wantedLoads, wantedCount, state);
-            if (state->seatCount > 0) {
-                state->mode = OrchestratorModePlace;
-                state->lightPeriods = 0;
-                state->changePeriods = 0;
-                plan->modeChanged = true;
-                plan->seatsChanged = true;
-            }
+        state->busyPeriods = better ? state->busyPeriods + 1 : 0;
+        if (state->busyPeriods >= ORCHESTRATOR_ENTER_PERIODS && seated != 0) {
+            adopt(threads, count, cores, seats, seated, state, plan);
+            state->mode = OrchestratorModePlace;
+            state->busyPeriods = 0;
+            state->changePeriods = 0;
+            state->lightPeriods = 0;
+            plan->modeChanged = true;
+            plan->seatsChanged = true;
         }
     } else {
-        size_t main;
-        if (state->seatCount == 0 || !findThread(threads, count, state->seats[0].tid, &main) ||
-            (appMask & (1u << state->seats[0].core)) == 0) {
-            leave(state, plan);
-        } else {
-            bool light = topLoad < ORCHESTRATOR_RELEASE_PERMILLE || crowded;
-            state->lightPeriods = light ? state->lightPeriods + 1 : 0;
-            if (state->lightPeriods >= ORCHESTRATOR_LEAVE_PERIODS) {
-                leave(state, plan);
-            } else if (!light && !sameSeats(state, threads, wanted, wantedCount)) {
-                if (++state->changePeriods >= ORCHESTRATOR_CHANGE_PERIODS) {
-                    seat(threads, count, appMask, wanted, wantedLoads, wantedCount, state);
-                    state->changePeriods = 0;
-                    plan->seatsChanged = true;
-                    if (state->seatCount == 0) {
-                        leave(state, plan);
-                    }
-                }
-            } else {
+        state->lightPeriods = now < ORCHESTRATOR_RELEASE_PERMILLE ? state->lightPeriods + 1 : 0;
+        if (state->lightPeriods >= ORCHESTRATOR_LEAVE_PERIODS) {
+            leave(threads, count, cores, state, plan);
+        } else if (better) {
+            if (++state->changePeriods >= ORCHESTRATOR_CHANGE_PERIODS) {
+                adopt(threads, count, cores, seats, seated, state, plan);
                 state->changePeriods = 0;
+                plan->seatsChanged = true;
             }
-            refreshLoads(threads, count, state);
+        } else {
+            state->changePeriods = 0;
+            tidyNewThreads(threads, count, cores, current, plan);
         }
     }
 
     plan->mode = state->mode;
-    plan->mainPermille = topLoad;
-    plan->secondPermille = secondLoad;
-    if (state->mode != OrchestratorModePlace) {
-        return;
-    }
-    plan->mainTid = state->seats[0].tid;
-    plan->mainCore = state->seats[0].core;
-    memcpy(plan->seats, state->seats, sizeof(state->seats[0]) * state->seatCount);
-    plan->seatCount = state->seatCount;
-    plan->lightMask = lightCores(state, appMask);
-
-    for (size_t i = 0; i < count; i++) {
-        const OrchestratorThread* thread = &threads[i];
-        if (thread->kind != 'w' || !thread->movable) {
-            continue;
-        }
-        const OrchestratorSeat* own = seatOf(state, thread->tid);
-        if (own != NULL) {
-            if (thread->mask != (1u << own->core)) {
-                addMove(plan, thread->tid, own->core, 1u << own->core);
-            }
-        } else if ((thread->mask & ~plan->lightMask & appMask) != 0) {
-            addMove(plan, thread->tid, quietestCore(threads, count, plan->lightMask, thread->tid), plan->lightMask);
-        }
+    if (state->mode == OrchestratorModePlace) {
+        describe(state, cores, base, plan);
     }
 }
 
