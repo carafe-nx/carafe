@@ -1327,6 +1327,15 @@ fn experimental() -> Vec<Setting> {
             0,
         )
         .apis(&[Api::D3d9]),
+        Setting::new(
+            "d3d9-effect-thread",
+            SettingFile::Program,
+            "d3d9.effectThread",
+            Apply::Restart,
+            vec![absent(word("off")), is("True", word("on"))],
+            0,
+        )
+        .apis(&[Api::D3d9]),
     ]
 }
 
