@@ -5,9 +5,8 @@ src="$2"
 build="$3"
 shift 3
 horizon_wine="$autorun/horizon-wine"
-revision="$(sed -n 's/^revision=\([0-9a-f]*\)$/\1/p' "$autorun/horizon-dlls/tools/build-fex.sh")"
-version="$(sed -n 's/.*-DOVERRIDE_VERSION=\([^ ]*\).*/\1/p' "$autorun/horizon-dlls/tools/build-fex.sh")"
-[ -n "$revision" ] && [ -n "$version" ] || { echo "No FEX revision or version in Autorun's build-fex.sh" >&2; exit 1; }
+revision=395b132f346b1a45def246d10c52245edba1ef02
+version=FEX-2609
 export PATH="${WINE_NX_LLVM_MINGW:-/opt/llvm-mingw}/bin:$PATH"
 
 if [ ! -d "$src/.git" ]; then

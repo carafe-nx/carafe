@@ -2,6 +2,8 @@
 
 Date: 2026-10-20
 
+The FEX revision is pinned by [decision 43](0043-one-path-for-every-game.md).
+
 ## Context
 
 Autorun's Windows DLLs come prebuilt from its DLL repository (`external/autorun/horizon-dlls`), FEX's

@@ -2,6 +2,8 @@
 
 Date: 2026-10-20
 
+The DXVK revision is pinned by [decision 43](0043-one-path-for-every-game.md).
+
 ## Context
 
 DXVK comes prebuilt from Autorun's DLL repository: `d3d9.dll` for 32-bit programs in `C:\dxvk`, and the 64-bit

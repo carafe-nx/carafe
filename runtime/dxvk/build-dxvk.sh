@@ -4,8 +4,7 @@ autorun="$1"
 src="$2"
 build="$3"
 shift 3
-revision="$(sed -n "s/^REVISION = '\([0-9a-f]*\)'$/\1/p" "$autorun/horizon-dlls/tools/dxvk_payload.py")"
-[ -n "$revision" ] || { echo "No DXVK revision in Autorun's dxvk_payload.py" >&2; exit 1; }
+revision=b1a1c99ab52b687cf950d62c88bc2fa316b41663
 toolchain="${WINE_NX_LLVM_MINGW:-/opt/llvm-mingw}/bin"
 
 if [ ! -d "$src/.git" ]; then
