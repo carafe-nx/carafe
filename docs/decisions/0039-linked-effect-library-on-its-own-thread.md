@@ -23,7 +23,8 @@ library on the same worker as DXVK would load that worker with about 90 % of tod
   the effects stay on the game thread.
 - **What is queued:** the parameter setters with a copy of their data, `SetTechnique`, `Begin` (it answers the pass
   count it got for the same technique before), `BeginPass`, `CommitChanges`, `EndPass`, `End`. Every other public
-  method, `Release` included, first waits for the queue.
+  method, `Release` included, first waits for the queue, except the handle lookups of Wine's D3DX (`GetParameter` to
+  `GetAnnotationByName`), which only read the effect's structure and are called at once.
 - **An Experimental row of its own**, `d3d9.effectThread`, off by default, that works only with the front end row.
 - The orchestrator of [decision 38](0038-orchestrator-seats-every-busy-thread.md) seats the three busy threads on
   cores 0–2.

@@ -24,6 +24,9 @@ that another core can do. The research proposed a separate i386 proxy `d3d9.dll`
   textures. State block captures and applies are queued; each block keeps a mirror so an apply updates the shadow
   without waiting.
 - **DISCARD locks of dynamic buffers** hand out memory of the front end's own and queue the copy at unlock.
+- **The end of an event query is queued,** and its result is read without waiting: until the queued end has run, the
+  event is not signalled, as on a busy GPU. A game that checks every frame whether the GPU has caught up no longer
+  empties the queue to ask.
 - **Present** is queued and waits only while the previous frame is still queued: at most one frame more latency.
 - **Off by default,** the Experimental row `d3d9.frontEndThread` (decision 36's rule for stages). A multithreaded,
   D3D8 or D3D9Ex device keeps the plain path.

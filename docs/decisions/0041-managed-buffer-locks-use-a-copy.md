@@ -17,6 +17,10 @@ contents.
 - **The thread that queues keeps a copy of the buffer**, made from the buffer's own memory after one wait, the second
   time the buffer is locked: buffers filled once while loading are not copied. A lock hands out the copy; a read-only lock costs nothing more; the unlock queues the changed range, and the worker
   writes it into the buffer in order with the draws, as it does for the staged discard locks.
+- **A new buffer is written to a copy from its first lock**: when no queued call has used it and nothing has locked it
+  outside the queue, its contents are not yet defined, so the lock gets empty memory and nothing waits. The memory is
+  freed at the unlock, so buffers filled once while loading still take no copy. Games that create buffers during a
+  race and fill each once had every one of these first locks wait.
 - **Any lock outside the queue drops the copy**: from another thread, or one larger than 256 KB. The next queued lock
   takes the copy again. Buffers above 4 MB are not copied.
 - **The effect worker hands uploads on** to the DXVK worker instead of locking the buffer itself, so the wait does not
