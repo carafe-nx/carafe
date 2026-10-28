@@ -53,14 +53,19 @@ static const char* nameOf(unsigned int tid, unsigned int count) {
 }
 
 static void traceMode(const OrchestratorPlan* plan, unsigned int count) {
-    char line[256];
-    if (plan->mode == OrchestratorModeSingle) {
-        const char* name = nameOf(plan->mainTid, count);
-        snprintf(line, sizeof(line),
-            "[ORCHESTRATOR] %s: %uw%s%s on core %d alone (%u.%u%% of a core, next %u.%u%%); "
-            "shader workers kept off it",
-            orchestratorModeName(plan->mode), plan->mainTid, name[0] ? ":" : "", name, plan->mainCore,
-            plan->mainPermille / 10, plan->mainPermille % 10, plan->secondPermille / 10, plan->secondPermille % 10);
+    char line[512];
+    if (plan->mode == OrchestratorModePlace) {
+        int used = snprintf(line, sizeof(line), "[ORCHESTRATOR] %s:", orchestratorModeName(plan->mode));
+        for (size_t i = 0; i < plan->seatCount && used > 0 && (size_t)used < sizeof(line); i++) {
+            const OrchestratorSeat* seat = &plan->seats[i];
+            const char* name = nameOf(seat->tid, count);
+            used += snprintf(line + used, sizeof(line) - (size_t)used, "%s %uw%s%s alone on core %d (%u.%u%%)",
+                i == 0 ? "" : ",", seat->tid, name[0] ? ":" : "", name, seat->core, seat->permille / 10,
+                seat->permille % 10);
+        }
+        if (used > 0 && (size_t)used < sizeof(line)) {
+            snprintf(line + used, sizeof(line) - (size_t)used, "; other threads on cores %#x", plan->lightMask);
+        }
     } else {
         snprintf(line, sizeof(line),
             "[ORCHESTRATOR] %s: busiest %u.%u%%, next %u.%u%%; the runtime's balancer places threads",
@@ -87,11 +92,11 @@ void __wrap_wine_nx_thread_balance(void) {
     }
     OrchestratorPlan plan;
     orchestratorDecide(threads, count, (unsigned int)(processMask & 7), &state, &plan);
-    if (plan.modeChanged) {
-        wine_nx_thread_reserve_core(plan.mode == OrchestratorModeSingle ? plan.mainCore : -1);
+    if (plan.modeChanged || plan.seatsChanged) {
+        wine_nx_thread_reserve_core(plan.mode == OrchestratorModePlace ? plan.mainCore : -1);
         traceMode(&plan, count);
     }
-    if (plan.mode != OrchestratorModeSingle) {
+    if (plan.mode != OrchestratorModePlace) {
         __real_wine_nx_thread_balance();
         return;
     }

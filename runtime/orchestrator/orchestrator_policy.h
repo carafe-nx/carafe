@@ -5,15 +5,17 @@
 #include <stddef.h>
 
 #define ORCHESTRATOR_MAX_THREADS 128
+#define ORCHESTRATOR_MAX_CORES 32
 #define ORCHESTRATOR_DOMINANT_PERMILLE 850
-#define ORCHESTRATOR_SECOND_PERMILLE 400
+#define ORCHESTRATOR_HEAVY_PERMILLE 300
 #define ORCHESTRATOR_RELEASE_PERMILLE 600
 #define ORCHESTRATOR_ENTER_PERIODS 2
+#define ORCHESTRATOR_CHANGE_PERIODS 2
 #define ORCHESTRATOR_LEAVE_PERIODS 3
 
 typedef enum {
     OrchestratorModeWatch,
-    OrchestratorModeSingle,
+    OrchestratorModePlace,
 } OrchestratorMode;
 
 typedef struct {
@@ -31,21 +33,32 @@ typedef struct {
 } OrchestratorMove;
 
 typedef struct {
+    unsigned int tid;
+    int core;
+    unsigned int permille;
+} OrchestratorSeat;
+
+typedef struct {
     OrchestratorMode mode;
-    unsigned int mainTid;
-    int mainCore;
+    OrchestratorSeat seats[ORCHESTRATOR_MAX_CORES];
+    size_t seatCount;
     unsigned int candidateTid;
     unsigned int heavyPeriods;
+    unsigned int changePeriods;
     unsigned int lightPeriods;
 } OrchestratorState;
 
 typedef struct {
     OrchestratorMode mode;
     bool modeChanged;
+    bool seatsChanged;
     unsigned int mainTid;
     int mainCore;
     unsigned int mainPermille;
     unsigned int secondPermille;
+    OrchestratorSeat seats[ORCHESTRATOR_MAX_CORES];
+    size_t seatCount;
+    unsigned int lightMask;
     size_t moveCount;
     OrchestratorMove moves[ORCHESTRATOR_MAX_THREADS];
 } OrchestratorPlan;

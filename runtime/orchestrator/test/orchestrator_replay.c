@@ -71,13 +71,17 @@ int main(int argc, char** argv) {
         OrchestratorPlan plan;
         orchestratorDecide(threads, count, 7, &state, &plan);
         reports++;
-        if (plan.mode == OrchestratorModeSingle) {
+        if (plan.mode == OrchestratorModePlace) {
             single++;
         }
-        if (plan.modeChanged) {
-            printf("%u: %s, main %u on core %d, busiest %u.%u%%, next %u.%u%%\n", number,
-                orchestratorModeName(plan.mode), plan.mainTid, plan.mainCore, plan.mainPermille / 10,
-                plan.mainPermille % 10, plan.secondPermille / 10, plan.secondPermille % 10);
+        if (plan.modeChanged || plan.seatsChanged) {
+            printf("%u: %s, busiest %u.%u%%, next %u.%u%%;", number, orchestratorModeName(plan.mode),
+                plan.mainPermille / 10, plan.mainPermille % 10, plan.secondPermille / 10, plan.secondPermille % 10);
+            for (size_t i = 0; i < plan.seatCount; i++) {
+                printf(" %u alone on core %d (%u.%u%%)", plan.seats[i].tid, plan.seats[i].core,
+                    plan.seats[i].permille / 10, plan.seats[i].permille % 10);
+            }
+            printf(plan.mode == OrchestratorModePlace ? "; others on %#x\n" : "\n", plan.lightMask);
         }
         if (plan.modeChanged && plan.mode == OrchestratorModeWatch) {
             placedCount = 0;
@@ -96,6 +100,6 @@ int main(int argc, char** argv) {
         }
     }
     fclose(file);
-    printf("%u reports, %u with one dominant thread\n", reports, single);
+    printf("%u reports, %u placing threads\n", reports, single);
     return 0;
 }
