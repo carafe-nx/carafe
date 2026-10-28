@@ -15,8 +15,6 @@ pub enum SettingFile {
     Program,
     /// `<exe>.keys.txt`.
     Keys,
-    /// `<exe>.box64.txt`.
-    Box64,
 }
 
 impl SettingFile {
@@ -26,7 +24,6 @@ impl SettingFile {
         match self {
             Self::Program => "program",
             Self::Keys => "keys",
-            Self::Box64 => "box64",
         }
     }
 }
@@ -251,8 +248,6 @@ pub struct Preset {
 pub enum SectionId {
     Controls,
     Graphics,
-    Directx,
-    Processor,
     System,
     Experimental,
 }
@@ -264,8 +259,6 @@ impl SectionId {
         match self {
             Self::Controls => "controls",
             Self::Graphics => "graphics",
-            Self::Directx => "directx",
-            Self::Processor => "processor",
             Self::System => "system",
             Self::Experimental => "experimental",
         }
@@ -479,14 +472,6 @@ impl Setting {
         self
     }
 
-    fn show(mut self, setting: &str, values: &[usize]) -> Self {
-        self.condition = Condition::Show {
-            setting: setting.to_owned(),
-            values: values.to_vec(),
-        };
-        self
-    }
-
     fn on(mut self, setting: &str, values: &[usize]) -> Self {
         self.condition = Condition::On {
             setting: setting.to_owned(),
@@ -545,21 +530,6 @@ fn page(id: &str, settings: Vec<Setting>) -> Page {
     }
 }
 
-fn single(settings: Vec<Setting>) -> Vec<Page> {
-    vec![Page {
-        id: None,
-        name: None,
-        settings,
-    }]
-}
-
-fn show(setting: &str, values: &[usize]) -> Condition {
-    Condition::Show {
-        setting: setting.to_owned(),
-        values: values.to_vec(),
-    }
-}
-
 fn section(id: SectionId, entries: Vec<Entry>, presets: Vec<Preset>) -> Section {
     Section {
         id,
@@ -578,9 +548,7 @@ fn build() -> Catalog {
         sections: vec![
             section(SectionId::Controls, rows(controls()), Vec::new()),
             section(SectionId::Graphics, rows(graphics()), Vec::new()),
-            section(SectionId::Directx, directx(), Vec::new()),
-            section(SectionId::Processor, processor(), fex_presets()),
-            section(SectionId::System, rows(system()), Vec::new()),
+            section(SectionId::System, system(), fex_presets()),
             section(SectionId::Experimental, rows(experimental()), Vec::new()),
         ],
         suggestions: suggestions(),
@@ -710,68 +678,19 @@ fn graphics() -> Vec<Setting> {
         )
         .typed()
         .on("lsfg", &[1]),
-    ]
-}
-
-fn directx() -> Vec<Entry> {
-    use Apply::Restart;
-    use SettingFile::Program;
-    let dxvk = show("d3d", &[0, 1]);
-    vec![
-        Entry::Setting(
-            Setting::new(
-                "d3d",
-                Program,
-                "d3d",
-                Restart,
-                vec![
-                    absent(text("DXVK")),
-                    is("dxvk+vkd3d", text("DXVK + VKD3D")),
-                    is("wine", key("graphics.wined3d")),
-                ],
-                0,
-            )
-            .typed(),
-        ),
-        Entry::Setting(
-            Setting::new(
-                "dxvk-source",
-                Program,
-                "dxvk-source",
-                Restart,
-                vec![
-                    absent(key("graphics.dxvkOfficial")),
-                    is("gplasync", text("GPL Async")),
-                    is("sarek", text("Sarek")),
-                ],
-                0,
-            )
-            .typed()
-            .show("d3d", &[0, 1]),
-        ),
-        Entry::Setting(
-            Setting::new(
-                "dxvk-version",
-                Program,
-                "dxvk-version",
-                Restart,
-                vec![absent(unit("catalog.values.bundled", "3.1.1"))],
-                0,
-            )
-            .show("d3d", &[0, 1]),
-        ),
-        Entry::Setting(
-            Setting::new(
-                "vkd3d-version",
-                Program,
-                "vkd3d-version",
-                Restart,
-                vec![absent(unit("catalog.values.bundled", "3.0.1"))],
-                0,
-            )
-            .show("d3d", &[1]),
-        ),
-        group("dxvk", dxvk, dxvk_pages()),
+        Setting::new(
+            "windows",
+            Program,
+            "windows",
+            Restart,
+            vec![
+                absent(key("advanced.windowsAuto")),
+                is("framebuffer", key("advanced.windowsFramebuffer")),
+                is("compositor", key("advanced.windowsCompositor")),
+            ],
+            0,
+        )
+        .typed(),
     ]
 }
 
@@ -1014,234 +933,85 @@ fn fex(id: &str, key: &str, values: Vec<SettingValue>, default: usize) -> Settin
     )
 }
 
-fn box64(id: &str, name: &str, values: Vec<SettingValue>, default: usize) -> Setting {
-    Setting::new(
-        id,
-        SettingFile::Box64,
-        &format!("BOX64_DYNAREC_{name}"),
-        Apply::Restart,
-        values,
-        default,
-    )
-}
-
-fn numbered(labels: &[&str]) -> Vec<SettingValue> {
-    labels
-        .iter()
-        .enumerate()
-        .map(|(i, name)| is(&i.to_string(), word(name)))
-        .collect()
-}
-
-fn processor() -> Vec<Entry> {
-    let on_fex = || show("cpu", &[0]);
-    let on_box64 = || show("cpu", &[1]);
-    let mut entries = vec![Entry::Setting(
-        Setting::new(
-            "cpu",
-            SettingFile::Program,
-            "cpu",
-            Apply::Restart,
-            vec![is("fex", text("FEX")), is("box64", text("Box64"))],
-            0,
-        )
-        .typed(),
-    )];
-    entries.extend(
-        [
-            fex("fex-tso", "FEX_TSOENABLED", off_on(), 0),
-            fex("fex-x87", "FEX_X87REDUCEDPRECISION", off_on(), 1),
-            fex(
-                "fex-smc",
-                "FEX_SMCCHECKS",
-                vec![
-                    is("none", word("none")),
-                    is("mtrack", text("MTrack")),
-                    is("full", text("Full")),
-                ],
-                0,
-            ),
-            fex(
-                "fex-maxinst",
-                "FEX_MAXINST",
-                plain(&["250", "500", "1000", "2500", "5000", "10000", "20000"]),
-                2,
-            ),
-            fex("fex-multiblock", "FEX_MULTIBLOCK", off_on(), 1),
-            fex(
-                "fex-l2",
-                "FEX_DISABLEL2CACHE",
-                vec![is("1", word("off")), is("0", word("on"))],
-                0,
-            ),
-            fex("fex-l1", "FEX_DYNAMICL1CACHE", off_on(), 1),
-        ]
-        .into_iter()
-        .map(|setting| Entry::Setting(setting.show("cpu", &[0]))),
-    );
-    entries.push(group(
-        "fex-memory",
-        on_fex(),
-        single(vec![
-            fex("fex-vector-tso", "FEX_VECTORTSOENABLED", off_on(), 0).on("fex-tso", &[1]),
-            fex("fex-memcpy-tso", "FEX_MEMCPYSETTSOENABLED", off_on(), 0).on("fex-tso", &[1]),
-            fex("fex-half-barrier", "FEX_HALFBARRIERTSOENABLED", off_on(), 1).on("fex-tso", &[1]),
-            fex(
-                "fex-split-locks",
-                "FEX_STRICTINPROCESSSPLITLOCKS",
-                off_on(),
-                0,
-            ),
-            fex(
-                "fex-unaligned",
-                "FEX_KERNELUNALIGNEDATOMICBACKPATCHING",
-                off_on(),
-                1,
-            ),
-            fex("fex-volatile", "FEX_VOLATILEMETADATA", off_on(), 1),
-        ]),
-    ));
-    entries.push(group(
-        "fex-compat",
-        on_fex(),
-        single(vec![
-            fex("fex-mono", "FEX_MONOHACKS", off_on(), 1),
-            fex("fex-hypervisor", "FEX_HIDEHYPERVISORBIT", off_on(), 0),
-            fex("fex-small-tsc", "FEX_SMALLTSCSCALE", off_on(), 1),
-            fex("fex-hybrid", "FEX_HIDEHYBRID", off_on(), 1),
-            fex(
-                "fex-l1-increase",
-                "FEX_DYNAMICL1CACHEINCREASECOUNTHEURISTIC",
-                plain(&["50", "100", "250", "500", "1000"]),
-                2,
-            )
-            .on("fex-l1", &[1]),
-            fex(
-                "fex-l1-decrease",
-                "FEX_DYNAMICL1CACHEDECREASECOUNTHEURISTIC",
-                plain(&["10", "25", "50", "100", "200"]),
-                2,
-            )
-            .on("fex-l1", &[1]),
-        ]),
-    ));
-    entries.extend(
-        [
-            box64(
-                "box64-atomics",
-                "ALIGNED_ATOMICS",
-                numbered(&["safe", "faster"]),
-                0,
-            ),
-            box64(
-                "box64-bigblock",
-                "BIGBLOCK",
-                numbered(&["small", "large", "balanced", "wine"]),
-                2,
-            ),
-            box64(
-                "box64-callret",
-                "CALLRET",
-                numbered(&["off", "fast", "guarded"]),
-                2,
-            ),
-            box64(
-                "box64-safeflags",
-                "SAFEFLAGS",
-                numbered(&["fast", "balanced", "safe"]),
-                1,
-            ),
-            box64(
-                "box64-strongmem",
-                "STRONGMEM",
-                vec![
-                    is("0", word("off")),
-                    is("1", word("basic")),
-                    is("2", text("SIMD")),
-                    is("3", word("strong")),
-                    is("4", text("TSO")),
-                ],
-                0,
-            ),
-            box64(
-                "box64-forward",
-                "FORWARD",
-                plain(&["0", "128", "256", "512", "1024"]),
-                1,
-            ),
-        ]
-        .into_iter()
-        .map(|setting| Entry::Setting(setting.show("cpu", &[1]))),
-    );
-    entries.push(group(
-        "box64-precision",
-        on_box64(),
-        single(vec![
-            box64("box64-df", "DF", off_on(), 1),
-            box64("box64-div0", "DIV0", off_on(), 1),
-            box64(
-                "box64-fastnan",
-                "FASTNAN",
-                numbered(&["precise", "fast"]),
-                1,
-            ),
-            box64(
-                "box64-fastround",
-                "FASTROUND",
-                numbered(&["precise", "fast", "hybrid"]),
-                1,
-            ),
-            box64("box64-nativeflags", "NATIVEFLAGS", off_on(), 1),
-            box64(
-                "box64-x87double",
-                "X87DOUBLE",
-                numbered(&["auto", "double", "honor"]),
-                0,
-            ),
-        ]),
-    ));
-    entries.push(group(
-        "box64-memory",
-        on_box64(),
-        single(vec![
-            box64(
-                "box64-noarch",
-                "NOARCH",
-                numbered(&["full", "reduced", "minimal"]),
-                0,
-            ),
-            box64(
-                "box64-pause",
-                "PAUSE",
-                vec![
-                    is("0", word("ignore")),
-                    is("1", word("yield")),
-                    is("2", text("WFI")),
-                    is("3", text("WFE")),
-                ],
-                0,
-            ),
-            box64("box64-sep", "SEP", numbered(&["off", "files", "all"]), 2),
-            box64(
-                "box64-weakbarrier",
-                "WEAKBARRIER",
-                numbered(&["safe", "weak", "weakest"]),
-                1,
-            ),
-            box64("box64-purge", "PURGE", off_on(), 0),
-            box64(
-                "box64-purge-age",
-                "PURGE_AGE",
-                [("500", "5"), ("1000", "10"), ("3000", "30"), ("6000", "60")]
-                    .iter()
-                    .map(|&(ticks, seconds)| is(ticks, unit("catalog.values.seconds", seconds)))
-                    .collect(),
-                1,
-            )
-            .on("box64-purge", &[1]),
-        ]),
-    ));
-    entries
+fn fex_pages() -> Vec<Page> {
+    vec![
+        page(
+            "fex-general",
+            vec![
+                fex("fex-tso", "FEX_TSOENABLED", off_on(), 0),
+                fex("fex-x87", "FEX_X87REDUCEDPRECISION", off_on(), 1),
+                fex(
+                    "fex-smc",
+                    "FEX_SMCCHECKS",
+                    vec![
+                        is("none", word("none")),
+                        is("mtrack", text("MTrack")),
+                        is("full", text("Full")),
+                    ],
+                    0,
+                ),
+                fex(
+                    "fex-maxinst",
+                    "FEX_MAXINST",
+                    plain(&["250", "500", "1000", "2500", "5000", "10000", "20000"]),
+                    2,
+                ),
+                fex("fex-multiblock", "FEX_MULTIBLOCK", off_on(), 1),
+                fex(
+                    "fex-l2",
+                    "FEX_DISABLEL2CACHE",
+                    vec![is("1", word("off")), is("0", word("on"))],
+                    0,
+                ),
+                fex("fex-l1", "FEX_DYNAMICL1CACHE", off_on(), 1),
+            ],
+        ),
+        page(
+            "fex-memory",
+            vec![
+                fex("fex-vector-tso", "FEX_VECTORTSOENABLED", off_on(), 0).on("fex-tso", &[1]),
+                fex("fex-memcpy-tso", "FEX_MEMCPYSETTSOENABLED", off_on(), 0).on("fex-tso", &[1]),
+                fex("fex-half-barrier", "FEX_HALFBARRIERTSOENABLED", off_on(), 1)
+                    .on("fex-tso", &[1]),
+                fex(
+                    "fex-split-locks",
+                    "FEX_STRICTINPROCESSSPLITLOCKS",
+                    off_on(),
+                    0,
+                ),
+                fex(
+                    "fex-unaligned",
+                    "FEX_KERNELUNALIGNEDATOMICBACKPATCHING",
+                    off_on(),
+                    1,
+                ),
+                fex("fex-volatile", "FEX_VOLATILEMETADATA", off_on(), 1),
+            ],
+        ),
+        page(
+            "fex-compat",
+            vec![
+                fex("fex-mono", "FEX_MONOHACKS", off_on(), 1),
+                fex("fex-hypervisor", "FEX_HIDEHYPERVISORBIT", off_on(), 0),
+                fex("fex-small-tsc", "FEX_SMALLTSCSCALE", off_on(), 1),
+                fex("fex-hybrid", "FEX_HIDEHYBRID", off_on(), 1),
+                fex(
+                    "fex-l1-increase",
+                    "FEX_DYNAMICL1CACHEINCREASECOUNTHEURISTIC",
+                    plain(&["50", "100", "250", "500", "1000"]),
+                    2,
+                )
+                .on("fex-l1", &[1]),
+                fex(
+                    "fex-l1-decrease",
+                    "FEX_DYNAMICL1CACHEDECREASECOUNTHEURISTIC",
+                    plain(&["10", "25", "50", "100", "200"]),
+                    2,
+                )
+                .on("fex-l1", &[1]),
+            ],
+        ),
+    ]
 }
 
 fn preset(id: &str, values: &[(&str, usize)]) -> Preset {
@@ -1296,7 +1066,7 @@ fn fex_presets() -> Vec<Preset> {
 
 fn experimental() -> Vec<Setting> {
     vec![
-        fex("code-cache", "FEX_DISKCACHE", off_on(), 0).show("cpu", &[0]),
+        fex("code-cache", "FEX_DISKCACHE", off_on(), 0),
         fex(
             "fex-x87-single",
             "FEX_X87SINGLEPRECISION",
@@ -1309,7 +1079,7 @@ fn experimental() -> Vec<Setting> {
         )
         .auto_on(&[Api::D3d8, Api::D3d9])
         .on("fex-x87", &[1]),
-        fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0).show("cpu", &[0]),
+        fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0),
         Setting::new(
             "orchestrator",
             SettingFile::Program,
@@ -1357,39 +1127,18 @@ fn experimental() -> Vec<Setting> {
     ]
 }
 
-fn system() -> Vec<Setting> {
+fn system() -> Vec<Entry> {
     use Apply::Restart;
     use SettingFile::Program;
-    vec![
-        Setting::new(
-            "sync",
-            Program,
-            "sync",
-            Restart,
-            vec![
-                is("horizon", text("Horizon")),
-                is("standard", key("advanced.syncStandard")),
-            ],
-            0,
-        )
-        .typed(),
-        Setting::new("four-cores", Program, "four-cores", Restart, on_off(), 0).typed(),
-        Setting::new(
-            "windows",
-            Program,
-            "windows",
-            Restart,
-            vec![
-                absent(key("advanced.windowsAuto")),
-                is("framebuffer", key("advanced.windowsFramebuffer")),
-                is("compositor", key("advanced.windowsCompositor")),
-            ],
-            0,
-        )
-        .typed(),
+    let mut entries = vec![
+        group("dxvk", Condition::Always, dxvk_pages()),
+        group("fex", Condition::Always, fex_pages()),
+    ];
+    entries.extend(rows(vec![
         Setting::new("verbose", Program, "verbose", Restart, off_on(), 0).typed(),
         Setting::new("profile", Program, "profile", Restart, off_on(), 0).typed(),
-    ]
+    ]));
+    entries
 }
 
 fn suggestion(kind: FailureKind, setting: &str, value: usize) -> Suggestion {
@@ -1411,7 +1160,6 @@ fn suggestions() -> Vec<Suggestion> {
         suggestion(Memory, "dxvk-maxMemoryBudget", 6),
         suggestion(Memory, "fex-maxinst", 1),
         suggestion(Threads, "dxvk-numCompilerThreads", 3),
-        suggestion(Threads, "sync", 1),
     ]
 }
 
@@ -1526,7 +1274,28 @@ mod tests {
         let catalog = catalog();
         assert!(catalog.setting("fex-vector-tso").is_some());
         assert!(catalog.setting("d3d9-maxAvailableMemory").is_some());
-        assert!(catalog.setting("box64-purge-age").is_some());
+    }
+
+    #[test]
+    fn the_component_choices_are_gone() {
+        let catalog = catalog();
+        for id in [
+            "d3d",
+            "dxvk-source",
+            "dxvk-version",
+            "vkd3d-version",
+            "cpu",
+            "sync",
+            "four-cores",
+        ] {
+            assert!(catalog.setting(id).is_none(), "{id}");
+        }
+        assert!(
+            catalog
+                .settings()
+                .into_iter()
+                .all(|setting| !setting.id.starts_with("box64-"))
+        );
     }
 
     #[test]
@@ -1547,12 +1316,6 @@ mod tests {
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
         assert_eq!(fex, 22);
-        let box64 = catalog
-            .settings()
-            .into_iter()
-            .filter(|s| s.file == SettingFile::Box64)
-            .count();
-        assert_eq!(box64, 18);
     }
 
     #[test]
@@ -1611,7 +1374,7 @@ mod tests {
         let processor = catalog
             .sections
             .iter()
-            .find(|section| section.id == SectionId::Processor)
+            .find(|section| section.id == SectionId::System)
             .unwrap();
         let text_of = |preset: &str, setting: &str| {
             let preset = processor.presets.iter().find(|p| p.id == preset).unwrap();

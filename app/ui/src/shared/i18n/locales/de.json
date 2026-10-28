@@ -8,17 +8,12 @@
     "sections": {
       "controls": "Steuerung",
       "graphics": "Grafik",
-      "directx": "DirectX",
-      "processor": "Prozessor",
       "system": "System",
       "experimental": "Experimentell"
     },
     "groups": {
       "dxvk": "DXVK-Optionen",
-      "fex-memory": "Speicherreihenfolge",
-      "fex-compat": "Kompatibilität und Caches",
-      "box64-precision": "Genauigkeit und Flags",
-      "box64-memory": "Speicher und Threads"
+      "fex": "FEX-Optionen"
     },
     "pages": {
       "dxvk-memory": "Speicher",
@@ -28,7 +23,10 @@
       "dxvk-display": "Anzeigemodi",
       "dxvk-fixes": "Korrekturen",
       "dxvk-render": "Renderpfad",
-      "dxvk-identity": "Was das Spiel sieht"
+      "dxvk-identity": "Was das Spiel sieht",
+      "fex-general": "Allgemein",
+      "fex-memory": "Speicherreihenfolge",
+      "fex-compat": "Kompatibilität und Caches"
     },
     "presets": {
       "balanced": { "name": "Ausgewogen", "hint": "So, wie Autorun standardmäßig läuft." },
@@ -48,8 +46,7 @@
         "fex-maxinst": "Weniger Speicher für den übersetzten Code des Spiels."
       },
       "threads": {
-        "dxvk-numCompilerThreads": "Lässt dem Spiel selbst mehr Aufgaben. Neue Effekte erscheinen später.",
-        "sync": "Wenn sich das Spiel bei jedem Start so beendet."
+        "dxvk-numCompilerThreads": "Lässt dem Spiel selbst mehr Aufgaben. Neue Effekte erscheinen später."
       }
     },
     "values": {
@@ -68,36 +65,13 @@
       "constantBuffers": "Konstanten",
       "shaderResources": "Shader-Ressourcen",
       "vertexIndex": "Vertices und Indizes",
-      "safe": "Sicher",
-      "small": "Klein",
-      "large": "Groß",
-      "balanced": "Ausgewogen",
-      "wine": "Für Wine",
-      "fast": "Schnell",
-      "guarded": "Geschützt",
-      "basic": "Basis",
-      "strong": "Stark",
-      "precise": "Präzise",
-      "hybrid": "Hybrid",
-      "double": "Doppelt",
-      "honor": "Wie vom Spiel verlangt",
-      "full": "Voll",
-      "reduced": "Reduziert",
-      "minimal": "Minimal",
-      "ignore": "Ignorieren",
-      "yield": "Abgeben",
-      "files": "Nur Dateien",
-      "weak": "Leicht",
-      "weakest": "Am leichtesten",
       "flowEighth": "12,5 %",
       "flowQuarter": "25 %",
       "flowHalf": "50 %",
       "mib": "{{value}} MiB",
       "percent": "{{value}} %",
-      "seconds": "{{value}} s",
       "hz": "{{value}} Hz",
-      "times": "{{value}}×",
-      "bundled": "{{value}} · im Paket"
+      "times": "{{value}}×"
     },
     "settings": {
       "input-mode": { "name": "Steuerungsmodus", "hint": "Controller: Das Spiel sieht ein Xbox-360-Gamepad. Tastatur und Maus: Switch-Tasten drücken Tasten der Tastatur." },
@@ -112,10 +86,6 @@
       "lsfg": { "name": "Frame-Generierung LSFG-VK", "hint": "Fügt zwischen den Frames des Spiels ein berechnetes Bild ein: flüssiger, aber die Steuerung reagiert etwas verzögert. Braucht Lossless.dll." },
       "lsfg-performance": { "name": "Leistungsmodus", "hint": "Schneller, aber die Zwischenbilder sind ungenauer." },
       "lsfg-flow": { "name": "Skala optischer Fluss", "hint": "Auflösung, in der Bewegung gesucht wird: niedriger ist schneller, höher ist genauer." },
-      "d3d": { "name": "Direct3D", "hint": "Wie Direct3D zu Switch-Grafik wird. DXVK ist am schnellsten und passt zu fast jedem Spiel." },
-      "dxvk-source": { "name": "DXVK-Build", "hint": "Die Builds GPL Async und Sarek sind noch nicht im Paket: Behalte „Offiziell“." },
-      "dxvk-version": { "name": "DXVK-Version", "hint": "Das Paket enthält eine Version. Weitere kommen, sobald Carafe sie ins Paket legen kann." },
-      "vkd3d-version": { "name": "VKD3D-Version", "hint": "Für DirectX-12-Spiele. Das Paket enthält eine Version." },
       "dxvk-maxMemoryBudget": { "name": "DXVK-Speicherbudget", "hint": "Wie viel Speicher DXVK für Texturen und Puffer nimmt. Mit weniger wird der Speicher seltener knapp, aber Texturen laden eventuell verspätet." },
       "dxgi-maxDeviceMemory": { "name": "Videospeicher fürs Spiel (DX10–12)", "hint": "Wie viel Videospeicher das Spiel sieht. Senke ihn, wenn das Spiel den Speicher füllt und abstürzt; echten Speicher gibt es dadurch nicht dazu." },
       "dxgi-maxSharedMemory": { "name": "Gemeinsamer Speicher fürs Spiel (DX10–12)", "hint": "Wie viel gemeinsamer Speicher dem Spiel gemeldet wird. Reserviert nichts." },
@@ -167,7 +137,6 @@
       "dxgi-hideNvkGpu": { "name": "NVK-Treiber verbergen (DX10–12)", "hint": "Das Spiel sieht nicht, dass der Treiber NVK ist." },
       "d3d9-hideNvidiaGpu": { "name": "NVIDIA verbergen (DX9)", "hint": "Das Spiel erkennt die NVIDIA-GPU nicht und überspringt die speziellen Wege dafür." },
       "d3d9-hideNvkGpu": { "name": "NVK-Treiber verbergen (DX9)", "hint": "Das Spiel sieht nicht, dass der Treiber NVK ist." },
-      "cpu": { "name": "CPU-Emulator", "hint": "FEX ist der Hauptemulator, für 32- und 64-Bit-Spiele. Box64 ist der Ersatz, nur für 32-Bit-Spiele." },
       "fex-tso": { "name": "Strenge Speicherreihenfolge", "hint": "Ordnet Speicherzugriffe wie auf x86. Langsamer; schalte es ein, wenn ein Multithread-Spiel abstürzt, hängt oder Daten beschädigt." },
       "fex-x87-single": { "name": "x87 in einfacher Genauigkeit", "hint": "Rechnet x87-Gleitkommazahlen mit der Genauigkeit, die Direct3D 9 einstellt, ohne zusätzliche Umwandlungen. Schneller. Ausschalten, wenn Zahlen, Physik oder Bild falsch wirken." },
       "fex-gdb-symbols": { "name": "Genaue Codekarte für den Profiler", "hint": "Der Profiler sieht jeden Befehl des Spiels, nicht nur einen Teil. Nur für Messungen, ohne Einfluss auf die Geschwindigkeit." },
@@ -194,26 +163,6 @@
       "fex-hybrid": { "name": "Gemischte Kerne verbergen", "hint": "Das Spiel sieht alle Kerne als gleich. Meist eingeschaltet lassen." },
       "fex-l1-increase": { "name": "L1-Cache: Schwelle zum Wachsen", "hint": "Niedriger lässt den Sprung-Cache eher wachsen: schneller, mehr Speicher. Nur mit „Sprung-Cache anpassen“." },
       "fex-l1-decrease": { "name": "L1-Cache: Schwelle zum Schrumpfen", "hint": "Höher gibt Speicher eher zurück: sparsamer, mehr Fehlzugriffe. Nur mit „Sprung-Cache anpassen“." },
-      "box64-atomics": { "name": "Schnelle atomare Operationen", "hint": "Weniger Code, aber das Spiel stürzt bei der ersten nicht ausgerichteten atomaren Operation ab. Nur für getestete Spiele." },
-      "box64-bigblock": { "name": "Blockgröße", "hint": "Größer ist schneller. Klein ist für Spiele, die ihren Code umschreiben oder viele Threads haben." },
-      "box64-callret": { "name": "Schnelle Aufrufe und Rücksprünge", "hint": "Beschleunigt Funktionsaufrufe. Geschützt ist die sichere Variante; Schnell kann in veralteten Code zurückspringen." },
-      "box64-safeflags": { "name": "Flags um Aufrufe", "hint": "Schnell ist einfacher, Sicher deckt seltene Fälle ab." },
-      "box64-strongmem": { "name": "Strenge Speicherreihenfolge", "hint": "Erhöhe sie, wenn ein Multithread-Spiel hängt oder sich seltsam verhält; langsamer." },
-      "box64-forward": { "name": "Reichweite beim Blockbau", "hint": "Mehr ist schneller, braucht aber mehr Speicher für Code." },
-      "box64-df": { "name": "Verzögerte Flags", "hint": "CPU-Flags werden nur berechnet, wenn sie gebraucht werden. Meist eingeschaltet lassen." },
-      "box64-div0": { "name": "Fehler bei Division durch null", "hint": "Das Spiel bekommt den Fehler bei Division durch null wie auf x86 und kann ihn behandeln." },
-      "box64-fastnan": { "name": "Schnelles NaN", "hint": "Schneller; Präzise, wenn Physik oder Berechnungen kaputtgehen." },
-      "box64-fastround": { "name": "Zahlenrundung", "hint": "Schnell ist am schnellsten, Präzise am genauesten." },
-      "box64-nativeflags": { "name": "ARM-Flags direkt", "hint": "Schneller; nur zur Fehlersuche ausschalten." },
-      "box64-x87double": { "name": "x87-Genauigkeit", "hint": "Doppelte Genauigkeit statt der schnellen; hilft, wenn Kamera oder Physik zittern." },
-      "box64-noarch": { "name": "Block-Metadaten", "hint": "Weniger spart Speicher, kann aber Spiele mit Schutz kaputt machen." },
-      "box64-pause": { "name": "Warten in Schleifen", "hint": "Wie Threads aufeinander warten; der beste Modus hängt vom Spiel ab." },
-      "box64-sep": { "name": "Einstiege nach Aufrufen", "hint": "Mit weniger wird Code nach Aufrufen öfter neu übersetzt. Meist bei „Alle“ lassen." },
-      "box64-weakbarrier": { "name": "Leichte Barrieren", "hint": "Leichter ist schneller, aber weniger sicher in Multithread-Spielen." },
-      "box64-purge": { "name": "Code-Speicher freigeben", "hint": "Ist der Code-Speicher voll, macht länger nicht benötigter Code Platz für neuen. Für 32-Bit-Spiele, die mit der Zeit langsamer werden." },
-      "box64-purge-age": { "name": "Zeit bis zur Freigabe", "hint": "Wie lange Code ungenutzt sein muss. Nur mit „Code-Speicher freigeben“." },
-      "sync": { "name": "Thread-Synchronisation", "hint": "Horizon: Spiel-Threads warten über den Switch-Kernel aufeinander. Schneller und zuverlässiger." },
-      "four-cores": { "name": "Vierter Kern für Grafik", "hint": "Zeichnen und Shader laufen auf dem vierten Kern, das Spiel auf den anderen drei." },
       "windows": { "name": "Fensterausgabe", "hint": "Framebuffer ist die Notlösung, wenn die Fenster des Spiels falsch erscheinen." },
       "verbose": { "name": "Ausführliches Log", "hint": "Das detaillierte Log von Wine. Verlangsamt das Spiel stark – nur zur Fehlersuche." },
       "profile": { "name": "Profiler", "hint": "Schreibt ins Log, wo das Spiel seine Zeit verbringt. Verlangsamt den Start." },
@@ -562,20 +511,6 @@
     "moveRight": "Cursor nach rechts"
   },
   "graphics": {
-    "direct3d": "Direct3D",
-    "wined3d": "WineD3D (Kompatibilität)",
-    "direct3dHints": {
-      "dxvk": "Übersetzt Direct3D 8–11 nach Vulkan. Der schnellste Weg; passt zu fast jedem Spiel.",
-      "dxvkVkd3d": "DXVK plus VKD3D für DirectX-12-Spiele. Nur diese brauchen es, und nur die mit 64 Bit.",
-      "wine": "Direct3D über OpenGL, wie im normalen Wine. Langsamer; wähle es, wenn das Spiel mit DXVK nicht startet oder Grafikfehler zeigt."
-    },
-    "dxvkSource": "DXVK-Build",
-    "dxvkOfficial": "Offiziell",
-    "dxvkSourceHints": {
-      "official": "Der DXVK-Build, der mit Carafe kommt.",
-      "gplasync": "Carafe liefert GPL Async nicht mit: Das Spiel fällt höchstwahrscheinlich auf das langsame WineD3D zurück. Behalte „Offiziell“.",
-      "sarek": "Carafe liefert Sarek nicht mit: Das Spiel fällt höchstwahrscheinlich auf das langsame WineD3D zurück. Behalte „Offiziell“."
-    },
     "frameLimit": "Framelimit",
     "frameLimitHint": "Hindert das Spiel daran, schneller zu zeichnen: gleichmäßigere Frames, weniger Wärme und Akkuverbrauch. Der Bildschirm der Switch läuft mit 60 Hz. Gilt für Vulkan, DXVK und VKD3D.",
     "noLimit": "Kein Limit",
@@ -608,17 +543,6 @@
   "advanced": {
     "title": "Erweitert",
     "system": "System",
-    "sync": "Thread-Synchronisation",
-    "syncHints": {
-      "horizon": "Spiel-Threads warten direkt über den Switch-Kernel aufeinander. Schneller und zuverlässiger; hilft Spielen, die beim Start hängen oder einen schwarzen Bildschirm zeigen.",
-      "standard": "Wie im normalen Wine – über einen Dienst-Thread. Wähle es, wenn sich das Spiel mit Horizon seltsam verhält."
-    },
-    "syncStandard": "Standard",
-    "cpu": "CPU-Emulator",
-    "cpuHints": {
-      "fex": "Der Haupt-Emulator für x86, für 32- und 64-Bit-Spiele.",
-      "box64": "Ein zweiter Emulator, nur für 32-Bit-Spiele. Probiere ihn, wenn das Spiel mit FEX abstürzt oder ruckelt."
-    },
     "windows": "Fensterausgabe",
     "windowsAuto": "Automatisch",
     "windowsFramebuffer": "Framebuffer",
@@ -628,8 +552,6 @@
       "compositor": "Wie „Automatisch“.",
       "framebuffer": "Fenster werden direkt auf den Bildschirm kopiert, ohne Compositor. Eine Notlösung, wenn Fenster falsch erscheinen; Ladebildschirm und Cursor von Carafe funktionieren dann eventuell nicht."
     },
-    "fourCores": "Vierter Kern für Grafik",
-    "fourCoresHint": "Rendering und Shader laufen auf dem vierten Kern, während das Spiel die anderen drei für sich hat. Meist am besten eingeschaltet lassen.",
     "debug": "Fehlersuche",
     "verbose": "Ausführliches Log",
     "verboseHint": "Ein detailliertes Wine-Log in einer eigenen Datei. Verlangsamt das Spiel stark – nur zur Fehlersuche.",

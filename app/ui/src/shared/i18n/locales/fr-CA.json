@@ -8,17 +8,12 @@
     "sections": {
       "controls": "Commandes",
       "graphics": "Graphismes",
-      "directx": "DirectX",
-      "processor": "Processeur",
       "system": "Système",
       "experimental": "Expérimental"
     },
     "groups": {
       "dxvk": "Options DXVK",
-      "fex-memory": "Ordre de la mémoire",
-      "fex-compat": "Compatibilité et caches",
-      "box64-precision": "Précision et indicateurs",
-      "box64-memory": "Mémoire et fils d’exécution"
+      "fex": "Options FEX"
     },
     "pages": {
       "dxvk-memory": "Mémoire",
@@ -28,7 +23,10 @@
       "dxvk-display": "Modes d’affichage",
       "dxvk-fixes": "Correctifs",
       "dxvk-render": "Chemin de rendu",
-      "dxvk-identity": "Ce que voit le jeu"
+      "dxvk-identity": "Ce que voit le jeu",
+      "fex-general": "Général",
+      "fex-memory": "Ordre de la mémoire",
+      "fex-compat": "Compatibilité et caches"
     },
     "presets": {
       "balanced": { "name": "Équilibré", "hint": "Le fonctionnement par défaut d’Autorun." },
@@ -48,8 +46,7 @@
         "fex-maxinst": "Moins de mémoire pour le code traduit du jeu."
       },
       "threads": {
-        "dxvk-numCompilerThreads": "Laisse plus de tâches au jeu lui-même. Les nouveaux effets mettent plus de temps à apparaître.",
-        "sync": "Si le jeu se ferme ainsi à chaque démarrage."
+        "dxvk-numCompilerThreads": "Laisse plus de tâches au jeu lui-même. Les nouveaux effets mettent plus de temps à apparaître."
       }
     },
     "values": {
@@ -68,36 +65,13 @@
       "constantBuffers": "Constantes",
       "shaderResources": "Ressources des nuanceurs",
       "vertexIndex": "Sommets et indices",
-      "safe": "Sûr",
-      "small": "Petit",
-      "large": "Grand",
-      "balanced": "Équilibré",
-      "wine": "Pour Wine",
-      "fast": "Rapide",
-      "guarded": "Protégé",
-      "basic": "De base",
-      "strong": "Fort",
-      "precise": "Précis",
-      "hybrid": "Hybride",
-      "double": "Double",
-      "honor": "Comme le jeu le demande",
-      "full": "Complet",
-      "reduced": "Réduit",
-      "minimal": "Minimal",
-      "ignore": "Ignorer",
-      "yield": "Céder",
-      "files": "Fichiers seulement",
-      "weak": "Léger",
-      "weakest": "Très léger",
       "flowEighth": "12,5 %",
       "flowQuarter": "25 %",
       "flowHalf": "50 %",
       "mib": "{{value}} Mio",
       "percent": "{{value}} %",
-      "seconds": "{{value}} s",
       "hz": "{{value}} Hz",
-      "times": "{{value}}×",
-      "bundled": "{{value}} · dans le paquet"
+      "times": "{{value}}×"
     },
     "settings": {
       "input-mode": { "name": "Mode de commande", "hint": "Manette : le jeu voit une manette Xbox 360. Clavier et souris : les boutons de la Switch appuient sur des touches." },
@@ -112,10 +86,6 @@
       "lsfg": { "name": "Génération d’images LSFG-VK", "hint": "Insère une image dessinée entre les images du jeu : plus fluide, mais les commandes réagissent avec un léger retard. Nécessite Lossless.dll." },
       "lsfg-performance": { "name": "Mode performance", "hint": "Plus rapide, mais les images intermédiaires sont moins précises." },
       "lsfg-flow": { "name": "Échelle du flux optique", "hint": "Résolution utilisée pour repérer le mouvement : plus elle est basse, plus c’est rapide; plus elle est haute, plus c’est précis." },
-      "d3d": { "name": "Direct3D", "hint": "Comment Direct3D est traduit pour l’affichage de la Switch. DXVK est le plus rapide et convient à presque tous les jeux." },
-      "dxvk-source": { "name": "Variante DXVK", "hint": "Les variantes GPL Async et Sarek ne sont pas encore dans le paquet : gardez « Officielle »." },
-      "dxvk-version": { "name": "Version de DXVK", "hint": "Le paquet contient une seule version. D’autres viendront quand Carafe pourra les mettre dans le paquet." },
-      "vkd3d-version": { "name": "Version de VKD3D", "hint": "Pour les jeux DirectX 12. Le paquet contient une seule version." },
       "dxvk-maxMemoryBudget": { "name": "Budget mémoire DXVK", "hint": "Quantité de mémoire que DXVK prend pour les textures et les tampons. Plus bas, elle manque moins souvent, mais les textures peuvent apparaître en retard." },
       "dxgi-maxDeviceMemory": { "name": "Mémoire vidéo pour le jeu (DX10–12)", "hint": "Quantité de mémoire vidéo que voit le jeu. Baissez-la si le jeu remplit la mémoire et plante; elle n’ajoute pas de vraie mémoire." },
       "dxgi-maxSharedMemory": { "name": "Mémoire partagée pour le jeu (DX10–12)", "hint": "Quantité de mémoire partagée annoncée au jeu. Ne réserve rien." },
@@ -167,7 +137,6 @@
       "dxgi-hideNvkGpu": { "name": "Masquer le pilote NVK (DX10–12)", "hint": "Le jeu ne voit pas que le pilote est NVK." },
       "d3d9-hideNvidiaGpu": { "name": "Masquer NVIDIA (DX9)", "hint": "Le jeu ne reconnaît pas le processeur graphique NVIDIA et saute les chemins spéciaux prévus pour lui." },
       "d3d9-hideNvkGpu": { "name": "Masquer le pilote NVK (DX9)", "hint": "Le jeu ne voit pas que le pilote est NVK." },
-      "cpu": { "name": "Émulateur de processeur", "hint": "FEX est le principal, pour les jeux 32 et 64 bits. Box64 est celui de secours, pour les jeux 32 bits seulement." },
       "fex-tso": { "name": "Ordre strict de la mémoire", "hint": "Ordonne les accès mémoire comme sur x86. Plus lent; activez-le quand un jeu multifil plante, se fige ou corrompt ses données." },
       "fex-x87-single": { "name": "x87 en simple précision", "hint": "Calcule les décimaux x87 avec la précision fixée par Direct3D 9, sans conversions de trop. Plus rapide. Désactivez-la si les nombres, la physique ou l'image semblent faux." },
       "fex-gdb-symbols": { "name": "Carte exacte du code pour le profileur", "hint": "Le profileur voit chaque instruction du jeu, pas seulement une partie. Pour les mesures seulement, sans effet sur la vitesse." },
@@ -194,26 +163,6 @@
       "fex-hybrid": { "name": "Masquer les cœurs mixtes", "hint": "Le jeu voit tous les cœurs comme identiques. Gardez-le généralement activé." },
       "fex-l1-increase": { "name": "Seuil d’agrandissement du cache L1", "hint": "Plus bas, le cache de sauts s’agrandit plus facilement : plus rapide, plus de mémoire. Seulement avec l’ajustement du cache de sauts." },
       "fex-l1-decrease": { "name": "Seuil de réduction du cache L1", "hint": "Plus haut, la mémoire est rendue plus facilement : plus économe, plus de défauts de cache. Seulement avec l’ajustement du cache de sauts." },
-      "box64-atomics": { "name": "Opérations atomiques rapides", "hint": "Moins de code, mais le jeu plante à la première opération atomique non alignée. Seulement pour les jeux testés." },
-      "box64-bigblock": { "name": "Taille des blocs", "hint": "Plus grand, plus rapide. « Petit » convient aux jeux qui réécrivent leur code ou ont beaucoup de fils d’exécution." },
-      "box64-callret": { "name": "Appels et retours rapides", "hint": "Accélère les appels de fonction. « Protégé » est le mode sûr; « Rapide » peut revenir dans du code périmé." },
-      "box64-safeflags": { "name": "Indicateurs autour des appels", "hint": "« Rapide » est plus simple, « Sûr » couvre les cas rares." },
-      "box64-strongmem": { "name": "Ordre strict de la mémoire", "hint": "Augmentez-le quand un jeu multifil se fige ou agit bizarrement; plus lent." },
-      "box64-forward": { "name": "Portée de construction des blocs", "hint": "Plus elle est grande, plus c’est rapide, mais le code prend plus de mémoire." },
-      "box64-df": { "name": "Indicateurs différés", "hint": "Les indicateurs du processeur ne sont calculés qu’au besoin. Gardez-le généralement activé." },
-      "box64-div0": { "name": "Erreur de division par zéro", "hint": "Le jeu reçoit l’erreur de division par zéro comme sur x86 et peut la gérer." },
-      "box64-fastnan": { "name": "NaN rapide", "hint": "Plus rapide; « Précis » si la physique ou les calculs se dérèglent." },
-      "box64-fastround": { "name": "Arrondi des nombres", "hint": "« Rapide » est le plus rapide, « Précis » le plus exact." },
-      "box64-nativeflags": { "name": "Indicateurs ARM directs", "hint": "Plus rapide; désactivez-le seulement pour chercher un bogue." },
-      "box64-x87double": { "name": "Précision x87", "hint": "Double précision au lieu de la rapide; aide quand la caméra ou la physique tremblent." },
-      "box64-noarch": { "name": "Métadonnées des blocs", "hint": "Moins économise la mémoire, mais peut empêcher les jeux protégés de fonctionner." },
-      "box64-pause": { "name": "Attente dans les boucles", "hint": "Comment les fils d’exécution s’attendent entre eux; le meilleur mode dépend du jeu." },
-      "box64-sep": { "name": "Entrées après les appels", "hint": "Moins fait retraduire plus souvent le code après les appels. Gardez généralement « Tous »." },
-      "box64-weakbarrier": { "name": "Barrières légères", "hint": "Plus léger, plus rapide, mais moins sûr dans les jeux multifils." },
-      "box64-purge": { "name": "Libérer la mémoire du code", "hint": "Quand la mémoire du code est pleine, le code inutilisé depuis un moment laisse la place au nouveau. Pour les jeux 32 bits qui ralentissent avec le temps." },
-      "box64-purge-age": { "name": "Délai avant libération", "hint": "Combien de temps le code doit rester inutilisé. Seulement avec la libération de la mémoire du code." },
-      "sync": { "name": "Synchronisation des fils", "hint": "Horizon : les fils d’exécution du jeu s’attendent entre eux par le noyau de la Switch. Plus rapide et plus fiable." },
-      "four-cores": { "name": "Quatrième cœur pour le graphisme", "hint": "L’affichage et les nuanceurs tournent sur le quatrième cœur, le jeu sur les trois autres." },
       "windows": { "name": "Affichage des fenêtres", "hint": "« Tampon d’image » est la solution de secours quand les fenêtres du jeu s’affichent mal." },
       "verbose": { "name": "Journal détaillé", "hint": "Le journal détaillé de Wine. Ralentit beaucoup le jeu — seulement pour trouver des bogues." },
       "profile": { "name": "Profileur", "hint": "Note dans le journal où le jeu passe son temps. Ralentit le démarrage." },
@@ -564,20 +513,6 @@
     "moveRight": "Curseur vers la droite"
   },
   "graphics": {
-    "direct3d": "Direct3D",
-    "wined3d": "WineD3D (compatibilité)",
-    "direct3dHints": {
-      "dxvk": "Traduit Direct3D 8–11 en Vulkan. La voie la plus rapide; convient à presque tous les jeux.",
-      "dxvkVkd3d": "DXVK et VKD3D pour les jeux DirectX 12. Seuls ces jeux en ont besoin, et seulement en 64 bits.",
-      "wine": "Direct3D par OpenGL, comme dans Wine standard. Plus lent; choisissez-le si le jeu ne démarre pas avec DXVK ou affiche des artéfacts."
-    },
-    "dxvkSource": "Variante DXVK",
-    "dxvkOfficial": "Officielle",
-    "dxvkSourceHints": {
-      "official": "La variante de DXVK fournie avec Carafe.",
-      "gplasync": "Carafe ne fournit pas GPL Async : le jeu se rabattra très probablement sur WineD3D, plus lent. Gardez « Officielle ».",
-      "sarek": "Carafe ne fournit pas Sarek : le jeu se rabattra très probablement sur WineD3D, plus lent. Gardez « Officielle »."
-    },
     "frameLimit": "Limite d’images",
     "frameLimitHint": "Empêche le jeu de dessiner plus vite que cette valeur : images plus régulières, moins de chaleur et de consommation de batterie. L’écran de la Switch fonctionne à 60 Hz. S’applique à Vulkan, DXVK et VKD3D.",
     "noLimit": "Aucune limite",
@@ -610,17 +545,6 @@
   "advanced": {
     "title": "Options avancées",
     "system": "Système",
-    "sync": "Synchronisation des fils d’exécution",
-    "syncHints": {
-      "horizon": "Les fils d’exécution du jeu s’attendent entre eux directement par le noyau de la Switch. Plus rapide et plus fiable; aide les jeux qui se figent au démarrage ou affichent un écran noir.",
-      "standard": "Comme dans Wine standard — par un fil de service. Choisissez-le si le jeu se comporte mal avec Horizon."
-    },
-    "syncStandard": "Standard",
-    "cpu": "Émulateur de processeur",
-    "cpuHints": {
-      "fex": "L’émulateur x86 principal, pour les jeux 32 et 64 bits.",
-      "box64": "Un second émulateur, pour les jeux 32 bits seulement. Essayez-le si le jeu plante ou saccade avec FEX."
-    },
     "windows": "Affichage des fenêtres",
     "windowsAuto": "Automatique",
     "windowsFramebuffer": "Tampon d’image",
@@ -630,8 +554,6 @@
       "compositor": "Comme « Automatique ».",
       "framebuffer": "Les fenêtres sont copiées directement à l’écran, sans compositeur. Une solution de secours si les fenêtres s’affichent mal; l’écran de chargement et le curseur de Carafe pourraient ne pas fonctionner."
     },
-    "fourCores": "Quatrième cœur pour le graphisme",
-    "fourCoresHint": "Le rendu et les nuanceurs tournent sur le quatrième cœur, et le jeu garde les trois autres pour lui. Mieux vaut généralement le laisser activé.",
     "debug": "Débogage",
     "verbose": "Traces détaillées",
     "verboseHint": "Un journal Wine détaillé dans un fichier séparé. Ralentit beaucoup le jeu — seulement pour chasser les bogues.",

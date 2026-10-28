@@ -1,56 +1,51 @@
 import { useTranslation } from "react-i18next";
-import type { DebugSettings } from "@/shared/api/bindings/DebugSettings";
-import type { SyncMode } from "@/shared/api/bindings/SyncMode";
-import type { SystemSettings } from "@/shared/api/bindings/SystemSettings";
-import type { WindowOutput } from "@/shared/api/bindings/WindowOutput";
+import type { AutorunSettings } from "@/shared/api/bindings/AutorunSettings";
+import type { Catalog } from "@/shared/api/bindings/Catalog";
+import type { Section } from "@/shared/api/bindings/Section";
 import { Field } from "@/shared/ui/Field";
 import { Segmented } from "@/shared/ui/Segmented";
 import { Toggle } from "@/shared/ui/Toggle";
+import { CatalogGroup } from "./CatalogGroup";
+import { currentPreset, withPreset } from "./catalogValues";
 import styles from "./editors.module.css";
 
+const CUSTOM = "custom";
+
 type SystemEditorProps = {
-  system: SystemSettings;
-  debug: DebugSettings;
-  onSystemChange: (next: SystemSettings) => void;
-  onDebugChange: (next: DebugSettings) => void;
+  catalog: Catalog;
+  section: Section;
+  value: AutorunSettings;
+  onChange: (next: AutorunSettings) => void;
 };
 
-export function SystemEditor({ system, debug, onSystemChange, onDebugChange }: SystemEditorProps) {
+export function SystemEditor({ catalog, section, value, onChange }: SystemEditorProps) {
   const { t } = useTranslation();
+  const preset = currentPreset(catalog, value, section.presets);
+  const debug = value.debug;
+
   return (
     <div className={styles.stack}>
-      <div className={styles.group}>
-        <Field label={t("advanced.sync")} hint={t(`advanced.syncHints.${system.sync}`)}>
-          <Segmented<SyncMode>
-            label={t("advanced.sync")}
-            value={system.sync}
+      {section.entries.map((entry) =>
+        entry.kind === "group" ? <CatalogGroup key={entry.id} catalog={catalog} group={entry} value={value} onChange={onChange} /> : null,
+      )}
+      {section.presets.length > 0 ? (
+        <Field label={t("catalog.ui.preset")} hint={preset ? t(preset.hint) : t("catalog.ui.presetCustom")}>
+          <Segmented<string>
+            label={t("catalog.ui.preset")}
+            value={preset?.id ?? CUSTOM}
             options={[
-              { value: "horizon", label: "Horizon" },
-              { value: "standard", label: t("advanced.syncStandard") },
+              ...section.presets.map((item) => ({ value: item.id, label: t(item.name) })),
+              { value: CUSTOM, label: t("catalog.presets.custom") },
             ]}
-            onChange={(sync) => onSystemChange({ ...system, sync })}
+            onChange={(id) => {
+              const picked = section.presets.find((item) => item.id === id);
+              if (picked) {
+                onChange(withPreset(catalog, value, picked));
+              }
+            }}
           />
         </Field>
-        <Field label={t("advanced.windows")} hint={t(`advanced.windowsHints.${system.windows}`)}>
-          <Segmented<WindowOutput>
-            label={t("advanced.windows")}
-            value={system.windows}
-            options={[
-              { value: "auto", label: t("advanced.windowsAuto") },
-              { value: "framebuffer", label: t("advanced.windowsFramebuffer") },
-              { value: "compositor", label: t("advanced.windowsCompositor") },
-            ]}
-            onChange={(windows) => onSystemChange({ ...system, windows })}
-          />
-        </Field>
-        <Toggle
-          id="four-cores"
-          label={t("advanced.fourCores")}
-          hint={t("advanced.fourCoresHint")}
-          checked={system.fourCores}
-          onChange={(fourCores) => onSystemChange({ ...system, fourCores })}
-        />
-      </div>
+      ) : null}
       <div className={styles.group}>
         <span className={styles.groupTitle}>{t("advanced.debug")}</span>
         <Toggle
@@ -58,14 +53,14 @@ export function SystemEditor({ system, debug, onSystemChange, onDebugChange }: S
           label={t("advanced.verbose")}
           hint={t("advanced.verboseHint")}
           checked={debug.verbose}
-          onChange={(verbose) => onDebugChange({ ...debug, verbose })}
+          onChange={(verbose) => onChange({ ...value, debug: { ...debug, verbose } })}
         />
         <Toggle
           id="profile"
           label={t("advanced.profile")}
           hint={t("advanced.profileHint")}
           checked={debug.profile}
-          onChange={(profile) => onDebugChange({ ...debug, profile })}
+          onChange={(profile) => onChange({ ...value, debug: { ...debug, profile } })}
         />
       </div>
     </div>

@@ -67,7 +67,7 @@ pub enum PackageError {
 ///
 /// The game folder in RomFS is named like the folder on the PC. The runtime gets the path to the `.exe` in
 /// `carafe/argv`, the title for the loading screen in `carafe/title`; next to the `.exe` go `<name>.keys.txt`,
-/// `<name>.wine-nx.txt`, `<name>.box64.txt` when a Box64 option is changed and, if there are arguments,
+/// `<name>.wine-nx.txt` and, if there are arguments,
 /// `<name>.args.txt`, and `carafe/registry.txt` when the game has registry entries or menu rows. The console
 /// menu's `carafe/menu.txt` comes from [`crate::settings_menu::render`].
 ///
@@ -103,12 +103,6 @@ pub fn package(record: &BuildRecord, apis: &[Api]) -> Result<GamePackage, Packag
             contents: settings.program,
         },
     ];
-    if !settings.box64.is_empty() {
-        romfs_files.push(GeneratedFile {
-            path: format!("{exe_dir}/{}", settings.box64_name),
-            contents: settings.box64,
-        });
-    }
     if let Some(contents) = registry::render_registry_file(&record.settings.registry) {
         romfs_files.push(GeneratedFile {
             path: registry::REGISTRY_FILE.to_owned(),
@@ -304,23 +298,14 @@ mod tests {
     }
 
     #[test]
-    fn box64_file_comes_only_with_a_changed_option() {
-        let mut record = record("C:\\Games\\x", "game.exe", &[]);
-        let games = "switch/wine/drive_c/Games/x";
+    fn no_box64_file_is_packed() {
+        let record = record("C:\\Games\\x", "game.exe", &[]);
+        let package = package(&record, &[]).unwrap();
         assert!(
-            file(
-                &package(&record, &[]).unwrap(),
-                &format!("{games}/game.box64.txt")
-            )
-            .is_none()
-        );
-        record.settings.options.set("box64-strongmem", Some("2"));
-        assert_eq!(
-            file(
-                &package(&record, &[]).unwrap(),
-                &format!("{games}/game.box64.txt")
-            ),
-            Some("BOX64_DYNAREC_STRONGMEM=2\n")
+            !package
+                .romfs_files
+                .iter()
+                .any(|file| file.path.ends_with(".box64.txt"))
         );
     }
 

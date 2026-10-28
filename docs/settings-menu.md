@@ -36,11 +36,12 @@ pad	1	B	B	B	…
   runtime whose list differs shows no menu. It keeps only the console's language and English of each text.
 - `api <name>` — a Direct3D the game's executable imports: `d3d8`, `d3d9`, `d3d10`, `d3d11`, `d3d12`. No `api`
   line means the app does not know, and every option is shown.
-- `section <id> <name ×15>` — a tab of the menu. The ids are `controls`, `graphics`, `directx`, `processor`,
-  `system`, `experimental`, in this order. The menu draws `controls` itself (the console map, from `key` and `pad`); its `setting`
+- `section <id> <name ×15>` — a tab of the menu. The ids are `controls`, `graphics`, `system`, `experimental`, in
+  this order; `system` holds the DXVK and FEX groups and the FEX presets. The menu draws `controls` itself (the console map, from `key` and `pad`); its `setting`
   lines are the row above the map.
 - `setting <id> <file> <key> <apply> <default> <when> <api> <name ×15> <hint ×15>` — a row:
-  - `<file>` — `program` (`<exe>.wine-nx.txt`), `keys` (`<exe>.keys.txt`) or `box64` (`<exe>.box64.txt`);
+  - `<file>` — `program` (`<exe>.wine-nx.txt`) or `keys` (`<exe>.keys.txt`); the menu still reads `box64`
+    (`<exe>.box64.txt`) from packages made before decision 43;
   - `<key>` — the key in that file;
   - `<apply>` — `now` (the menu applies it while the game runs) or `restart`;
   - `<default>` — the index of the value the setting has when its key is missing from the file;

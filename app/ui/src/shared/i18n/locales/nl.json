@@ -8,17 +8,12 @@
     "sections": {
       "controls": "Besturing",
       "graphics": "Graphics",
-      "directx": "DirectX",
-      "processor": "Processor",
       "system": "Systeem",
       "experimental": "Experimenteel"
     },
     "groups": {
       "dxvk": "DXVK-opties",
-      "fex-memory": "Geheugenvolgorde",
-      "fex-compat": "Compatibiliteit en caches",
-      "box64-precision": "Precisie en flags",
-      "box64-memory": "Geheugen en threads"
+      "fex": "FEX-opties"
     },
     "pages": {
       "dxvk-memory": "Geheugen",
@@ -28,7 +23,10 @@
       "dxvk-display": "Weergavemodi",
       "dxvk-fixes": "Fixes",
       "dxvk-render": "Renderpad",
-      "dxvk-identity": "Wat de game ziet"
+      "dxvk-identity": "Wat de game ziet",
+      "fex-general": "Algemeen",
+      "fex-memory": "Geheugenvolgorde",
+      "fex-compat": "Compatibiliteit en caches"
     },
     "presets": {
       "balanced": { "name": "Gebalanceerd", "hint": "Zoals Autorun standaard werkt." },
@@ -48,8 +46,7 @@
         "fex-maxinst": "Minder geheugen voor de vertaalde code van de game."
       },
       "threads": {
-        "dxvk-numCompilerThreads": "Laat meer taken over aan de game zelf. Nieuwe effecten verschijnen later.",
-        "sync": "Als de game bij elke start zo afsluit."
+        "dxvk-numCompilerThreads": "Laat meer taken over aan de game zelf. Nieuwe effecten verschijnen later."
       }
     },
     "values": {
@@ -68,36 +65,13 @@
       "constantBuffers": "Constanten",
       "shaderResources": "Shaderbronnen",
       "vertexIndex": "Vertices en indices",
-      "safe": "Veilig",
-      "small": "Klein",
-      "large": "Groot",
-      "balanced": "Gebalanceerd",
-      "wine": "Voor Wine",
-      "fast": "Snel",
-      "guarded": "Bewaakt",
-      "basic": "Basis",
-      "strong": "Sterk",
-      "precise": "Precies",
-      "hybrid": "Hybride",
-      "double": "Dubbel",
-      "honor": "Zoals de game vraagt",
-      "full": "Volledig",
-      "reduced": "Beperkt",
-      "minimal": "Minimaal",
-      "ignore": "Negeren",
-      "yield": "Voorrang geven",
-      "files": "Alleen bestanden",
-      "weak": "Zwak",
-      "weakest": "Zwakst",
       "flowEighth": "12,5%",
       "flowQuarter": "25%",
       "flowHalf": "50%",
       "mib": "{{value}} MiB",
       "percent": "{{value}}%",
-      "seconds": "{{value}} s",
       "hz": "{{value}} Hz",
-      "times": "{{value}}×",
-      "bundled": "{{value}} · in het pakket"
+      "times": "{{value}}×"
     },
     "settings": {
       "input-mode": { "name": "Besturingsmodus", "hint": "Controller: de game ziet een Xbox 360-gamepad. Toetsenbord en muis: Switch-knoppen drukken toetsen in." },
@@ -112,10 +86,6 @@
       "lsfg": { "name": "LSFG-VK-framegeneratie", "hint": "Voegt een getekend frame in tussen de frames van de game: vloeiender, maar de besturing reageert iets later. Vereist Lossless.dll." },
       "lsfg-performance": { "name": "Prestatiemodus", "hint": "Sneller, maar de tussenframes zijn minder nauwkeurig." },
       "lsfg-flow": { "name": "Schaal optische stroom", "hint": "Resolutie waarop beweging wordt gezocht: lager is sneller, hoger is nauwkeuriger." },
-      "d3d": { "name": "Direct3D", "hint": "Hoe Direct3D wordt omgezet naar Switch-graphics. DXVK is het snelst en past bij bijna elke game." },
-      "dxvk-source": { "name": "DXVK-build", "hint": "De builds GPL Async en Sarek zitten nog niet in het pakket: laat het op Officieel staan." },
-      "dxvk-version": { "name": "DXVK-versie", "hint": "Het pakket bevat één versie. Andere komen zodra Carafe ze in het pakket kan stoppen." },
-      "vkd3d-version": { "name": "VKD3D-versie", "hint": "Voor DirectX 12-games. Het pakket bevat één versie." },
       "dxvk-maxMemoryBudget": { "name": "DXVK-geheugenbudget", "hint": "Hoeveel geheugen DXVK neemt voor texturen en buffers. Met minder raakt het geheugen minder vaak op, maar texturen laden mogelijk later in." },
       "dxgi-maxDeviceMemory": { "name": "Videogeheugen voor de game (DX10–12)", "hint": "Hoeveel videogeheugen de game ziet. Verlaag het als de game het geheugen volzet en crasht; het voegt geen echt geheugen toe." },
       "dxgi-maxSharedMemory": { "name": "Gedeeld geheugen voor de game (DX10–12)", "hint": "Hoeveel gedeeld geheugen aan de game wordt gemeld. Reserveert niets." },
@@ -167,7 +137,6 @@
       "dxgi-hideNvkGpu": { "name": "NVK-driver verbergen (DX10–12)", "hint": "De game ziet niet dat de driver NVK is." },
       "d3d9-hideNvidiaGpu": { "name": "NVIDIA verbergen (DX9)", "hint": "De game herkent de NVIDIA-GPU niet en slaat de speciale paden ervoor over." },
       "d3d9-hideNvkGpu": { "name": "NVK-driver verbergen (DX9)", "hint": "De game ziet niet dat de driver NVK is." },
-      "cpu": { "name": "CPU-emulator", "hint": "FEX is de hoofdemulator, voor 32- en 64-bit-games. Box64 is de reserve, alleen voor 32-bit-games." },
       "fex-tso": { "name": "Strikte geheugenvolgorde", "hint": "Ordent geheugentoegang zoals x86 dat doet. Trager; zet aan als een multithreaded game crasht, vastloopt of gegevens beschadigt." },
       "fex-x87-single": { "name": "x87 in enkele precisie", "hint": "Rekent x87-kommagetallen met de precisie die Direct3D 9 instelt, zonder extra omzettingen. Sneller. Zet uit als getallen, natuurkunde of beeld niet kloppen." },
       "fex-gdb-symbols": { "name": "Exacte codekaart voor de profiler", "hint": "De profiler ziet elke instructie van de game, niet maar een deel. Alleen voor metingen; geen invloed op de snelheid." },
@@ -194,26 +163,6 @@
       "fex-hybrid": { "name": "Gemengde cores verbergen", "hint": "De game ziet alle cores als gelijk. Laat het meestal aan." },
       "fex-l1-increase": { "name": "Groeidrempel L1-cache", "hint": "Lager laat de sprongcache sneller groeien: sneller, meer geheugen. Alleen met sprongcache bijstellen." },
       "fex-l1-decrease": { "name": "Krimpdrempel L1-cache", "hint": "Hoger geeft geheugen sneller terug: zuiniger, meer missers. Alleen met sprongcache bijstellen." },
-      "box64-atomics": { "name": "Snelle atomaire bewerkingen", "hint": "Minder code, maar de game crasht bij de eerste niet-uitgelijnde atomaire bewerking. Alleen voor geteste games." },
-      "box64-bigblock": { "name": "Blokgrootte", "hint": "Groter is sneller. Klein is voor games die hun code herschrijven of veel threads hebben." },
-      "box64-callret": { "name": "Snelle aanroepen en returns", "hint": "Versnelt functieaanroepen. Bewaakt is de veilige keuze; Snel kan terugkeren in verouderde code." },
-      "box64-safeflags": { "name": "Flags rond aanroepen", "hint": "Snel is eenvoudiger, Veilig dekt zeldzame gevallen." },
-      "box64-strongmem": { "name": "Strikte geheugenvolgorde", "hint": "Verhoog dit als een multithreaded game vastloopt of vreemd doet; trager." },
-      "box64-forward": { "name": "Bereik blokopbouw", "hint": "Meer is sneller, maar kost meer geheugen voor code." },
-      "box64-df": { "name": "Uitgestelde flags", "hint": "CPU-flags worden pas berekend als ze nodig zijn. Laat het meestal aan." },
-      "box64-div0": { "name": "Fout bij delen door nul", "hint": "De game krijgt de fout voor delen door nul zoals op x86 en kan die afhandelen." },
-      "box64-fastnan": { "name": "Snelle NaN", "hint": "Sneller; Precies als physics of berekeningen misgaan." },
-      "box64-fastround": { "name": "Afronding van getallen", "hint": "Snel is het snelst, Precies het nauwkeurigst." },
-      "box64-nativeflags": { "name": "ARM-flags direct", "hint": "Sneller; zet alleen uit om een bug te zoeken." },
-      "box64-x87double": { "name": "x87-precisie", "hint": "Dubbele precisie in plaats van de snelle; helpt als de camera of physics trillen." },
-      "box64-noarch": { "name": "Blokmetadata", "hint": "Minder bespaart geheugen, maar kan games met beveiliging breken." },
-      "box64-pause": { "name": "Wachten in lussen", "hint": "Hoe threads op elkaar wachten; de beste modus hangt af van de game." },
-      "box64-sep": { "name": "Ingangen na aanroepen", "hint": "Met minder wordt code na aanroepen vaker opnieuw vertaald. Laat het meestal op Alle staan." },
-      "box64-weakbarrier": { "name": "Lichte barrières", "hint": "Lichter is sneller, maar minder veilig in multithreaded games." },
-      "box64-purge": { "name": "Codegeheugen vrijgeven", "hint": "Als het codegeheugen vol is, maakt code die een tijd niet nodig was plaats voor nieuwe code. Voor 32-bit-games die na verloop van tijd trager worden." },
-      "box64-purge-age": { "name": "Tijd tot vrijgeven", "hint": "Hoelang code ongebruikt moet blijven. Alleen met codegeheugen vrijgeven." },
-      "sync": { "name": "Threadsynchronisatie", "hint": "Horizon: threads van de game wachten op elkaar via de Switch-kernel. Sneller en betrouwbaarder." },
-      "four-cores": { "name": "Vierde core voor graphics", "hint": "Tekenen en shaders draaien op de vierde core, de game op de andere drie." },
       "windows": { "name": "Vensteruitvoer", "hint": "Framebuffer is de terugvaloptie als de vensters van de game verkeerd verschijnen." },
       "verbose": { "name": "Uitgebreid log", "hint": "Het gedetailleerde log van Wine. Maakt de game veel trager — alleen om bugs te zoeken." },
       "profile": { "name": "Profiler", "hint": "Schrijft in het log waar de game zijn tijd aan besteedt. Vertraagt het starten." },
@@ -562,20 +511,6 @@
     "moveRight": "Cursor naar rechts"
   },
   "graphics": {
-    "direct3d": "Direct3D",
-    "wined3d": "WineD3D (compatibiliteit)",
-    "direct3dHints": {
-      "dxvk": "Zet Direct3D 8–11 om naar Vulkan. De snelste route; past bij bijna elke game.",
-      "dxvkVkd3d": "DXVK plus VKD3D voor DirectX 12-games. Alleen die hebben het nodig, en alleen de 64-bit-versies.",
-      "wine": "Direct3D via OpenGL, zoals in gewone Wine. Trager; kies dit als de game niet start met DXVK of rommel tekent."
-    },
-    "dxvkSource": "DXVK-build",
-    "dxvkOfficial": "Officieel",
-    "dxvkSourceHints": {
-      "official": "De DXVK-build die met Carafe meekomt.",
-      "gplasync": "Carafe levert GPL Async niet mee: de game valt waarschijnlijk terug op het trage WineD3D. Laat het op “Officieel” staan.",
-      "sarek": "Carafe levert Sarek niet mee: de game valt waarschijnlijk terug op het trage WineD3D. Laat het op “Officieel” staan."
-    },
     "frameLimit": "Framelimiet",
     "frameLimitHint": "Voorkomt dat de game sneller tekent dan dit: vloeiendere frames, minder warmte en batterijverbruik. Het Switch-scherm draait op 60 Hz. Geldt voor Vulkan, DXVK en VKD3D.",
     "noLimit": "Geen limiet",
@@ -608,17 +543,6 @@
   "advanced": {
     "title": "Geavanceerd",
     "system": "Systeem",
-    "sync": "Threadsynchronisatie",
-    "syncHints": {
-      "horizon": "Threads van de game wachten direct op elkaar via de Switch-kernel. Sneller en betrouwbaarder; helpt games die bij het starten vastlopen of een zwart scherm tonen.",
-      "standard": "Zoals in gewone Wine — via een servicethread. Kies dit als de game zich met Horizon vreemd gedraagt."
-    },
-    "syncStandard": "Standaard",
-    "cpu": "CPU-emulator",
-    "cpuHints": {
-      "fex": "De hoofdemulator voor x86, voor 32- en 64-bit-games.",
-      "box64": "Een tweede emulator, alleen voor 32-bit-games. Probeer hem als de game met FEX crasht of hapert."
-    },
     "windows": "Vensteruitvoer",
     "windowsAuto": "Automatisch",
     "windowsFramebuffer": "Framebuffer",
@@ -628,8 +552,6 @@
       "compositor": "Hetzelfde als “Automatisch”.",
       "framebuffer": "Vensters worden rechtstreeks naar het scherm gekopieerd, zonder de compositor. Een terugvaloptie als vensters verkeerd verschijnen; het laadscherm en de cursor van Carafe werken dan misschien niet."
     },
-    "fourCores": "Vierde core voor graphics",
-    "fourCoresHint": "Renderen en shaders draaien op de vierde core, terwijl de game de andere drie voor zichzelf houdt. Meestal het best aan laten.",
     "debug": "Debuggen",
     "verbose": "Uitgebreide traces",
     "verboseHint": "Een gedetailleerd Wine-log in een apart bestand. Maakt de game veel trager — alleen om bugs op te sporen.",

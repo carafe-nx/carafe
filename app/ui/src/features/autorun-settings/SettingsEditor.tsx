@@ -2,11 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AutorunSettings } from "@/shared/api/bindings/AutorunSettings";
 import type { SectionId } from "@/shared/api/bindings/SectionId";
-import { DirectXEditor } from "./DirectXEditor";
 import { ExperimentalEditor } from "./ExperimentalEditor";
 import { GraphicsEditor } from "./GraphicsEditor";
 import { InputEditor } from "./InputEditor";
-import { ProcessorEditor } from "./ProcessorEditor";
 import { RegistryEditor } from "./RegistryEditor";
 import { SystemEditor } from "./SystemEditor";
 import styles from "./SettingsEditor.module.css";
@@ -45,22 +43,16 @@ export function SettingsEditor({ value, onChange, withRegistry = false }: Settin
           <InputEditor value={value.input} onChange={(input) => onChange({ ...value, input })} />
         ) : null}
         {current === "graphics" ? (
-          <GraphicsEditor value={value.graphics} onChange={(graphics) => onChange({ ...value, graphics })} />
+          <GraphicsEditor
+            value={value.graphics}
+            windows={value.system.windows}
+            onChange={(graphics) => onChange({ ...value, graphics })}
+            onWindowsChange={(windows) => onChange({ ...value, system: { ...value.system, windows } })}
+          />
         ) : null}
-        {current === "directx" && catalog && section ? (
-          <DirectXEditor catalog={catalog} section={section} value={value} onChange={onChange} />
-        ) : null}
-        {current === "processor" && catalog && section ? (
-          <ProcessorEditor catalog={catalog} section={section} value={value} onChange={onChange} />
-        ) : null}
-        {current === "system" ? (
+        {current === "system" && catalog && section ? (
           <div className={styles.system}>
-            <SystemEditor
-              system={value.system}
-              debug={value.debug}
-              onSystemChange={(system) => onChange({ ...value, system })}
-              onDebugChange={(debug) => onChange({ ...value, debug })}
-            />
+            <SystemEditor catalog={catalog} section={section} value={value} onChange={onChange} />
             {withRegistry ? (
               <div className={styles.registry}>
                 <span className={styles.registryTitle}>

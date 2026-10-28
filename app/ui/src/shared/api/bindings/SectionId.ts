@@ -3,4 +3,4 @@
 /**
  * Id of a section, in the order the sections are shown.
  */
-export type SectionId = "controls" | "graphics" | "directx" | "processor" | "system" | "experimental";
+export type SectionId = "controls" | "graphics" | "system" | "experimental";

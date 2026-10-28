@@ -29,7 +29,7 @@ system: SystemSettings,
  */
 debug: DebugSettings, 
 /**
- * Values of the catalog's settings without a typed field: FEX, DXVK and Box64 options.
+ * Values of the catalog's settings without a typed field: FEX and DXVK options.
  */
 options: OptionValues, 
 /**

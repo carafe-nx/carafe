@@ -24,7 +24,7 @@ pub struct AutorunSettings {
     pub system: SystemSettings,
     /// Debugging.
     pub debug: DebugSettings,
-    /// Values of the catalog's settings without a typed field: FEX, DXVK and Box64 options.
+    /// Values of the catalog's settings without a typed field: FEX and DXVK options.
     #[serde(default)]
     pub options: OptionValues,
     /// Entries laid over the game's Windows registry and the console menu rows that change it.
@@ -149,9 +149,6 @@ pub enum SettingsError {
     /// Sharpness is not a multiple of 20 or is greater than 100.
     #[error("sharpness {0} is not one of 0, 20, …, 100")]
     Sharpness(u8),
-    /// DXVK Sarek is incompatible with VKD3D.
-    #[error("the DXVK Sarek build is incompatible with VKD3D")]
-    SarekWithVkd3d,
     /// An option that is not in the catalog, or a value it does not have.
     #[error("option {0} has an unknown value")]
     Option(String),
@@ -381,30 +378,23 @@ fn validate_layout(layout: &[Binding], code_ok: impl Fn(u16) -> bool) -> Result<
     Ok(())
 }
 
-/// What renders Direct3D.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+/// A component choice that Carafe no longer offers, found in settings written by an older version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub enum Direct3d {
-    /// DXVK, the Autorun default.
-    #[default]
-    Dxvk,
-    /// DXVK and VKD3D-Proton for Direct3D 12.
-    DxvkVkd3d,
-    /// WineD3D.
-    Wine,
-}
-
-/// DXVK build.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-#[allow(missing_docs)]
-pub enum DxvkSource {
-    #[default]
-    Official,
-    Sarek,
-    Gplasync,
+pub enum RetiredChoice {
+    /// Direct3D through Wine's wined3d; the game now gets DXVK.
+    WineDirect3d,
+    /// VKD3D chosen by hand; it now comes with games that use Direct3D 12.
+    Vkd3dByHand,
+    /// The GPL Async or Sarek build of DXVK; the game now gets Carafe's DXVK.
+    OtherDxvk,
+    /// The Box64 emulator and its options; the game now runs on FEX.
+    Box64,
+    /// Wine's standard thread synchronisation; the game now waits through Horizon.
+    StandardSync,
+    /// Graphics workers kept off core 3; they may now use it.
+    ThreeCores,
 }
 
 /// Scaling of the frame to the screen.
@@ -451,10 +441,14 @@ pub enum LsfgFlow {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GraphicsSettings {
-    /// What renders Direct3D.
-    pub direct3d: Direct3d,
-    /// DXVK build.
-    pub dxvk_source: DxvkSource,
+    /// What rendered Direct3D in settings of an older version: `dxvk`, `dxvkVkd3d` or `wine`; never written.
+    #[serde(default, rename = "direct3d", skip_serializing)]
+    #[ts(skip)]
+    pub retired_direct3d: Option<String>,
+    /// The DXVK build of settings of an older version: `official`, `sarek` or `gplasync`; never written.
+    #[serde(default, rename = "dxvkSource", skip_serializing)]
+    #[ts(skip)]
+    pub retired_dxvk_source: Option<String>,
     /// Frame limit from [`FRAME_LIMITS`]; `0` means no limit.
     pub frame_limit: u16,
     /// Vertical sync.
@@ -476,8 +470,8 @@ pub struct GraphicsSettings {
 impl Default for GraphicsSettings {
     fn default() -> Self {
         Self {
-            direct3d: Direct3d::Dxvk,
-            dxvk_source: DxvkSource::Official,
+            retired_direct3d: None,
+            retired_dxvk_source: None,
             frame_limit: 0,
             vsync: true,
             upscaling: Upscaling::Fsr,
@@ -491,11 +485,11 @@ impl Default for GraphicsSettings {
 }
 
 impl GraphicsSettings {
-    /// Checks the frame limit, sharpness and DXVK compatibility with VKD3D.
+    /// Checks the frame limit and sharpness.
     ///
     /// # Errors
     ///
-    /// [`SettingsError::FrameLimit`], [`SettingsError::Sharpness`] or [`SettingsError::SarekWithVkd3d`].
+    /// [`SettingsError::FrameLimit`] or [`SettingsError::Sharpness`].
     pub fn validate(&self) -> Result<(), SettingsError> {
         if !FRAME_LIMITS.contains(&self.frame_limit) {
             return Err(SettingsError::FrameLimit(self.frame_limit));
@@ -503,34 +497,8 @@ impl GraphicsSettings {
         if self.sharpness > 100 || !self.sharpness.is_multiple_of(20) {
             return Err(SettingsError::Sharpness(self.sharpness));
         }
-        if self.direct3d == Direct3d::DxvkVkd3d && self.dxvk_source == DxvkSource::Sarek {
-            return Err(SettingsError::SarekWithVkd3d);
-        }
         Ok(())
     }
-}
-
-/// Thread synchronization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub enum SyncMode {
-    /// Waits through the emulated wineserver.
-    Standard,
-    /// Waits through the Horizon kernel (`sync = horizon`).
-    #[default]
-    Horizon,
-}
-
-/// x86 CPU emulator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-#[allow(missing_docs)]
-pub enum CpuEmulator {
-    #[default]
-    Fex,
-    Box64,
 }
 
 /// Where the game windows are output.
@@ -547,29 +515,60 @@ pub enum WindowOutput {
     Compositor,
 }
 
-/// CPU, synchronization, windows.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// Windows, and the component choices of settings of an older version.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SystemSettings {
-    /// Thread synchronization mode.
-    pub sync: SyncMode,
-    /// CPU emulator.
-    pub cpu: CpuEmulator,
-    /// Give the game four cores.
-    pub four_cores: bool,
+    /// Thread synchronisation of settings of an older version: `standard` or `horizon`; never written.
+    #[serde(default, rename = "sync", skip_serializing)]
+    #[ts(skip)]
+    pub retired_sync: Option<String>,
+    /// The CPU emulator of settings of an older version: `fex` or `box64`; never written.
+    #[serde(default, rename = "cpu", skip_serializing)]
+    #[ts(skip)]
+    pub retired_cpu: Option<String>,
+    /// Whether graphics workers could use core 3 in settings of an older version; never written.
+    #[serde(default, rename = "fourCores", skip_serializing)]
+    #[ts(skip)]
+    pub retired_four_cores: Option<bool>,
     /// Where windows are output.
     pub windows: WindowOutput,
 }
 
-impl Default for SystemSettings {
-    fn default() -> Self {
-        Self {
-            sync: SyncMode::Horizon,
-            cpu: CpuEmulator::Fex,
-            four_cores: true,
-            windows: WindowOutput::Auto,
+impl AutorunSettings {
+    /// Returns the component choices of an older version that these settings had and that Carafe no longer
+    /// offers.
+    ///
+    /// # Returns
+    ///
+    /// The choices in a fixed order; empty for settings written by this version.
+    #[must_use]
+    pub fn retired_choices(&self) -> Vec<RetiredChoice> {
+        let graphics = &self.graphics;
+        let system = &self.system;
+        let mut choices = Vec::new();
+        match graphics.retired_direct3d.as_deref() {
+            Some("wine") => choices.push(RetiredChoice::WineDirect3d),
+            Some("dxvkVkd3d") => choices.push(RetiredChoice::Vkd3dByHand),
+            _ => {}
         }
+        if matches!(
+            graphics.retired_dxvk_source.as_deref(),
+            Some("sarek" | "gplasync")
+        ) {
+            choices.push(RetiredChoice::OtherDxvk);
+        }
+        if system.retired_cpu.as_deref() == Some("box64") {
+            choices.push(RetiredChoice::Box64);
+        }
+        if system.retired_sync.as_deref() == Some("standard") {
+            choices.push(RetiredChoice::StandardSync);
+        }
+        if system.retired_four_cores == Some(false) {
+            choices.push(RetiredChoice::ThreeCores);
+        }
+        choices
     }
 }
 
@@ -608,12 +607,10 @@ mod tests {
     #[test]
     fn defaults_suit_the_switch() {
         let settings = AutorunSettings::default();
-        assert_eq!(settings.system.sync, SyncMode::Horizon);
         assert_eq!(settings.graphics.upscaling, Upscaling::Fsr);
         assert_eq!(settings.graphics.sharpness, 40);
         assert!(settings.input.keyboard_auto);
         assert_eq!(settings.input.mode, InputMode::Controller);
-        assert!(settings.system.four_cores);
         assert!(settings.graphics.vsync);
         assert!(!settings.graphics.lsfg);
     }
@@ -688,14 +685,63 @@ mod tests {
         );
     }
 
+    const WITH_EVERY_RETIRED_CHOICE: &str = r#"{
+        "input": {"mode": "controller", "leftDeadzone": 8, "rightDeadzone": 5, "keyboardAuto": true,
+                  "keys": [{"button": "A", "codes": [32]}], "pad": [{"button": "A", "codes": [1]}]},
+        "graphics": {"direct3d": "wine", "dxvkSource": "sarek", "frameLimit": 0, "vsync": true,
+                     "upscaling": "fsr", "sharpness": 40, "hud": "off", "lsfg": false,
+                     "lsfgPerformance": true, "lsfgFlow": "quarter"},
+        "system": {"sync": "standard", "cpu": "box64", "fourCores": false, "windows": "compositor"},
+        "debug": {"verbose": false, "profile": false},
+        "options": {"box64-strongmem": "3", "fex-maxinst": "5000"}
+    }"#;
+
     #[test]
-    fn rejects_sarek_with_vkd3d() {
-        let graphics = GraphicsSettings {
-            direct3d: Direct3d::DxvkVkd3d,
-            dxvk_source: DxvkSource::Sarek,
-            ..GraphicsSettings::default()
-        };
-        assert_eq!(graphics.validate(), Err(SettingsError::SarekWithVkd3d));
+    fn retired_choices_are_read_and_named() {
+        let settings: AutorunSettings = serde_json::from_str(WITH_EVERY_RETIRED_CHOICE).unwrap();
+        assert_eq!(
+            settings.retired_choices(),
+            vec![
+                RetiredChoice::WineDirect3d,
+                RetiredChoice::OtherDxvk,
+                RetiredChoice::Box64,
+                RetiredChoice::StandardSync,
+                RetiredChoice::ThreeCores,
+            ]
+        );
+        assert_eq!(settings.system.windows, WindowOutput::Compositor);
+        assert_eq!(settings.options.get("box64-strongmem"), None);
+        assert_eq!(settings.options.get("fex-maxinst"), Some("5000"));
+        assert_eq!(settings.validate(), Ok(()));
+    }
+
+    #[test]
+    fn retired_choices_are_not_written_again() {
+        let settings: AutorunSettings = serde_json::from_str(WITH_EVERY_RETIRED_CHOICE).unwrap();
+        let json = serde_json::to_string(&settings).unwrap();
+        for key in [
+            "direct3d",
+            "dxvkSource",
+            "\"sync\"",
+            "\"cpu\"",
+            "fourCores",
+            "box64",
+        ] {
+            assert!(!json.contains(key), "{key} in {json}");
+        }
+        let again: AutorunSettings = serde_json::from_str(&json).unwrap();
+        assert_eq!(again.retired_choices(), Vec::new());
+        assert_eq!(again.system.windows, WindowOutput::Compositor);
+    }
+
+    #[test]
+    fn the_one_path_values_of_an_older_version_are_not_retired_choices() {
+        let settings: AutorunSettings = serde_json::from_str(WRITTEN_BEFORE_OPTIONS).unwrap();
+        assert_eq!(settings.retired_choices(), Vec::new());
+        let vkd3d =
+            WRITTEN_BEFORE_OPTIONS.replace(r#""direct3d": "dxvk""#, r#""direct3d": "dxvkVkd3d""#);
+        let settings: AutorunSettings = serde_json::from_str(&vkd3d).unwrap();
+        assert_eq!(settings.retired_choices(), vec![RetiredChoice::Vkd3dByHand]);
     }
 
     const WRITTEN_BEFORE_OPTIONS: &str = r#"{

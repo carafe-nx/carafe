@@ -8,17 +8,12 @@
     "sections": {
       "controls": "조작",
       "graphics": "그래픽",
-      "directx": "DirectX",
-      "processor": "프로세서",
       "system": "시스템",
       "experimental": "실험적 기능"
     },
     "groups": {
       "dxvk": "DXVK 옵션",
-      "fex-memory": "메모리 순서",
-      "fex-compat": "호환성과 캐시",
-      "box64-precision": "정밀도와 플래그",
-      "box64-memory": "메모리와 스레드"
+      "fex": "FEX 옵션"
     },
     "pages": {
       "dxvk-memory": "메모리",
@@ -28,7 +23,10 @@
       "dxvk-display": "화면 모드",
       "dxvk-fixes": "문제 해결",
       "dxvk-render": "렌더링 경로",
-      "dxvk-identity": "게임에 보이는 정보"
+      "dxvk-identity": "게임에 보이는 정보",
+      "fex-general": "기본",
+      "fex-memory": "메모리 순서",
+      "fex-compat": "호환성과 캐시"
     },
     "presets": {
       "balanced": { "name": "균형", "hint": "Autorun의 기본 실행 방식입니다." },
@@ -48,8 +46,7 @@
         "fex-maxinst": "게임의 변환된 코드가 메모리를 덜 씁니다."
       },
       "threads": {
-        "dxvk-numCompilerThreads": "게임 자체에 더 많은 작업을 남깁니다. 새 효과가 나타나는 데 더 오래 걸립니다.",
-        "sync": "게임이 실행할 때마다 이렇게 종료될 때."
+        "dxvk-numCompilerThreads": "게임 자체에 더 많은 작업을 남깁니다. 새 효과가 나타나는 데 더 오래 걸립니다."
       }
     },
     "values": {
@@ -68,36 +65,13 @@
       "constantBuffers": "상수",
       "shaderResources": "셰이더 리소스",
       "vertexIndex": "정점과 인덱스",
-      "safe": "안전",
-      "small": "작게",
-      "large": "크게",
-      "balanced": "균형",
-      "wine": "Wine용",
-      "fast": "빠름",
-      "guarded": "보호",
-      "basic": "기본",
-      "strong": "강하게",
-      "precise": "정밀",
-      "hybrid": "혼합",
-      "double": "배정밀도",
-      "honor": "게임 요청대로",
-      "full": "전체",
-      "reduced": "축소",
-      "minimal": "최소",
-      "ignore": "무시",
-      "yield": "양보",
-      "files": "파일만",
-      "weak": "약하게",
-      "weakest": "가장 약하게",
       "flowEighth": "12.5%",
       "flowQuarter": "25%",
       "flowHalf": "50%",
       "mib": "{{value}} MiB",
       "percent": "{{value}}%",
-      "seconds": "{{value}}초",
       "hz": "{{value}}Hz",
-      "times": "{{value}}×",
-      "bundled": "{{value}} · 패키지에 포함"
+      "times": "{{value}}×"
     },
     "settings": {
       "input-mode": { "name": "조작 모드", "hint": "컨트롤러: 게임에는 Xbox 360 게임패드로 보입니다. 키보드와 마우스: Switch 버튼이 키를 누릅니다." },
@@ -112,10 +86,6 @@
       "lsfg": { "name": "LSFG-VK 프레임 생성", "hint": "게임 프레임 사이에 그린 프레임을 끼워 넣습니다. 더 부드럽지만 조작이 조금 늦어집니다. Lossless.dll이 필요합니다." },
       "lsfg-performance": { "name": "성능 모드", "hint": "더 빠르지만 중간 프레임이 덜 정확합니다." },
       "lsfg-flow": { "name": "옵티컬 플로 배율", "hint": "움직임을 찾는 해상도입니다. 낮을수록 빠르고, 높을수록 정확합니다." },
-      "d3d": { "name": "Direct3D", "hint": "Direct3D를 Switch 그래픽으로 바꾸는 방식입니다. DXVK가 가장 빠르고 거의 모든 게임에 맞습니다." },
-      "dxvk-source": { "name": "DXVK 빌드", "hint": "GPL Async와 Sarek 빌드는 아직 패키지에 들어가지 않습니다. “공식”으로 두세요." },
-      "dxvk-version": { "name": "DXVK 버전", "hint": "패키지에는 버전이 하나만 들어 있습니다. 다른 버전은 Carafe가 패키지에 넣을 수 있게 되면 추가됩니다." },
-      "vkd3d-version": { "name": "VKD3D 버전", "hint": "DirectX 12 게임용입니다. 패키지에는 버전이 하나만 들어 있습니다." },
       "dxvk-maxMemoryBudget": { "name": "DXVK 메모리 예산", "hint": "DXVK가 텍스처와 버퍼에 쓰는 메모리 양입니다. 낮추면 메모리 부족이 덜 생기지만 텍스처가 늦게 로드될 수 있습니다." },
       "dxgi-maxDeviceMemory": { "name": "게임용 비디오 메모리 (DX10–12)", "hint": "게임에 보이는 비디오 메모리 양입니다. 게임이 메모리를 가득 채우고 강제 종료되면 낮추세요. 실제 메모리가 늘지는 않습니다." },
       "dxgi-maxSharedMemory": { "name": "게임용 공유 메모리 (DX10–12)", "hint": "게임에 알려 주는 공유 메모리 양입니다. 실제로 예약하지는 않습니다." },
@@ -167,7 +137,6 @@
       "dxgi-hideNvkGpu": { "name": "NVK 드라이버 숨기기 (DX10–12)", "hint": "게임은 드라이버가 NVK라는 것을 알 수 없습니다." },
       "d3d9-hideNvidiaGpu": { "name": "NVIDIA 숨기기 (DX9)", "hint": "게임이 NVIDIA GPU를 알아보지 못해 전용 경로를 건너뜁니다." },
       "d3d9-hideNvkGpu": { "name": "NVK 드라이버 숨기기 (DX9)", "hint": "게임은 드라이버가 NVK라는 것을 알 수 없습니다." },
-      "cpu": { "name": "CPU 에뮬레이터", "hint": "FEX가 기본이며 32비트와 64비트 게임용입니다. Box64는 예비용이며 32비트 게임 전용입니다." },
       "fex-tso": { "name": "엄격한 메모리 순서", "hint": "x86처럼 메모리 접근 순서를 지킵니다. 느려집니다. 멀티스레드 게임이 강제 종료되거나 멈추거나 데이터가 깨질 때 켜세요." },
       "fex-x87-single": { "name": "x87 단정밀도 계산", "hint": "x87 실수를 Direct3D 9가 정한 정밀도로, 불필요한 변환 없이 계산합니다. 빨라집니다. 숫자나 물리, 화면이 이상하면 끄세요." },
       "fex-gdb-symbols": { "name": "프로파일러용 정확한 코드 맵", "hint": "프로파일러가 게임의 명령을 일부가 아니라 모두 봅니다. 측정용이며 속도에는 영향이 없습니다." },
@@ -194,26 +163,6 @@
       "fex-hybrid": { "name": "혼합 코어 숨기기", "hint": "게임에 모든 코어가 똑같이 보입니다. 보통 켜 두세요." },
       "fex-l1-increase": { "name": "L1 캐시 확장 기준", "hint": "낮출수록 점프 캐시가 쉽게 커져 빠르지만 메모리를 더 씁니다. 점프 캐시 크기 조절을 켰을 때만 작동합니다." },
       "fex-l1-decrease": { "name": "L1 캐시 축소 기준", "hint": "높일수록 메모리를 쉽게 돌려줘 절약되지만 미스가 늘어납니다. 점프 캐시 크기 조절을 켰을 때만 작동합니다." },
-      "box64-atomics": { "name": "빠른 원자 연산", "hint": "코드가 줄지만 정렬 안 된 원자 연산을 처음 만나면 게임이 강제 종료됩니다. 검증된 게임에만 쓰세요." },
-      "box64-bigblock": { "name": "블록 크기", "hint": "클수록 빠릅니다. 작게는 자기 코드를 고쳐 쓰거나 스레드가 많은 게임용입니다." },
-      "box64-callret": { "name": "빠른 호출과 반환", "hint": "함수 호출을 빠르게 합니다. “보호”가 안전하며, “빠름”은 오래된 코드로 돌아갈 수 있습니다." },
-      "box64-safeflags": { "name": "호출 전후 플래그", "hint": "“빠름”은 더 단순하고, “안전”은 드문 경우까지 처리합니다." },
-      "box64-strongmem": { "name": "엄격한 메모리 순서", "hint": "멀티스레드 게임이 멈추거나 이상하게 동작하면 높이세요. 느려집니다." },
-      "box64-forward": { "name": "블록 구성 범위", "hint": "클수록 빠르지만 코드에 메모리를 더 씁니다." },
-      "box64-df": { "name": "지연 플래그", "hint": "CPU 플래그를 필요할 때만 계산합니다. 보통 켜 두세요." },
-      "box64-div0": { "name": "0으로 나누기 오류", "hint": "게임이 x86에서처럼 0으로 나누기 오류를 받아 직접 처리할 수 있습니다." },
-      "box64-fastnan": { "name": "빠른 NaN", "hint": "더 빠릅니다. 물리나 연산이 깨지면 “정밀”로 바꾸세요." },
-      "box64-fastround": { "name": "숫자 반올림", "hint": "“빠름”이 가장 빠르고, “정밀”이 가장 정확합니다." },
-      "box64-nativeflags": { "name": "ARM 플래그 직접 사용", "hint": "더 빠릅니다. 버그를 찾을 때만 끄세요." },
-      "box64-x87double": { "name": "x87 정밀도", "hint": "빠른 방식 대신 배정밀도를 씁니다. 카메라나 물리가 떨릴 때 도움이 됩니다." },
-      "box64-noarch": { "name": "블록 메타데이터", "hint": "줄이면 메모리가 절약되지만 보호 기능이 있는 게임이 망가질 수 있습니다." },
-      "box64-pause": { "name": "루프 안에서 기다리기", "hint": "스레드가 서로 기다리는 방식입니다. 가장 좋은 모드는 게임마다 다릅니다." },
-      "box64-sep": { "name": "호출 뒤 진입점", "hint": "줄이면 호출 뒤의 코드를 더 자주 다시 변환합니다. 보통 “전체”로 두세요." },
-      "box64-weakbarrier": { "name": "가벼운 배리어", "hint": "가벼울수록 빠르지만 멀티스레드 게임에서는 덜 안전합니다." },
-      "box64-purge": { "name": "코드 메모리 비우기", "hint": "코드 메모리가 가득 차면 한동안 쓰지 않은 코드가 새 코드에 자리를 내줍니다. 시간이 지날수록 느려지는 32비트 게임용입니다." },
-      "box64-purge-age": { "name": "비우기 전 대기 시간", "hint": "코드가 쓰이지 않은 채 지나야 하는 시간입니다. 코드 메모리 비우기를 켰을 때만 작동합니다." },
-      "sync": { "name": "스레드 동기화", "hint": "Horizon: 게임 스레드가 Switch 커널을 통해 서로 기다립니다. 더 빠르고 안정적입니다." },
-      "four-cores": { "name": "그래픽용 네 번째 코어", "hint": "그리기와 셰이더는 네 번째 코어에서, 게임은 나머지 세 코어에서 실행됩니다." },
       "windows": { "name": "창 출력", "hint": "프레임 버퍼는 게임 창이 잘못 표시될 때 쓰는 예비 방식입니다." },
       "verbose": { "name": "상세 로그", "hint": "Wine의 상세 로그입니다. 게임이 많이 느려지므로 버그를 찾을 때만 쓰세요." },
       "profile": { "name": "프로파일러", "hint": "게임이 어디에 시간을 쓰는지 로그에 기록합니다. 시작이 느려집니다." },
@@ -560,20 +509,6 @@
     "moveRight": "커서 오른쪽으로"
   },
   "graphics": {
-    "direct3d": "Direct3D",
-    "wined3d": "WineD3D (호환성)",
-    "direct3dHints": {
-      "dxvk": "Direct3D 8–11을 Vulkan으로 변환합니다. 가장 빠른 방식이며 거의 모든 게임에 맞습니다.",
-      "dxvkVkd3d": "DirectX 12 게임용 DXVK와 VKD3D입니다. 이런 게임, 그중에서도 64비트 게임에만 필요합니다.",
-      "wine": "일반 Wine처럼 OpenGL로 Direct3D를 처리합니다. 더 느리며, DXVK로 게임이 시작되지 않거나 화면이 깨질 때 고르세요."
-    },
-    "dxvkSource": "DXVK 빌드",
-    "dxvkOfficial": "공식",
-    "dxvkSourceHints": {
-      "official": "Carafe에 포함된 DXVK 빌드입니다.",
-      "gplasync": "Carafe에는 GPL Async가 포함되어 있지 않아 게임이 느린 WineD3D로 전환될 가능성이 높습니다. “공식”으로 두세요.",
-      "sarek": "Carafe에는 Sarek이 포함되어 있지 않아 게임이 느린 WineD3D로 전환될 가능성이 높습니다. “공식”으로 두세요."
-    },
     "frameLimit": "프레임 제한",
     "frameLimitHint": "게임이 이보다 빠르게 그리지 않게 합니다. 화면이 고르고, 발열과 배터리 소모가 줄어듭니다. Switch 화면은 60Hz로 작동합니다. Vulkan, DXVK, VKD3D에 적용됩니다.",
     "noLimit": "제한 없음",
@@ -606,17 +541,6 @@
   "advanced": {
     "title": "고급",
     "system": "시스템",
-    "sync": "스레드 동기화",
-    "syncHints": {
-      "horizon": "게임 스레드가 Switch 커널을 통해 서로 직접 기다립니다. 더 빠르고 안정적이며, 시작할 때 멈추거나 검은 화면만 나오는 게임에 도움이 됩니다.",
-      "standard": "일반 Wine처럼 서비스 스레드를 거칩니다. Horizon에서 게임이 이상하게 동작하면 고르세요."
-    },
-    "syncStandard": "표준",
-    "cpu": "CPU 에뮬레이터",
-    "cpuHints": {
-      "fex": "32비트와 64비트 게임용 기본 x86 에뮬레이터입니다.",
-      "box64": "32비트 게임 전용 보조 에뮬레이터입니다. FEX에서 게임이 강제 종료되거나 끊기면 시도해 보세요."
-    },
     "windows": "창 출력",
     "windowsAuto": "자동",
     "windowsFramebuffer": "프레임 버퍼",
@@ -626,8 +550,6 @@
       "compositor": "“자동”과 같습니다.",
       "framebuffer": "컴포지터 없이 창을 화면에 바로 복사합니다. 창이 잘못 표시될 때 쓰는 예비 방식이며, Carafe의 로딩 화면과 커서가 작동하지 않을 수 있습니다."
     },
-    "fourCores": "그래픽용 네 번째 코어",
-    "fourCoresHint": "그리기와 셰이더는 네 번째 코어에서 실행되고, 게임은 나머지 세 코어를 혼자 씁니다. 보통 켜 두는 것이 좋습니다.",
     "debug": "디버깅",
     "verbose": "상세 추적",
     "verboseHint": "별도 파일에 남기는 Wine 상세 로그입니다. 게임이 많이 느려지므로 버그를 찾을 때만 쓰세요.",

@@ -38,10 +38,6 @@ export function findSetting(catalog: Catalog, id: string): Setting | undefined {
 
 function typedIndex(settings: AutorunSettings, setting: Setting): number {
   switch (setting.id) {
-    case "cpu":
-      return settings.system.cpu === "box64" ? 1 : 0;
-    case "d3d":
-      return settings.graphics.direct3d === "dxvkVkd3d" ? 1 : settings.graphics.direct3d === "wine" ? 2 : 0;
     case "upscaling":
       return settings.graphics.upscaling === "fsr" ? 1 : settings.graphics.upscaling === "integer" ? 2 : 0;
     case "lsfg":

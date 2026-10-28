@@ -3,4 +3,4 @@
 /**
  * The settings file next to the game's `.exe` that holds a setting.
  */
-export type SettingFile = "program" | "keys" | "box64";
+export type SettingFile = "program" | "keys";

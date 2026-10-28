@@ -3,6 +3,7 @@ import type { DxvkHud } from "@/shared/api/bindings/DxvkHud";
 import type { GraphicsSettings } from "@/shared/api/bindings/GraphicsSettings";
 import type { LsfgFlow } from "@/shared/api/bindings/LsfgFlow";
 import type { Upscaling } from "@/shared/api/bindings/Upscaling";
+import type { WindowOutput } from "@/shared/api/bindings/WindowOutput";
 import { Field } from "@/shared/ui/Field";
 import { Segmented } from "@/shared/ui/Segmented";
 import { Select } from "@/shared/ui/Select";
@@ -13,10 +14,12 @@ const FRAME_LIMITS = [0, 30, 40, 45, 60, 75, 90, 120] as const;
 
 type GraphicsEditorProps = {
   value: GraphicsSettings;
+  windows: WindowOutput;
   onChange: (next: GraphicsSettings) => void;
+  onWindowsChange: (next: WindowOutput) => void;
 };
 
-export function GraphicsEditor({ value, onChange }: GraphicsEditorProps) {
+export function GraphicsEditor({ value, windows, onChange, onWindowsChange }: GraphicsEditorProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<GraphicsSettings>) => onChange({ ...value, ...patch });
 
@@ -96,6 +99,18 @@ export function GraphicsEditor({ value, onChange }: GraphicsEditorProps) {
           </Field>
         </div>
       ) : null}
+      <Field label={t("advanced.windows")} hint={t(`advanced.windowsHints.${windows}`)}>
+        <Segmented<WindowOutput>
+          label={t("advanced.windows")}
+          value={windows}
+          options={[
+            { value: "auto", label: t("advanced.windowsAuto") },
+            { value: "framebuffer", label: t("advanced.windowsFramebuffer") },
+            { value: "compositor", label: t("advanced.windowsCompositor") },
+          ]}
+          onChange={onWindowsChange}
+        />
+      </Field>
     </div>
   );
 }

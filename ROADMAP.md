@@ -15,6 +15,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` FEX: an exception inside block compiling loops in ntdll's unwinder and holds the compile lock
 - [ ] **`research` Faster games at the stock CPU clock: FEX tuned for the A57, x87, DXVK calls**
 - [ ] **`research` Orchestrator: one part of the runtime that makes translated games use every resource of the Switch**
+- [ ] **`feature` One path for every game: Carafe's DXVK, FEX and D3DX, no choice of components**
 - [ ] `research` Keep translated code between runs and prepare it at the first start
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
