@@ -532,6 +532,22 @@ mod tests {
     }
 
     #[test]
+    fn the_pass_merge_is_off_until_turned_on() {
+        let program = program_with(|_| {});
+        assert_eq!(value(&program, "d3d9.effectPassMerge"), None);
+        let on = program_with(|s| s.options.set("d3d9-effect-pass-merge", Some("True")));
+        assert_eq!(value(&on, "d3d9.effectPassMerge"), Some("True"));
+    }
+
+    #[test]
+    fn the_managed_buffer_copies_are_off_until_turned_on() {
+        let program = program_with(|_| {});
+        assert_eq!(value(&program, "d3d9.managedBufferCopies"), None);
+        let on = program_with(|s| s.options.set("d3d9-managed-buffer-copies", Some("True")));
+        assert_eq!(value(&on, "d3d9.managedBufferCopies"), Some("True"));
+    }
+
+    #[test]
     fn single_precision_follows_the_direct3d_version() {
         let settings = AutorunSettings::default();
         let plain = AutorunFiles::render("game.exe", &settings, &[]).program;
