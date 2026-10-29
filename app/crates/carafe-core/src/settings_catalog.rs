@@ -1080,6 +1080,15 @@ fn experimental() -> Vec<Setting> {
         .auto_on(&[Api::D3d8, Api::D3d9])
         .on("fex-x87", &[1]),
         fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0),
+        fex("fex-call-cache", "FEX_INDIRECTCALLCACHE", off_on(), 0),
+        Setting::new(
+            "nvk-cached-commands",
+            SettingFile::Program,
+            "nvk-cached-commands",
+            Apply::Restart,
+            off_on(),
+            0,
+        ),
         Setting::new(
             "orchestrator",
             SettingFile::Program,
@@ -1315,7 +1324,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 22);
+        assert_eq!(fex, 23);
     }
 
     #[test]

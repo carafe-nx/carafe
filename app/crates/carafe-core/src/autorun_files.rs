@@ -438,7 +438,7 @@ mod tests {
         let program = program_with(|_| {});
         assert_eq!(
             program.lines().filter(|l| l.starts_with("FEX_")).count(),
-            22
+            23
         );
         assert_eq!(value(&program, "FEX_TSOENABLED"), Some("0"));
         assert_eq!(value(&program, "FEX_DISKCACHE"), Some("0"));
@@ -458,6 +458,7 @@ mod tests {
         assert_eq!(value(&program, "FEX_X87CONVERSIONROUNDING"), None);
         assert_eq!(value(&program, "FEX_X87FASTSTACK"), None);
         assert_eq!(value(&program, "FEX_FLAGSWITHOUTFLAGM"), None);
+        assert_eq!(value(&program, "FEX_BRIDGERETURN"), None);
         assert!(!program.contains("d3d9.unchangedStateFastPath"));
     }
 
