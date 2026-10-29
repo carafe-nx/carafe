@@ -1083,6 +1083,12 @@ fn experimental() -> Vec<Setting> {
         fex("fex-call-cache", "FEX_INDIRECTCALLCACHE", off_on(), 0),
         fex("fex-jump-tables", "FEX_JUMPTABLES", off_on(), 0),
         fex("fex-compact-returns", "FEX_COMPACTRETURNS", off_on(), 0),
+        fex(
+            "fex-slim-return-points",
+            "FEX_SLIMRETURNPOINTS",
+            off_on(),
+            0,
+        ),
         Setting::new(
             "nvk-cached-commands",
             SettingFile::Program,
@@ -1326,7 +1332,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 25);
+        assert_eq!(fex, 26);
     }
 
     #[test]

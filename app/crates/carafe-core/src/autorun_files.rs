@@ -438,7 +438,7 @@ mod tests {
         let program = program_with(|_| {});
         assert_eq!(
             program.lines().filter(|l| l.starts_with("FEX_")).count(),
-            25
+            26
         );
         assert_eq!(value(&program, "FEX_TSOENABLED"), Some("0"));
         assert_eq!(value(&program, "FEX_DISKCACHE"), Some("0"));

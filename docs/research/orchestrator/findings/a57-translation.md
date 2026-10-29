@@ -278,7 +278,27 @@ Measured on the console (Carbon, 1785 MHz, 2026-10-29, `nfsc-exp8`):
   at the start, held at 60 frames a second.
 
 The first piece of layout (c) is FEX `0019` (decision 48): returns keep their miss lookup out of line, 282 sites and
-18 KB of never-sampled bytes in the 256 busiest blocks of that run.
+18 KB of never-sampled bytes in the 256 busiest blocks of that run. FEX `0020` does the same for the indirect call
+cache's fill and miss paths, and b4 is FEX `0021` (decision 49): return points skip the header store, and faults and
+the profiler find the block from the host PC.
+
+What the hot code is made of, from the 256 busiest blocks of a full race (`nfsc-exp10`, 121 952 instructions, all
+three of b1, b3 and `0019` on):
+
+| Part | Share of instructions | Share of samples |
+|---|---|---|
+| guest loads and stores (`ldr`, `str`, `ldp`, `stp`, `ldrb`, `ldur` on guest memory) | 21.2 % | 55.0 % |
+| register moves (`mov`) | 8.8 % | 7.5 % |
+| data after the code (thunk literals, tails, RIP entries) | 12.4 % | 0 % |
+| entry headers (two instructions at each of 1934 entries, 1678 of them return points) and 2420 interrupt checks | 5.2 % | — |
+| `movz`/`movk` pairs | 5.1 % | 0.5 % |
+| of them used straight away as the address of a load or store | 1.3 % | 0.3 % |
+
+- f (a base register or `adrp` for module data) would save one instruction for each pair used as an address: 806 of
+  121 952, 0.66 % of the code, for an `adrp` fixup on every block copy and a new address form on every memory
+  operation. Left out.
+- Profile-ordered packing (c), retranslation of the hot set (e) and `PRFM` (d) need the per-game profile kept between
+  runs (W12, `closed-loop-profile.md`), which does not exist yet. They are the next round, not stage 4.
 
 ## What this means for the orchestrator
 
