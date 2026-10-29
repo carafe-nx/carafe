@@ -20,6 +20,9 @@ and not one sample in them.
 
 - **FEX patch 0019, `CompactReturns`.** A return keeps four instructions in line: pop, compare, a branch on a miss,
   return. The lookup goes after the block's code, next to the jump thunks, and ends in the same return.
+- **FEX patch 0020**: with the indirect call cache on as well (decision 44), an indirect call keeps only the cache
+  check in line; filling an empty record and the lookup for a call that misses it go after the block's code and come
+  back to the call, about 60 bytes at each of the 420 call sites of those blocks.
 - **Autorun patch 0075** passes `FEX_COMPACTRETURNS` to FEX, off unless a program turns it on.
 - **An Experimental row**, `fex-compact-returns`, off by default.
 
@@ -27,5 +30,4 @@ and not one sample in them.
 
 - In the lab: the usual five games with the row on, the same steps and pictures.
 - On the console: Carbon driving with the row on and off; the frame rate and the main thread's share of samples.
-- Next candidates of the same kind: the indirect call cache's fill and miss paths, and the entry headers of return
-  points (b4, 2 cycles an entry by W7-M3).
+- The entry headers of return points are decision 49.
