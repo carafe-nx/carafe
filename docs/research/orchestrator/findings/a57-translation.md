@@ -277,6 +277,9 @@ Measured on the console (Carbon, 1785 MHz, 2026-10-29, `nfsc-exp8`):
   `0xfce7c5e0`, `0xfce7c720`, `0xf66d5180`), and the race ran without faults. Its speed is not measured: the car stood
   at the start, held at 60 frames a second.
 
+The first piece of layout (c) is FEX `0019` (decision 48): returns keep their miss lookup out of line, 282 sites and
+18 KB of never-sampled bytes in the 256 busiest blocks of that run.
+
 ## What this means for the orchestrator
 
 - The orchestrator does not need to pick instructions at run time; those choices are fixed in FEX's backend, once.
