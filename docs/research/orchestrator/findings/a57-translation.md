@@ -220,6 +220,35 @@ Gains are shares of the main thread's time, assuming the hot blocks stand for th
   and `PRFM` wins under 1 %; if they are DRAM misses with predictable addresses, prefetching two or more iterations
   ahead could recover up to half of them, about 5–9 %, less the pipe cost. T1 decides which.
 
+## Measured in the lab (2026-10-29)
+
+FEX's own count of returns that miss the call-return stack (FEX `0015`) does not depend on the host, so the lab gives
+it as exactly as the console. In NFSU2's title menu, main thread, 7–13 million of 25–33 million returns per report
+miss: 25–50 %.
+
+A first round of A/B runs changed nothing, for a reason outside FEX: the runtime passes FEX only the options in
+Autorun's own list (`horizon-wine/source/fex_options.h`), so a new FEX option written into the program file never
+reached FEX until Autorun `0073` added it. Those runs compared the same code twice.
+
+A recorder in a diagnostic build, behind the profiler's statistics, counted the pairs of the address popped and the
+address returned to:
+
+| Popped | Returned to | Count in 2 million misses |
+|---|---|---|
+| `ntdll.dll` after a call | `ntdll.dll` | 381 589 |
+| `ntdll.dll` after a call | the game's code (`0x6f5eab`) | 193 267 |
+| the game's code (`0x6f5eab`) | the game's code (`0x6f5ed2`) | 193 257 |
+| `winevulkan.dll` (`vkCmdDraw` + 0x31) | `d3d9.dll` | 88 304 |
+
+Each return pops the address the previous return wanted: the stack holds one entry too many. The extra entries are
+return addresses in `ntdll.dll` and `winevulkan.dll` right after their calls into the system-call and unix-call bridge
+(`__wine_unix_call` from `vkCmdDraw` and the like). The bridge is entered by a call and goes on at the return address
+without a return, so the call's entry stays on the stack, and every later return of the outer frames misses until the
+stack fills up and is reset. b2 (FEX `0017`, the bridge leaves as a return) removes exactly that entry; with Autorun
+`0073` it reaches FEX.
+
+b1 (the indirect call cache) is FEX `0016` (decision 44); it reaches FEX through Autorun `0073` as well.
+
 ## What this means for the orchestrator
 
 - The orchestrator does not need to pick instructions at run time; those choices are fixed in FEX's backend, once.
