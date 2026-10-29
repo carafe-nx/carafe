@@ -356,6 +356,7 @@ static void* benchMain(void* arg) {
     carafeBenchCores(g_bench_mhz, tracePieces);
     carafeBenchMemory(g_bench_mhz, tracePieces);
     carafeBenchBranches(g_bench_mhz, tracePieces);
+    carafeBenchCode(g_bench_mhz, tracePieces);
     return NULL;
 }
 

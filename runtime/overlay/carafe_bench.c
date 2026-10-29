@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -427,5 +428,123 @@ void carafeBenchBranches(unsigned int mhz, CarafeBenchTrace trace) {
         "jump tables at %u MHz, cycles a step: an indirect branch cycling through 2 targets %.1f, 4 %.1f, "
         "8 entries over 4 targets %.1f, at random among 4 %.1f; a compare chain at random among 4 %.1f",
         mhz, periodic(2, mhz), periodic(4, mhz), periodic(8, mhz), periodic(0, mhz), compareChain(mhz));
+    trace("[A57] ", text);
+}
+
+#define FETCH_BYTES (128 * 1024)
+#define FETCH_RUN_INSTRUCTIONS (1u << 21)
+#define ENTRY_BLOCKS 64
+#define ENTRY_RUNS 4000
+
+void carafeFetchCode(void);
+void carafeEntries8(u64* state, u64* stores, u64 value);
+void carafeEntries8Header(u64* state, u64* stores, u64 value);
+void carafeEntries16(u64* state, u64* stores, u64 value);
+void carafeEntries16Header(u64* state, u64* stores, u64 value);
+
+__asm__(
+    ".pushsection .text.carafe_bench_code,\"ax\",%progbits\n"
+    ".balign 64\n"
+    ".global carafeFetchCode\n"
+    ".type carafeFetchCode, %function\n"
+    "carafeFetchCode:\n"
+    ".rept 4096\n"
+    "add x9, x9, #1\n"
+    "add x10, x10, #1\n"
+    "add x11, x11, #1\n"
+    "add x12, x12, #1\n"
+    "add x13, x13, #1\n"
+    "add x14, x14, #1\n"
+    "add x15, x15, #1\n"
+    "b 1f\n"
+    "1:\n"
+    ".endr\n"
+    "ret\n"
+    ".macro carafe_entry header, stores\n"
+    ".if \\header\n"
+    "adr x16, .\n"
+    "str x16, [x0]\n"
+    "str xzr, [x0, #8]\n"
+    ".endif\n"
+    ".set carafe_offset, 0\n"
+    ".rept \\stores\n"
+    "str x2, [x1, #carafe_offset]\n"
+    ".set carafe_offset, carafe_offset + 8\n"
+    ".endr\n"
+    "adr x17, 2f\n"
+    "br x17\n"
+    "2:\n"
+    ".endm\n"
+    ".macro carafe_entries name, header, stores\n"
+    ".balign 64\n"
+    ".global \\name\n"
+    ".type \\name, %function\n"
+    "\\name:\n"
+    ".rept 64\n"
+    "carafe_entry \\header, \\stores\n"
+    ".endr\n"
+    "ret\n"
+    ".endm\n"
+    "carafe_entries carafeEntries8, 0, 8\n"
+    "carafe_entries carafeEntries8Header, 1, 8\n"
+    "carafe_entries carafeEntries16, 0, 16\n"
+    "carafe_entries carafeEntries16Header, 1, 16\n"
+    ".popsection\n");
+
+static double fetchCycles(size_t bytes, unsigned int mhz) {
+    void (*run)(void) = (void (*)(void))((uintptr_t)carafeFetchCode + FETCH_BYTES - bytes);
+    u64 instructions = bytes / 4 + 1;
+    u64 runs = FETCH_RUN_INSTRUCTIONS / instructions;
+    u64 best = UINT64_MAX;
+    for (int attempt = 0; attempt < 3; attempt++) {
+        u64 start = armGetSystemTick();
+        for (u64 i = 0; i < runs; i++) {
+            run();
+        }
+        u64 ticks = armGetSystemTick() - start;
+        best = ticks < best ? ticks : best;
+    }
+    return cycles(best, mhz, runs * instructions);
+}
+
+static double entryCycles(void (*run)(u64*, u64*, u64), unsigned int mhz) {
+    static u64 state[8] __attribute__((aligned(LINE_BYTES)));
+    static u64 stores[16] __attribute__((aligned(LINE_BYTES)));
+    u64 best = UINT64_MAX;
+    for (int attempt = 0; attempt < 3; attempt++) {
+        u64 start = armGetSystemTick();
+        for (int i = 0; i < ENTRY_RUNS; i++) {
+            run(state, stores, (u64)i);
+        }
+        u64 ticks = armGetSystemTick() - start;
+        best = ticks < best ? ticks : best;
+    }
+    return cycles(best, mhz, (u64)ENTRY_RUNS * ENTRY_BLOCKS);
+}
+
+void carafeBenchCode(unsigned int mhz, CarafeBenchTrace trace) {
+    s32 home_core;
+    u64 home_mask;
+    if (R_FAILED(svcGetThreadCoreMask(&home_core, &home_mask, CUR_THREAD_HANDLE)) || !pinTo(HOME_CORE)) {
+        return;
+    }
+    double fetch_16 = fetchCycles(16 * 1024, mhz);
+    double fetch_32 = fetchCycles(32 * 1024, mhz);
+    double fetch_48 = fetchCycles(48 * 1024, mhz);
+    double fetch_64 = fetchCycles(64 * 1024, mhz);
+    double fetch_96 = fetchCycles(96 * 1024, mhz);
+    double fetch_128 = fetchCycles(128 * 1024, mhz);
+    double entries_8 = entryCycles(carafeEntries8, mhz);
+    double entries_8_header = entryCycles(carafeEntries8Header, mhz);
+    double entries_16 = entryCycles(carafeEntries16, mhz);
+    double entries_16_header = entryCycles(carafeEntries16Header, mhz);
+    __real_svcSetThreadCoreMask(CUR_THREAD_HANDLE, home_core, (u32)home_mask);
+    char text[512];
+    snprintf(text, sizeof(text),
+        "code at %u MHz: cycles an instruction, a taken branch every 32 bytes, over 16 KB %.2f, 32 KB %.2f, "
+        "48 KB %.2f, 64 KB %.2f, 96 KB %.2f, 128 KB %.2f; cycles a block entered by br, 8 stores %.1f, with the "
+        "two header stores %.1f, 16 stores %.1f, with the header stores %.1f",
+        mhz, fetch_16, fetch_32, fetch_48, fetch_64, fetch_96, fetch_128, entries_8, entries_8_header, entries_16,
+        entries_16_header);
     trace("[A57] ", text);
 }

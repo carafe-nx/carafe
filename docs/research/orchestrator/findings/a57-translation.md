@@ -249,6 +249,34 @@ stack fills up and is reset. b2 (FEX `0017`, the bridge leaves as a return) remo
 
 b1 (the indirect call cache) is FEX `0016` (decision 44); it reaches FEX through Autorun `0073` as well.
 
+b3 (jump tables) is FEX `0018` (decision 47), passed on by Autorun `0074`. W7-M2 had already run in Carbon's start-up
+(`[A57] jump tables`, 1785 MHz): an indirect branch 27.7 cycles a step alternating between two targets, 13.5 cycling
+through four, 24.9 at random among four, a compare chain 18.8 at random among four. So up to four distinct cases are
+compared one by one, and larger switches use a host table.
+
+W7-M1 and W7-M3 now run with the other `[A57]` benches at start-up under the profiler (`[A57] code at …`): cycles an
+instruction over 16–128 KB of straight code with a taken branch every 32 bytes, and cycles a block entered by `br`
+with 8 or 16 stores, with and without the two header stores.
+
+Measured on the console (Carbon, 1785 MHz, 2026-10-29, `nfsc-exp8`):
+
+| Code size | 16 KB | 32 KB | 48 KB | 64 KB | 96 KB | 128 KB |
+|---|---|---|---|---|---|---|
+| Cycles an instruction | 0.51 | 0.50 | 0.65 | 1.64 | 2.14 | 2.11 |
+
+| Block entered by `br` | 8 stores | with the header stores | 16 stores | with the header stores |
+|---|---|---|---|---|
+| Cycles a block | 8.0 | 10.0 | 16.2 | 18.2 |
+
+- W7-M1: past the 48 KB L1I an instruction costs 3.2 times as much at 64 KB and 4.2 times at 96–128 KB, far over the
+  1.3× of the rule above, so layout (c) moves up to the first three. The hot set of the race (74–79 KB of sampled
+  lines) sits on the steep side: every byte of thunks, tails and miss paths taken out of the hot lines counts.
+- W7-M3: the two header stores cost 2 cycles an entry, as stores run one a cycle; b4 saves those and 12 bytes of
+  code an entry, which also counts against W7-M1.
+- The same run had `FEX_JUMPTABLES` on: the host-table sequence shows in three of the 256 busiest blocks (guest
+  `0xfce7c5e0`, `0xfce7c720`, `0xf66d5180`), and the race ran without faults. Its speed is not measured: the car stood
+  at the start, held at 60 frames a second.
+
 ## What this means for the orchestrator
 
 - The orchestrator does not need to pick instructions at run time; those choices are fixed in FEX's backend, once.
