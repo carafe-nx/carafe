@@ -1081,6 +1081,7 @@ fn experimental() -> Vec<Setting> {
         .on("fex-x87", &[1]),
         fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0),
         fex("fex-call-cache", "FEX_INDIRECTCALLCACHE", off_on(), 0),
+        fex("fex-jump-tables", "FEX_JUMPTABLES", off_on(), 0),
         Setting::new(
             "nvk-cached-commands",
             SettingFile::Program,
@@ -1324,7 +1325,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 23);
+        assert_eq!(fex, 24);
     }
 
     #[test]
