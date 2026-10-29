@@ -590,12 +590,12 @@ mod tests {
     #[test]
     fn options_the_catalog_no_longer_has_fall_back_to_default() {
         let options: OptionValues = serde_json::from_str(
-            r#"{"fex-3dnow":"enable3dnow","fex-flags":"0","fex-x87-single":"0"}"#,
+            r#"{"fex-3dnow":"enable3dnow","fex-flags":"0","fex-call-cache":"1"}"#,
         )
         .unwrap();
         assert_eq!(options.get("fex-3dnow"), None);
         assert_eq!(options.get("fex-flags"), None);
-        assert_eq!(options.get("fex-x87-single"), Some("0"));
+        assert_eq!(options.get("fex-call-cache"), Some("1"));
         assert_eq!(options.validate(), Ok(()));
     }
 

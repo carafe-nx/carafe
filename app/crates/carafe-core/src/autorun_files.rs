@@ -160,6 +160,8 @@ fn render_program(settings: &AutorunSettings, apis: &[Api]) -> String {
         "upscaling-sharpness",
         format!("{}%", graphics.sharpness),
     );
+    let single_precision = apis.iter().any(|api| matches!(api, Api::D3d8 | Api::D3d9));
+    line(&mut out, "FEX_X87SINGLEPRECISION", flag(single_precision));
     line(&mut out, "verbose", flag(settings.debug.verbose));
     line(&mut out, "profile", flag(settings.debug.profile));
     out
@@ -438,7 +440,7 @@ mod tests {
         let program = program_with(|_| {});
         assert_eq!(
             program.lines().filter(|l| l.starts_with("FEX_")).count(),
-            25
+            21
         );
         assert_eq!(value(&program, "FEX_TSOENABLED"), Some("0"));
         assert_eq!(value(&program, "FEX_DISKCACHE"), None);
@@ -457,47 +459,25 @@ mod tests {
         assert_eq!(value(&program, "FEX_X87FASTSTACK"), None);
         assert_eq!(value(&program, "FEX_FLAGSWITHOUTFLAGM"), None);
         assert_eq!(value(&program, "FEX_BRIDGERETURN"), None);
+        assert_eq!(value(&program, "FEX_JUMPTABLES"), None);
+        assert_eq!(value(&program, "FEX_COMPACTRETURNS"), None);
+        assert_eq!(value(&program, "FEX_SLIMRETURNPOINTS"), None);
+        assert_eq!(value(&program, "FEX_GDBSYMBOLS"), None);
         assert!(!program.contains("d3d9.unchangedStateFastPath"));
     }
 
     #[test]
-    fn the_orchestrator_is_off_until_turned_on() {
+    fn the_orchestrator_and_the_d3d9_workers_are_left_to_the_runtime() {
         let program = program_with(|_| {});
-        assert_eq!(value(&program, "orchestrator"), Some("0"));
-        let on = program_with(|s| s.options.set("orchestrator", Some("1")));
-        assert_eq!(value(&on, "orchestrator"), Some("1"));
-    }
-
-    #[test]
-    fn the_front_end_thread_is_off_until_turned_on() {
-        let program = program_with(|_| {});
-        assert_eq!(value(&program, "d3d9.frontEndThread"), None);
-        let on = program_with(|s| s.options.set("d3d9-front-end-thread", Some("True")));
-        assert_eq!(value(&on, "d3d9.frontEndThread"), Some("True"));
-    }
-
-    #[test]
-    fn the_effect_thread_is_off_until_turned_on() {
-        let program = program_with(|_| {});
-        assert_eq!(value(&program, "d3d9.effectThread"), None);
-        let on = program_with(|s| s.options.set("d3d9-effect-thread", Some("True")));
-        assert_eq!(value(&on, "d3d9.effectThread"), Some("True"));
-    }
-
-    #[test]
-    fn the_pass_merge_is_off_until_turned_on() {
-        let program = program_with(|_| {});
-        assert_eq!(value(&program, "d3d9.effectPassMerge"), None);
-        let on = program_with(|s| s.options.set("d3d9-effect-pass-merge", Some("True")));
-        assert_eq!(value(&on, "d3d9.effectPassMerge"), Some("True"));
-    }
-
-    #[test]
-    fn the_managed_buffer_copies_are_off_until_turned_on() {
-        let program = program_with(|_| {});
-        assert_eq!(value(&program, "d3d9.managedBufferCopies"), None);
-        let on = program_with(|s| s.options.set("d3d9-managed-buffer-copies", Some("True")));
-        assert_eq!(value(&on, "d3d9.managedBufferCopies"), Some("True"));
+        for key in [
+            "orchestrator",
+            "d3d9.frontEndThread",
+            "d3d9.effectThread",
+            "d3d9.effectPassMerge",
+            "d3d9.managedBufferCopies",
+        ] {
+            assert_eq!(value(&program, key), None);
+        }
     }
 
     #[test]
@@ -509,10 +489,6 @@ mod tests {
         assert_eq!(value(&d3d9, "FEX_X87SINGLEPRECISION"), Some("1"));
         let d3d11 = AutorunFiles::render("game.exe", &settings, &[Api::D3d11]).program;
         assert_eq!(value(&d3d11, "FEX_X87SINGLEPRECISION"), Some("0"));
-        let mut forced = AutorunSettings::default();
-        forced.options.set("fex-x87-single", Some("0"));
-        let off = AutorunFiles::render("game.exe", &forced, &[Api::D3d9]).program;
-        assert_eq!(value(&off, "FEX_X87SINGLEPRECISION"), Some("0"));
     }
 
     #[test]

@@ -485,11 +485,6 @@ impl Setting {
         self
     }
 
-    fn auto_on(mut self, apis: &[Api]) -> Self {
-        self.auto_on = apis.to_vec();
-        self
-    }
-
     /// Returns the text written for the value at `index` in a game that uses `apis`.
     ///
     /// # Returns
@@ -1066,28 +1061,7 @@ fn fex_presets() -> Vec<Preset> {
 
 fn experimental() -> Vec<Setting> {
     vec![
-        fex(
-            "fex-x87-single",
-            "FEX_X87SINGLEPRECISION",
-            vec![
-                is(AUTO, word("auto")),
-                is("0", word("off")),
-                is("1", word("on")),
-            ],
-            0,
-        )
-        .auto_on(&[Api::D3d8, Api::D3d9])
-        .on("fex-x87", &[1]),
-        fex("fex-gdb-symbols", "FEX_GDBSYMBOLS", off_on(), 0),
         fex("fex-call-cache", "FEX_INDIRECTCALLCACHE", off_on(), 0),
-        fex("fex-jump-tables", "FEX_JUMPTABLES", off_on(), 0),
-        fex("fex-compact-returns", "FEX_COMPACTRETURNS", off_on(), 0),
-        fex(
-            "fex-slim-return-points",
-            "FEX_SLIMRETURNPOINTS",
-            off_on(),
-            0,
-        ),
         Setting::new(
             "large-pages",
             SettingFile::Program,
@@ -1096,50 +1070,6 @@ fn experimental() -> Vec<Setting> {
             off_on(),
             0,
         ),
-        Setting::new(
-            "orchestrator",
-            SettingFile::Program,
-            "orchestrator",
-            Apply::Restart,
-            off_on(),
-            0,
-        ),
-        Setting::new(
-            "d3d9-front-end-thread",
-            SettingFile::Program,
-            "d3d9.frontEndThread",
-            Apply::Restart,
-            vec![absent(word("off")), is("True", word("on"))],
-            0,
-        )
-        .apis(&[Api::D3d9]),
-        Setting::new(
-            "d3d9-effect-thread",
-            SettingFile::Program,
-            "d3d9.effectThread",
-            Apply::Restart,
-            vec![absent(word("off")), is("True", word("on"))],
-            0,
-        )
-        .apis(&[Api::D3d9]),
-        Setting::new(
-            "d3d9-effect-pass-merge",
-            SettingFile::Program,
-            "d3d9.effectPassMerge",
-            Apply::Restart,
-            vec![absent(word("off")), is("True", word("on"))],
-            0,
-        )
-        .apis(&[Api::D3d9]),
-        Setting::new(
-            "d3d9-managed-buffer-copies",
-            SettingFile::Program,
-            "d3d9.managedBufferCopies",
-            Apply::Restart,
-            vec![absent(word("off")), is("True", word("on"))],
-            0,
-        )
-        .apis(&[Api::D3d9]),
     ]
 }
 
@@ -1331,7 +1261,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 25);
+        assert_eq!(fex, 20);
     }
 
     #[test]

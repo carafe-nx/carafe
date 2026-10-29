@@ -40,3 +40,13 @@ blocks' headers about 1.2 % more.
 - In the lab: NFSU, NFSU2, Carbon, HoMM4 and OpenTTD with the row on, the same steps and pictures as with it off,
   and a FEX-side sign that the tables were compiled.
 - On the console: Carbon's driving with the row on and off, the profiler's share of the jump-table lookup sequences.
+
+## Built in (2026-10-30)
+
+- **FEX patch 0022** reads a switch's tables from any committed readable memory: libraries built with GCC or MinGW
+  (DXVK's `d3d9.dll`, Wine's `d3dx9`) keep them in `.rdata`, which the first version skipped. Up to four instructions
+  may stand between the bounds check and the jump. A wrong guess still costs only the lookup.
+- On the console, Carbon over the same stretch, with the rest of the rows unchanged: the switch lookups fell from
+  3.2 % to 0.2 % of the samples (12 hot switches now jump through their tables, at 0.5 %), and the main thread's time a
+  frame was 16.9 ms against 17.6 and 18.7 ms in two runs without it.
+- **Autorun patch 0079** turns `FEX_JUMPTABLES` on unless a program turns it off; the row is gone.

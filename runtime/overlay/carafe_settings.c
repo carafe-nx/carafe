@@ -508,7 +508,7 @@ bool carafeMeasuring(void) {
 bool carafeOrchestrating(void) {
     char* text = programText();
     char value[16] = "";
-    bool on = textValue(text, "orchestrator", value, sizeof(value)) && strcmp(value, "1") == 0;
+    bool on = !textValue(text, "orchestrator", value, sizeof(value)) || strcmp(value, "0") != 0;
     free(text);
     return on;
 }
