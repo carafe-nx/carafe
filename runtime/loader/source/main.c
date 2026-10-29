@@ -214,6 +214,18 @@ static size_t alignPage(size_t size) {
     return (size + 0xFFF) & ~(size_t)0xFFF;
 }
 
+static void* findCongruentCodeMemory(size_t size, u64 source) {
+    static const u64 alignments[] = { 0x2000000ULL, 0x200000ULL };
+    for (size_t i = 0; i < sizeof(alignments) / sizeof(alignments[0]); i++) {
+        const u64 align = alignments[i];
+        void* addr = virtmemFindCodeMemory(size + align, 0);
+        if (addr != NULL) {
+            return (u8*)addr + ((source - (u64)addr) & (align - 1));
+        }
+    }
+    return virtmemFindCodeMemory(size, 0);
+}
+
 static void unmapNro(void) {
     const NroHeader* header = &g_nroHeader;
     const u64 heap = (u64)g_heapAddr;
@@ -398,7 +410,7 @@ void NX_NORETURN loadNro(void) {
     const size_t rw_size = alignPage(header->segments[2].size + header->bss_size);
 
     virtmemLock();
-    void* map_addr = virtmemFindCodeMemory(total_size, 0);
+    void* map_addr = findCongruentCodeMemory(total_size, (u64)g_heapAddr);
     Result rc = svcMapProcessCodeMemory(g_procHandle, (u64)map_addr, (u64)g_heapAddr, total_size);
     virtmemUnlock();
     if (R_FAILED(rc)) {

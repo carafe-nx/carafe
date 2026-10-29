@@ -1098,6 +1098,14 @@ fn experimental() -> Vec<Setting> {
             0,
         ),
         Setting::new(
+            "large-pages",
+            SettingFile::Program,
+            "large-pages",
+            Apply::Restart,
+            off_on(),
+            0,
+        ),
+        Setting::new(
             "orchestrator",
             SettingFile::Program,
             "orchestrator",
