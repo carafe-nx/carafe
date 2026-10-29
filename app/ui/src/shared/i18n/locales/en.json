@@ -144,7 +144,6 @@
       "fex-jump-tables": { "name": "Direct jumps for switches", "hint": "A choice between many branches in the game's code (a switch) goes straight to the right branch instead of searching for it each time. Turn off if the game crashes, hangs or runs slower." },
       "fex-compact-returns": { "name": "Compact returns", "hint": "When a function returns, the rarely needed search for where to go back is kept away from the main code, so more of the game's code fits the processor's fast cache. Turn off if the game crashes, hangs or runs slower." },
       "fex-slim-return-points": { "name": "Lighter returns from functions", "hint": "Coming back from a function no longer records which piece of translated code is running; if something goes wrong, it is worked out on the spot. Less work on every return. Turn off if the game crashes, hangs or runs slower." },
-      "nvk-cached-commands": { "name": "Cached memory for GPU commands", "hint": "The commands sent to the graphics chip are written to cached memory and flushed once per batch, instead of going to memory piece by piece. The graphics thread may get faster or slower, so compare the frame rate. Turn off if the picture breaks, the game hangs or runs slower." },
       "large-pages": { "name": "Large memory pages", "hint": "Big blocks of the game's memory are placed so the console can map them in large pieces, and the processor finds its data faster. Turn off if the game crashes, hangs, runs out of memory or runs slower." },
       "orchestrator": { "name": "Orchestrator", "hint": "Watches how busy each of the game's threads is. When one thread does most of the work, it gets a core of its own and everything else moves off it. Turn off if the game stutters or runs slower." },
       "d3d9-front-end-thread": { "name": "Graphics on its own thread (DX9)", "hint": "Direct3D 9 work moves to a thread on a free core, so the game's own thread has less to do. Turn off if the picture breaks, the game hangs or runs slower." },
@@ -171,8 +170,7 @@
       "fex-l1-decrease": { "name": "L1 cache shrink threshold", "hint": "Higher gives memory back more readily: thriftier, more misses. Only with jump cache sizing." },
       "windows": { "name": "Window output", "hint": "Framebuffer is the fallback when the game's windows show wrong." },
       "verbose": { "name": "Verbose log", "hint": "Wine's detailed log. Slows the game a lot — only for finding bugs." },
-      "profile": { "name": "Profiler", "hint": "Writes where the game spends its time into the log. Slows the start." },
-      "code-cache": { "name": "Translated code cache", "hint": "Keeps the game's code translated for the processor between starts, so later starts translate less. Experimental." }
+      "profile": { "name": "Profiler", "hint": "Writes where the game spends its time into the log. Slows the start." }
     }
   },
   "common": {

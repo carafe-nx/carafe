@@ -144,7 +144,6 @@
       "fex-jump-tables": { "name": "Salti diretti per gli switch", "hint": "Una scelta tra molti rami nel codice del gioco (uno switch) va dritta al ramo giusto invece di cercarlo ogni volta. Disattivalo se il gioco va in crash, si blocca o rallenta." },
       "fex-compact-returns": { "name": "Ritorni compatti", "hint": "La ricerca, raramente necessaria, del punto a cui torna una funzione è tenuta fuori dal codice principale, così più codice del gioco entra nella cache veloce del processore. Disattivalo se il gioco va in crash, si blocca o rallenta." },
       "fex-slim-return-points": { "name": "Ritorni dalle funzioni più leggeri", "hint": "Al ritorno da una funzione non si annota più quale pezzo di codice tradotto è in esecuzione; se qualcosa va storto, lo si ricava sul momento. Meno lavoro a ogni ritorno. Disattivalo se il gioco va in crash, si blocca o rallenta." },
-      "nvk-cached-commands": { "name": "Memoria in cache per i comandi della GPU", "hint": "I comandi inviati al chip grafico vengono scritti in memoria con cache e svuotati in una volta per ogni blocco, invece di andare in memoria un pezzo alla volta. Il thread della grafica può diventare più veloce o più lento, confronta i frame al secondo. Disattivalo se l’immagine si rovina, il gioco si blocca o rallenta." },
       "large-pages": { "name": "Pagine di memoria grandi", "hint": "I blocchi grandi di memoria del gioco vengono collocati in modo che la console possa mapparli a pezzi grandi, e il processore trova i suoi dati più in fretta. Disattivalo se il gioco va in crash, si blocca, esaurisce la memoria o rallenta." },
       "orchestrator": { "name": "Orchestratore", "hint": "Controlla quanto è impegnato ogni thread del gioco. Quando un thread fa quasi tutto il lavoro, gli assegna un core tutto suo e sposta altrove il resto. Disattivalo se il gioco scatta o rallenta." },
       "d3d9-front-end-thread": { "name": "Grafica in un thread a parte (DX9)", "hint": "Il lavoro di Direct3D 9 passa a un thread su un core libero e al thread del gioco ne resta meno. Disattivalo se l’immagine si rovina, il gioco si blocca o rallenta." },
@@ -171,8 +170,7 @@
       "fex-l1-decrease": { "name": "Soglia di riduzione cache L1", "hint": "Più alta restituisce memoria più facilmente: più risparmio, più cache miss. Solo con il dimensionamento della cache salti." },
       "windows": { "name": "Output delle finestre", "hint": "Framebuffer è la riserva quando le finestre del gioco si vedono male." },
       "verbose": { "name": "Log dettagliato", "hint": "Il log dettagliato di Wine. Rallenta molto il gioco — solo per trovare bug." },
-      "profile": { "name": "Profiler", "hint": "Scrive nel log dove il gioco passa il tempo. Rallenta l'avvio." },
-      "code-cache": { "name": "Cache del codice tradotto", "hint": "Conserva tra un avvio e l'altro il codice del gioco tradotto per il processore, così gli avvii successivi traducono meno. Sperimentale." }
+      "profile": { "name": "Profiler", "hint": "Scrive nel log dove il gioco passa il tempo. Rallenta l'avvio." }
     }
   },
   "common": {

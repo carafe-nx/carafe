@@ -144,7 +144,6 @@
       "fex-jump-tables": { "name": "Saltos diretos para switch", "hint": "Uma escolha entre muitos ramos no código do jogo (um switch) vai diretamente ao ramo certo em vez de o procurar de cada vez. Desliga se o jogo falhar, bloquear ou ficar mais lento." },
       "fex-compact-returns": { "name": "Retornos compactos", "hint": "A procura, raramente necessária, do ponto para onde uma função volta fica fora do código principal, e assim cabe mais código do jogo na cache rápida do processador. Desliga se o jogo falhar, bloquear ou ficar mais lento." },
       "fex-slim-return-points": { "name": "Retornos de função mais leves", "hint": "Ao voltar de uma função, deixa de se registar que parte do código traduzido está a correr; se algo correr mal, isso é descoberto no momento. Menos trabalho em cada retorno. Desliga se o jogo falhar, bloquear ou ficar mais lento." },
-      "nvk-cached-commands": { "name": "Memória em cache para os comandos da GPU", "hint": "Os comandos enviados ao chip gráfico são escritos em memória com cache e despejados de uma vez por lote, em vez de irem para a memória pedaço a pedaço. A thread de gráficos pode ficar mais rápida ou mais lenta, compara a taxa de fotogramas. Desliga se a imagem falhar, o jogo bloquear ou ficar mais lento." },
       "large-pages": { "name": "Páginas de memória grandes", "hint": "Os blocos grandes de memória do jogo são colocados de forma a que a consola os possa mapear em pedaços grandes, e o processador encontra os seus dados mais depressa. Desliga se o jogo falhar, bloquear, ficar sem memória ou ficar mais lento." },
       "orchestrator": { "name": "Orquestrador", "hint": "Acompanha quão ocupada está cada thread do jogo. Quando uma thread faz quase todo o trabalho, recebe um núcleo só para si e tudo o resto sai dele. Desliga se o jogo engasgar ou ficar mais lento." },
       "d3d9-front-end-thread": { "name": "Gráficos numa thread própria (DX9)", "hint": "O trabalho do Direct3D 9 passa para uma thread num núcleo livre e a thread do jogo fica com menos. Desliga se a imagem falhar, o jogo bloquear ou ficar mais lento." },
@@ -171,8 +170,7 @@
       "fex-l1-decrease": { "name": "Limiar de redução da cache L1", "hint": "Mais alto devolve memória mais facilmente: mais poupado, mais falhas de cache. Só com o ajuste da cache de saltos." },
       "windows": { "name": "Saída das janelas", "hint": "Framebuffer é a alternativa quando as janelas do jogo aparecem mal." },
       "verbose": { "name": "Relatório detalhado", "hint": "O relatório detalhado do Wine. Torna o jogo muito mais lento — só para encontrar erros." },
-      "profile": { "name": "Criador de perfis", "hint": "Escreve no relatório onde o jogo gasta o tempo. Torna o arranque mais lento." },
-      "code-cache": { "name": "Cache de código traduzido", "hint": "Guarda entre arranques o código do jogo traduzido para o processador, para que os arranques seguintes traduzam menos. Experimental." }
+      "profile": { "name": "Criador de perfis", "hint": "Escreve no relatório onde o jogo gasta o tempo. Torna o arranque mais lento." }
     }
   },
   "common": {

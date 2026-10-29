@@ -516,10 +516,7 @@ bool carafeOrchestrating(void) {
 __attribute__((constructor(105))) static void carafeSettingsEnvironment(void) {
     char* text = programText();
     char value[16] = "";
-    if (textValue(text, "nvk-cached-commands", value, sizeof(value)) && strcmp(value, "1") == 0) {
-        setenv("NVK_SWITCH_CPU_WRITE_MEM_UNCACHED", "0", 1);
-        note("[CARAFE] settings: the GPU's command memory is cached");
-    }
+    setenv("NVK_SWITCH_CPU_WRITE_MEM_UNCACHED", "0", 1);
     if (textValue(text, "large-pages", value, sizeof(value)) && strcmp(value, "1") == 0) {
         setenv("CARAFE_LARGE_GUEST_PAGES", "1", 1);
         note("[CARAFE] settings: large views of the game's memory start on 2 MB");

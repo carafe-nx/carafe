@@ -1066,7 +1066,6 @@ fn fex_presets() -> Vec<Preset> {
 
 fn experimental() -> Vec<Setting> {
     vec![
-        fex("code-cache", "FEX_DISKCACHE", off_on(), 0),
         fex(
             "fex-x87-single",
             "FEX_X87SINGLEPRECISION",
@@ -1086,14 +1085,6 @@ fn experimental() -> Vec<Setting> {
         fex(
             "fex-slim-return-points",
             "FEX_SLIMRETURNPOINTS",
-            off_on(),
-            0,
-        ),
-        Setting::new(
-            "nvk-cached-commands",
-            SettingFile::Program,
-            "nvk-cached-commands",
-            Apply::Restart,
             off_on(),
             0,
         ),
@@ -1340,7 +1331,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 26);
+        assert_eq!(fex, 25);
     }
 
     #[test]
