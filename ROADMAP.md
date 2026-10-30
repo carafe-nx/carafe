@@ -45,6 +45,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` No hitches while shaders build: DXVK builds them in the background, as DXVK-Sarek does
 - [x] `bug` DXVK settings now reach 32-bit games
 - [x] `bug` A game that makes a probe Direct3D device on its first start no longer stays on the loading screen
 - [x] `bug` Verbose traces no longer make the start take minutes
