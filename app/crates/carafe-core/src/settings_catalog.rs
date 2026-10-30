@@ -805,6 +805,13 @@ fn dxvk_pages() -> Vec<Page> {
             vec![
                 dxvk("dxvk.numCompilerThreads", dxvk_threads()),
                 dxvk(
+                    "dxvk.shaderCompilationMethod",
+                    vec![
+                        is("\"none\"", word("off")),
+                        is("\"dyasync\"", text("dyasync")),
+                    ],
+                ),
+                dxvk(
                     "dxvk.enableGraphicsPipelineLibrary",
                     vec![
                         is("Auto", word("auto")),
@@ -1070,7 +1077,23 @@ fn experimental() -> Vec<Setting> {
             off_on(),
             0,
         ),
+        dxvk("dxvk.skipRedundantPipelineBinds", dxvk_bool()),
+        dxvk(
+            "dxvk.frameRateMethod",
+            quoted(&["deviation", "reactive", "timeline"]),
+        ),
+        dxvk(
+            "dxvk.frameRatePacing",
+            quoted(&["sleep", "sliced", "spin", "precise"]),
+        ),
     ]
+}
+
+fn quoted(texts: &[&str]) -> Vec<SettingValue> {
+    texts
+        .iter()
+        .map(|&t| is(&format!("\"{t}\""), text(t)))
+        .collect()
 }
 
 fn system() -> Vec<Entry> {
@@ -1255,7 +1278,7 @@ mod tests {
             .iter()
             .map(|page| page.settings.len())
             .sum::<usize>();
-        assert_eq!(dxvk, 51);
+        assert_eq!(dxvk, 52);
         let fex = catalog
             .settings()
             .into_iter()
