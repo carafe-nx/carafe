@@ -43,10 +43,29 @@ def record(folder, name):
     entries[0]['sha256'] = hashlib.sha256(data).hexdigest()
 
 
+def compressed(entry, data):
+    packed = zlib.compress(data, 9)
+    entry['compressed'].update(size=len(packed), sha256=hashlib.sha256(packed).hexdigest())
+
+
 target = wine / 'drive_c/dxvk/d3d9.dll'
 shutil.copyfile(build / 'i386/src/d3d9/d3d9.dll', target)
 say_directx9(target)
 record('drive_c/dxvk', 'd3d9.dll')
+
+DLLS32 = ('d3d10core.dll', 'd3d11.dll', 'dxgi.dll')
+for name in DLLS32:
+    component = 'd3d10' if name == 'd3d10core.dll' else name[:-4]
+    shutil.copyfile(build / 'i386/src' / component / name, target.parent / name)
+    if not any(f['name'] == name and f['path'] == 'drive_c/dxvk' for f in manifest['files']):
+        entry = copy.deepcopy(next(f for f in manifest['files'] if f['name'] == name and f['path'] == 'drive_c/dxvk64'))
+        entry.update(path='drive_c/dxvk', arch='i386', url=entry['url'].replace('/dxvk64/', '/dxvk/'))
+        entry['source']['extra'] = 'dxvk32'
+        entry['compressed']['url'] = entry['compressed']['url'].replace('/dxvk64/', '/dxvk/')
+        manifest['files'].append(entry)
+    record('drive_c/dxvk', name)
+    compressed(next(f for f in manifest['files'] if f['name'] == name and f['path'] == 'drive_c/dxvk'),
+               (target.parent / name).read_bytes())
 
 dxvk64 = wine / 'drive_c/dxvk64'
 dxvk_manifest = json.loads((dxvk64 / 'dxvk-manifest.json').read_text(encoding='utf-8'))
@@ -58,7 +77,8 @@ for name in DLLS:
 (dxvk64 / 'dxvk-manifest.json').write_text(json.dumps(dxvk_manifest, indent=2) + '\n', encoding='utf-8')
 record('drive_c/dxvk64', 'dxvk-manifest.json')
 
-dxvk32_manifest = dict(dxvk_manifest, architecture='i386', files={'d3d9.dll': hashlib.sha256(target.read_bytes()).hexdigest()})
+dxvk32_files = {name: hashlib.sha256((target.parent / name).read_bytes()).hexdigest() for name in ('d3d9.dll',) + DLLS32}
+dxvk32_manifest = dict(dxvk_manifest, architecture='i386', files=dxvk32_files)
 (target.parent / 'dxvk-manifest.json').write_text(json.dumps(dxvk32_manifest, indent=2) + '\n', encoding='utf-8')
 if not any(f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk' for f in manifest['files']):
     entry = copy.deepcopy(next(f for f in manifest['files'] if f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk64'))
@@ -73,4 +93,4 @@ for f in manifest['files']:
         f['compressed'].update(size=len(packed), sha256=hashlib.sha256(packed).hexdigest())
 
 manifest_path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
-print(f'DXVK: Carafe build of d3d9 (32-bit, version {dxvk32_manifest["version"]}) and {len(DLLS)} 64-bit modules')
+print(f'DXVK: Carafe build of {1 + len(DLLS32)} 32-bit modules (version {dxvk32_manifest["version"]}) and {len(DLLS)} 64-bit modules')
