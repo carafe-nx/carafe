@@ -1069,6 +1069,7 @@ fn fex_presets() -> Vec<Preset> {
 fn experimental() -> Vec<Setting> {
     vec![
         fex("fex-call-cache", "FEX_INDIRECTCALLCACHE", off_on(), 0),
+        fex("fex-x87-single", "FEX_X87SINGLEPRECISION", off_on(), 0),
         Setting::new(
             "large-pages",
             SettingFile::Program,
@@ -1292,7 +1293,7 @@ mod tests {
             .into_iter()
             .filter(|s| s.key.starts_with("FEX_"))
             .count();
-        assert_eq!(fex, 20);
+        assert_eq!(fex, 21);
     }
 
     #[test]

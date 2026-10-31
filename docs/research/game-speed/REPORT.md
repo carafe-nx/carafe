@@ -133,7 +133,7 @@ for games whose `.exe` imports `d3d8.dll` or `d3d9.dll` (its value "auto", resol
 |---|---|---|---|
 | FEX `0006` | `FEX_X87CONVERSIONROUNDING`, built in | FLDCW leaves FPCR alone; FIST, FISTP and FRNDINT round by the guest's FCW | console: `_ftol` 4 % → 0.2 % |
 | FEX `0007`–`0009` | `FEX_X87FASTSTACK`, built in | the stack pass loads earlier blocks' registers on demand, writes back only what changed; `fnstsw` reads only TOP; C0–C3 reused within a block | FEX's x87 tests; console: matrix multiply loop 69 → 43 instructions |
-| FEX `0010` | `FEX_X87SINGLEPRECISION` (Experimental row "x87 in single precision"), auto | x87 values as float32 | console: `fcvt` 7–10 % → 0.9 % of the game's instructions |
+| FEX `0010` | `FEX_X87SINGLEPRECISION` (Experimental row "x87 math in 32 bits"), off by default: Unreal Engine 3 keeps double precision with `D3DCREATE_FPU_PRESERVE` | x87 values as float32 | console: `fcvt` 7–10 % → 0.9 % of the game's instructions |
 | FEX `0011` | `FEX_FLAGSWITHOUTFLAGM`, built in | droppable carry fix-up, flags folded into jumps, cheaper carry inserts, dead NZCV inserts and carry inversions removed | FEX's ASM tests, 18000 fuzzer runs; console runs |
 | FEX `0012` | with `0006` | FIST and FISTP convert with one `fcvtns`/`fcvtms`/`fcvtps`/`fcvtzs` per rounding mode, from the float32 value under single precision; RC 0 is round-to-nearest whatever SSE left in FPCR | console: 4.5 minutes of racing |
 | DXVK `0004`, Autorun `0060`, `use-dxvk.py` | `d3d9.unchangedStateFastPath`, built in | unchanged states return before the device lock; `0060` lets Autorun copy the key into `dxvk.conf`; `use-dxvk.py` gives the 32-bit DXVK its `dxvk-manifest.json` | console: not applied before the manifest |

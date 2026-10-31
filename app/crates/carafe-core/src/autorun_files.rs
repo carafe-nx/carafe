@@ -160,8 +160,6 @@ fn render_program(settings: &AutorunSettings, apis: &[Api]) -> String {
         "upscaling-sharpness",
         format!("{}%", graphics.sharpness),
     );
-    let single_precision = apis.iter().any(|api| matches!(api, Api::D3d8 | Api::D3d9));
-    line(&mut out, "FEX_X87SINGLEPRECISION", flag(single_precision));
     line(&mut out, "verbose", flag(settings.debug.verbose));
     line(&mut out, "profile", flag(settings.debug.profile));
     out
@@ -481,14 +479,18 @@ mod tests {
     }
 
     #[test]
-    fn single_precision_follows_the_direct3d_version() {
+    fn single_precision_is_off_until_chosen() {
         let settings = AutorunSettings::default();
-        let plain = AutorunFiles::render("game.exe", &settings, &[]).program;
-        assert_eq!(value(&plain, "FEX_X87SINGLEPRECISION"), Some("0"));
-        let d3d9 = AutorunFiles::render("game.exe", &settings, &[Api::D3d9]).program;
-        assert_eq!(value(&d3d9, "FEX_X87SINGLEPRECISION"), Some("1"));
-        let d3d11 = AutorunFiles::render("game.exe", &settings, &[Api::D3d11]).program;
-        assert_eq!(value(&d3d11, "FEX_X87SINGLEPRECISION"), Some("0"));
+        for apis in [&[][..], &[Api::D3d8], &[Api::D3d9], &[Api::D3d11]] {
+            let program = AutorunFiles::render("game.exe", &settings, apis).program;
+            assert_eq!(
+                value(&program, "FEX_X87SINGLEPRECISION"),
+                Some("0"),
+                "{apis:?}"
+            );
+        }
+        let chosen = program_with(|s| s.options.set("fex-x87-single", Some("1")));
+        assert_eq!(value(&chosen, "FEX_X87SINGLEPRECISION"), Some("1"));
     }
 
     #[test]
