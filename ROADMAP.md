@@ -20,6 +20,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` Keep translated code between runs and prepare it at the first start
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
+- [ ] `feature` A game missing a DLL names it on the console, and the build wizard lets the user add it
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
