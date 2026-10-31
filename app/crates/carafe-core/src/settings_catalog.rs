@@ -1077,6 +1077,14 @@ fn experimental() -> Vec<Setting> {
             off_on(),
             0,
         ),
+        Setting::new(
+            "window-hooks",
+            SettingFile::Program,
+            "window-hooks",
+            Apply::Restart,
+            off_on(),
+            0,
+        ),
         dxvk("dxvk.skipRedundantPipelineBinds", dxvk_bool()),
         dxvk(
             "dxvk.frameRateMethod",

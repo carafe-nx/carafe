@@ -521,6 +521,10 @@ __attribute__((constructor(105))) static void carafeSettingsEnvironment(void) {
         setenv("CARAFE_LARGE_GUEST_PAGES", "1", 1);
         note("[CARAFE] settings: large views of the game's memory start on 2 MB");
     }
+    if (textValue(text, "window-hooks", value, sizeof(value)) && strcmp(value, "1") == 0) {
+        setenv("CARAFE_WINDOW_HOOKS", "1", 1);
+        note("[CARAFE] settings: window hooks");
+    }
     free(text);
 }
 
