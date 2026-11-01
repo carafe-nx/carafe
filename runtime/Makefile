@@ -109,6 +109,7 @@ layout: wine fex dxvk loader $(MONO_ARCHIVE)
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 libwow64fex.dll \
 		$(FEX_BUILD)/Bin/libwow64fex.dll
 	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
+	python3 $(CURDIR)/winrt/add-winrt-classes.py $(OUT)/romfs $(AUTORUN)
 	cp -r $(SWITCH)/stage/switch/. $(OUT)/romfs/switch/
 	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif \
