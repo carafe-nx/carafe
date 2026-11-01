@@ -805,13 +805,6 @@ fn dxvk_pages() -> Vec<Page> {
             vec![
                 dxvk("dxvk.numCompilerThreads", dxvk_threads()),
                 dxvk(
-                    "dxvk.shaderCompilationMethod",
-                    vec![
-                        is("\"none\"", word("off")),
-                        is("\"dyasync\"", text("dyasync")),
-                    ],
-                ),
-                dxvk(
                     "dxvk.enableGraphicsPipelineLibrary",
                     vec![
                         is("Auto", word("auto")),
@@ -919,6 +912,28 @@ fn dxvk_pages() -> Vec<Page> {
                 dxvk("dxgi.hideNvkGpu", dxvk_tri()),
                 dxvk("d3d9.hideNvidiaGpu", dxvk_tri()),
                 dxvk("d3d9.hideNvkGpu", dxvk_tri()),
+            ],
+        ),
+        page(
+            "dxvk-sarek",
+            vec![
+                dxvk(
+                    "dxvk.shaderCompilationMethod",
+                    vec![
+                        is("\"async\"", text("async")),
+                        is("\"none\"", word("off")),
+                        is("\"dyasync\"", text("dyasync")),
+                    ],
+                ),
+                dxvk("dxvk.skipRedundantPipelineBinds", dxvk_bool()),
+                dxvk(
+                    "dxvk.frameRateMethod",
+                    quoted(&["deviation", "reactive", "timeline"]),
+                ),
+                dxvk(
+                    "dxvk.frameRatePacing",
+                    quoted(&["sleep", "sliced", "spin", "precise"]),
+                ),
             ],
         ),
     ]
@@ -1093,15 +1108,6 @@ fn experimental() -> Vec<Setting> {
             Apply::Restart,
             off_on(),
             0,
-        ),
-        dxvk("dxvk.skipRedundantPipelineBinds", dxvk_bool()),
-        dxvk(
-            "dxvk.frameRateMethod",
-            quoted(&["deviation", "reactive", "timeline"]),
-        ),
-        dxvk(
-            "dxvk.frameRatePacing",
-            quoted(&["sleep", "sliced", "spin", "precise"]),
         ),
     ]
 }
@@ -1295,7 +1301,7 @@ mod tests {
             .iter()
             .map(|page| page.settings.len())
             .sum::<usize>();
-        assert_eq!(dxvk, 52);
+        assert_eq!(dxvk, 55);
         let fex = catalog
             .settings()
             .into_iter()

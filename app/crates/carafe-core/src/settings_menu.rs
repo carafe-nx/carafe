@@ -474,12 +474,12 @@ mod tests {
             .iter()
             .filter(|line| line.starts_with("page\t"))
             .count();
-        assert_eq!(pages, 8);
+        assert_eq!(pages, 9);
         let settings = lines[start..end]
             .iter()
             .filter(|line| line.starts_with("setting\t"))
             .count();
-        assert_eq!(settings, 52);
+        assert_eq!(settings, 55);
         assert_eq!(
             menu.lines()
                 .filter(|line| line.starts_with("group\t"))

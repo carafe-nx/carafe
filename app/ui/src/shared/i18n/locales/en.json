@@ -24,6 +24,7 @@
       "dxvk-fixes": "Fixes",
       "dxvk-render": "Render path",
       "dxvk-identity": "What the game sees",
+      "dxvk-sarek": "DXVK-Sarek",
       "fex-general": "General",
       "fex-memory": "Memory ordering",
       "fex-compat": "Compatibility and caches"
@@ -143,7 +144,7 @@
       "fex-x87-single": { "name": "x87 math in 32 bits", "hint": "With Reduced x87 precision on, old x87 math is done in 32 bits, as Direct3D 8 and 9 set it for many games — faster still. Turn off if the game freezes, its clock jumps or it crashes." },
       "suspend-wakes": { "name": "Stopping waiting threads", "hint": "The game can stop its own threads even while they wait, as Unity and Mono games do to clean up memory. Turn on if such a game hangs or crashes while loading. Turn off if the game starts to hang." },
       "window-hooks": { "name": "Window hooks", "hint": "The game can watch its windows being created, as games made with MFC do before their first window. Turn on if the game closes right at the start with a memory error. Turn off if the game starts behaving oddly." },
-      "dxvk-shaderCompilationMethod": { "name": "Shader building in the background", "hint": "By default, while a shader is being built, the object that needs it is skipped instead of the game waiting; objects may appear a moment late. Off: the game waits for each shader, as in plain DXVK. dyasync: the first shader of each set is built at once. Turn off if parts of the picture stay missing." },
+      "dxvk-shaderCompilationMethod": { "name": "Shader building in the background", "hint": "Default and async: while a shader is being built, the object that needs it is skipped instead of the game waiting; objects may appear a moment late. Off: the game waits for each shader, as in plain DXVK. dyasync: the first shader of each set is built at once. Turn off if parts of the picture stay missing." },
       "dxvk-skipRedundantPipelineBinds": { "name": "Skip repeated shader binds", "hint": "A shader already in use is not set again before the next draw, which saves a little processor time. Turn off if the picture shows errors." },
       "dxvk-frameRateMethod": { "name": "Frame limiter timing", "hint": "How the frame rate cap keeps time: deviation, as in older DXVK, carries each frame's error into the next; reactive waits a full frame after every frame; timeline is DXVK's own. Matters only when the frame rate is capped." },
       "dxvk-frameRatePacing": { "name": "Frame limiter waiting", "hint": "How the frame rate cap waits: sleep sleeps and leaves the processor free; sliced sleeps in short steps; spin keeps the processor busy; precise is DXVK's own, a sleep that ends busy. Matters only when the frame rate is capped." },

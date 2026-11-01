@@ -24,6 +24,7 @@
       "dxvk-fixes": "Korrekturen",
       "dxvk-render": "Renderpfad",
       "dxvk-identity": "Was das Spiel sieht",
+      "dxvk-sarek": "DXVK-Sarek",
       "fex-general": "Allgemein",
       "fex-memory": "Speicherreihenfolge",
       "fex-compat": "Kompatibilität und Caches"
@@ -143,7 +144,7 @@
       "fex-x87-single": { "name": "x87 in 32 Bit", "hint": "Zusammen mit reduzierter x87-Genauigkeit rechnet die alte x87-Mathematik in 32 Bit, wie Direct3D 8 und 9 sie bei vielen Spielen einstellen – noch schneller. Ausschalten, wenn das Spiel hängt, seine Zeit springt oder es abstürzt." },
       "suspend-wakes": { "name": "Wartende Threads anhalten", "hint": "Das Spiel kann seine Threads auch anhalten, während sie warten, wie es Spiele mit Unity und Mono beim Aufräumen des Speichers tun. Einschalten, wenn so ein Spiel beim Laden hängt oder abstürzt. Ausschalten, wenn das Spiel zu hängen beginnt." },
       "window-hooks": { "name": "Fenster-Hooks", "hint": "Das Spiel kann verfolgen, wie seine Fenster erstellt werden, wie es Spiele mit MFC vor ihrem ersten Fenster tun. Einschalten, wenn sich das Spiel gleich beim Start mit einem Speicherfehler schließt. Ausschalten, wenn sich das Spiel seltsam verhält." },
-      "dxvk-shaderCompilationMethod": { "name": "Shader im Hintergrund erstellen", "hint": "Standardmäßig wird ein Objekt, dessen Shader noch erstellt wird, ausgelassen, statt dass das Spiel wartet; Objekte können kurz später erscheinen. Aus: Das Spiel wartet auf jeden Shader, wie im normalen DXVK. dyasync: Der erste Shader jeder Gruppe wird sofort erstellt. Ausschalten, wenn Teile des Bildes fehlen." },
+      "dxvk-shaderCompilationMethod": { "name": "Shader im Hintergrund erstellen", "hint": "Standard und async: Ein Objekt, dessen Shader noch erstellt wird, ausgelassen, statt dass das Spiel wartet; Objekte können kurz später erscheinen. Aus: Das Spiel wartet auf jeden Shader, wie im normalen DXVK. dyasync: Der erste Shader jeder Gruppe wird sofort erstellt. Ausschalten, wenn Teile des Bildes fehlen." },
       "dxvk-skipRedundantPipelineBinds": { "name": "Wiederholtes Binden von Shadern überspringen", "hint": "Ein Shader, der schon in Gebrauch ist, wird vor dem nächsten Zeichnen nicht erneut gesetzt; das spart etwas Prozessorzeit. Ausschalten, wenn das Bild Fehler zeigt." },
       "dxvk-frameRateMethod": { "name": "Zeitmessung der Bildratenbegrenzung", "hint": "Wie die Bildratenbegrenzung die Zeit misst: deviation wie im älteren DXVK, mit Übertrag des Fehlers auf das nächste Bild; reactive wartet nach jedem Bild ein ganzes Bild; timeline ist die Methode von DXVK selbst. Nur wichtig, wenn die Bildrate begrenzt ist." },
       "dxvk-frameRatePacing": { "name": "Warten der Bildratenbegrenzung", "hint": "Wie die Bildratenbegrenzung wartet: sleep schläft und lässt den Prozessor frei; sliced schläft in kurzen Schritten; spin hält den Prozessor beschäftigt; precise ist die Methode von DXVK, ein Schlaf mit beschäftigtem Ende. Nur wichtig, wenn die Bildrate begrenzt ist." },

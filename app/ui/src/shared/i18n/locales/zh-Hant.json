@@ -24,6 +24,7 @@
       "dxvk-fixes": "修正",
       "dxvk-render": "繪製路徑",
       "dxvk-identity": "遊戲看到的硬體",
+      "dxvk-sarek": "DXVK-Sarek",
       "fex-general": "一般",
       "fex-memory": "記憶體順序",
       "fex-compat": "相容性與快取"
@@ -143,7 +144,7 @@
       "fex-x87-single": { "name": "x87 以 32 位元運算", "hint": "與降低 x87 精確度一起使用時，舊式 x87 運算改用 32 位元，與 Direct3D 8 和 9 在許多遊戲中的設定相同，更快。遊戲卡住、時間跳動或當機時請關閉。" },
       "suspend-wakes": { "name": "停止等待中的執行緒", "hint": "像 Unity 和 Mono 遊戲清理記憶體時那樣，讓遊戲即使在執行緒等待時也能停止它們。如果這類遊戲在載入時卡住或當機，請開啟。如果遊戲開始卡住，請關閉。" },
       "window-hooks": { "name": "視窗掛鉤", "hint": "讓遊戲能監看自己視窗的建立，就像用 MFC 做的遊戲在第一個視窗之前所做的那樣。如果遊戲一啟動就因記憶體錯誤關閉，請開啟。如果遊戲表現異常，請關閉。" },
-      "dxvk-shaderCompilationMethod": { "name": "在背景產生著色器", "hint": "預設情況下，著色器產生期間，需要它的物體暫不繪製，遊戲不必等待；物體可能會稍晚出現。關閉：與一般 DXVK 相同，遊戲等待每個著色器。dyasync：每組的第一個著色器立即產生。如果畫面有部分缺失，請關閉。" },
+      "dxvk-shaderCompilationMethod": { "name": "在背景產生著色器", "hint": "預設和 async：著色器產生期間，需要它的物體暫不繪製，遊戲不必等待；物體可能會稍晚出現。關閉：與一般 DXVK 相同，遊戲等待每個著色器。dyasync：每組的第一個著色器立即產生。如果畫面有部分缺失，請關閉。" },
       "dxvk-skipRedundantPipelineBinds": { "name": "略過重複繫結著色器", "hint": "已在使用的著色器在下一次繪製前不再重新設定，可節省少量處理器時間。如果畫面出現錯誤，請關閉。" },
       "dxvk-frameRateMethod": { "name": "幀率限制的計時方式", "hint": "幀率限制如何計時：deviation 與舊版 DXVK 相同，把每幀的誤差帶到下一幀；reactive 在每幀之後等待一整幀；timeline 是 DXVK 自己的方式。僅在限制幀率時有影響。" },
       "dxvk-frameRatePacing": { "name": "幀率限制的等待方式", "hint": "幀率限制如何等待：sleep 休眠並讓出處理器；sliced 分成短步休眠；spin 讓處理器一直忙等；precise 是 DXVK 自己的方式，休眠後以忙等收尾。僅在限制幀率時有影響。" },
