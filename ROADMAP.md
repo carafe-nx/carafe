@@ -21,6 +21,14 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `feature` A game missing a DLL names it on the console, and the build wizard lets the user add it
+- [ ] `research` MFC games need window hooks: turn them on by default or for MFC games
+- [ ] `feature` Message boxes answered with the controller's buttons, not only by touch
+- [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
+- [ ] `game` Megabonk: reads the controller through Windows.Gaming.Input, which sees no pad
+- [ ] `game` Max Payne: the start-up settings window is drawn black over the whole screen
+- [ ] `game` Rig and Roll: Direct3D 7 through DirectDraw gets no OpenGL context
+- [ ] `game` Indiana Jones and the Emperor's Tomb: "Press Enter" waits for the keyboard
+- [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
@@ -46,6 +54,14 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` Message boxes and dialogs show their text, icon and buttons
+- [x] `bug` The loading screen steps aside when a program shows a dialog before its first picture
+- [x] `feature` Direct3D 8 games run through DXVK
+- [x] `feature` 32-bit Direct3D 10 and 11 games run through DXVK
+- [x] `feature` Games that use .NET get Wine Mono
+- [x] `bug` Games find the Windows Runtime classes Wine has
+- [x] `feature` Experimental: window hooks, waking suspended threads, single-precision x87
+- [x] `feature` Logs name the first exceptions, DLLs without their Unix part and the first controller press
 - [x] `bug` No hitches while shaders build: DXVK builds them in the background, as DXVK-Sarek does
 - [x] `bug` DXVK settings now reach 32-bit games
 - [x] `bug` A game that makes a probe Direct3D device on its first start no longer stays on the loading screen
