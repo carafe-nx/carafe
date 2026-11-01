@@ -1,0 +1,9 @@
+#!/bin/sh
+exec sh "@FFMPEG@/configure" "$@" \
+    --enable-demuxer=mov,asf,avi,mpegps,mpegvideo,mp3,wav,aiff,au \
+    --enable-decoder=wmv1,wmv2,wmv3,vc1,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg1video,mpeg2video,mpeg4,h263 \
+    --enable-decoder=cinepak,msvideo1,msrle,indeo3,indeo4,indeo5,rawvideo \
+    --enable-decoder=mp1,mp2,mp3,pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_alaw,pcm_mulaw \
+    --enable-decoder=adpcm_ms,adpcm_ima_wav,gsm_ms \
+    --enable-parser=mpegvideo,mpegaudio,mpeg4video,vc1,h263 \
+    --enable-bsf=extract_extradata

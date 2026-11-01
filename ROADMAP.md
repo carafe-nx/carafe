@@ -21,11 +21,9 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `feature` A game missing a DLL names it on the console, and the build wizard lets the user add it
-- [ ] `feature` Videos played through DirectShow (ASF, AVI, MPEG) decoded with FFmpeg
 - [ ] `feature` Message boxes answered with the controller's buttons, not only by touch
 - [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
 - [ ] `game` Megabonk: reads the controller through Windows.Gaming.Input, which sees no pad
-- [ ] `game` Max Payne: waits forever for its intro video, which DirectShow cannot open
 - [ ] `game` Rig and Roll: Direct3D 7 through DirectDraw gets no OpenGL context
 - [ ] `game` Indiana Jones and the Emperor's Tomb: "Press Enter" waits for the keyboard
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
@@ -54,6 +52,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `feature` Videos played through DirectShow and Windows Media (ASF, AVI, MPEG) are decoded with FFmpeg
+- [x] `bug` A game no longer hangs when a thread of DirectShow reads its messages while the game waits for it
 - [x] `feature` Window hooks built in: MFC games start
 - [x] `bug` Texts of programs without Unicode show in the console's language
 - [x] `bug` A dialog shown at start-up keeps its own size, in the middle of the screen

@@ -21,6 +21,7 @@ FEX_PATCHES := $(sort $(wildcard $(CURDIR)/patches/fex/*.patch))
 DXVK_SRC := $(BUILD)/dxvk-src
 DXVK_BUILD := $(BUILD)/dxvk
 DXVK_PATCHES := $(sort $(wildcard $(CURDIR)/patches/dxvk/*.patch))
+MEDIA_SRC := $(BUILD)/ffmpeg-source
 MONO_VERSION := 11.3.0
 MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 MONO_URL := https://github.com/wine-mono/wine-mono/releases/download/wine-mono-$(MONO_VERSION)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
@@ -54,9 +55,15 @@ $(PE)/Makefile: | check-image
 headers: $(PE)/Makefile
 	$(MAKE) -C $(PE) -j$(JOBS) include/all
 
-$(SWITCH)/build.ninja: | headers
+$(MEDIA_SRC)/configure: $(CURDIR)/media/configure.in
+	mkdir -p $(MEDIA_SRC)
+	sed 's|@FFMPEG@|$(WINE)/vendor/ffmpeg|' $< > $@
+	cp $(WINE)/vendor/ffmpeg/COPYING.LGPLv2.1 $(MEDIA_SRC)/
+
+$(SWITCH)/build.ninja: | headers $(MEDIA_SRC)/configure
 	cmake -S $(WINE) -B $(SWITCH) -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE=$(WINE)/cmake/switch-devkitA64.cmake \
+		-DWINE_NX_FFMPEG_SOURCE=$(MEDIA_SRC) \
 		-DWINE_NX_PE_BUILD_DIR=$(PE) -DWINE_NX_AMD64=ON -DWINE_NX_FEX=ON \
 		-DWINE_NX_BOX64_INTERPRETER=ON -DWINE_NX_BOX64_DYNAREC=ON \
 		-DWINE_NX_USB_STORAGE=ON -DWINE_NX_BOOT_BUNDLE= -DCMAKE_BUILD_TYPE=Release \
@@ -69,7 +76,9 @@ orchestrator-test:
 		$(CURDIR)/orchestrator/test/orchestrator_test.c $(CURDIR)/orchestrator/orchestrator_policy.c
 	$(BUILD)/orchestrator-test
 
-wine: headers orchestrator-test $(SWITCH)/build.ninja
+wine: headers orchestrator-test $(MEDIA_SRC)/configure $(SWITCH)/build.ninja
+	grep -qx 'WINE_NX_FFMPEG_SOURCE:PATH=$(MEDIA_SRC)' $(SWITCH)/CMakeCache.txt || \
+		cmake -S $(WINE) -B $(SWITCH) -DWINE_NX_FFMPEG_SOURCE=$(MEDIA_SRC)
 	rm -rf $(OVERLAY_OBJECTS) $(ORCHESTRATOR_OBJECTS)
 	cmake --build $(SWITCH) --target wine-nx-runtime-nro -j $(JOBS)
 	rm -rf $(SWITCH)/stage
@@ -110,6 +119,7 @@ layout: wine fex dxvk loader $(MONO_ARCHIVE)
 		$(FEX_BUILD)/Bin/libwow64fex.dll
 	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
 	python3 $(CURDIR)/winrt/add-winrt-classes.py $(OUT)/romfs $(AUTORUN)
+	python3 $(CURDIR)/dshow/add-directshow-filters.py $(OUT)/romfs
 	cp -r $(SWITCH)/stage/switch/. $(OUT)/romfs/switch/
 	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif \

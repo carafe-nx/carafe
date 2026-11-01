@@ -17,6 +17,8 @@ Wine for Horizon OS with Carafe's builds of FEX and DXVK, and Mesa.
   - `patches/dxvk/`, `dxvk/` — changes to DXVK and the build of its modules from them (Zlib, decision 30);
   - `mono/` — stages Wine Mono, which goes only into NSPs of games that use .NET (decision 54);
   - `winrt/` — registers the WinRT classes of Wine's DLLs in the runtime's registry;
+  - `media/` — adds demuxers and decoders to the FFmpeg build of Autorun's media backend (decision 58);
+  - `dshow/` — registers DirectShow's filter categories and filters in the runtime's registry (decision 58);
   - `Makefile` — builds the runtime into `app/crates/carafe-desktop/resources/runtime/`.
 - `tools/hacbrewpack/` — builds hacBrewPack, the program the app runs to pack NSPs, with Carafe's changes from
   `tools/hacbrewpack/patches/`.
