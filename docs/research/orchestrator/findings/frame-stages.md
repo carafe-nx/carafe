@@ -34,7 +34,7 @@ snapshotted; the simulation alone is too small to be worth splitting.
   and the blocks attributed to stages through a static call graph of `SPEED2.EXE` (observed addresses, inferred
   grouping).
 
-Scripts in `D:\debug_switch\carafe\tools\orchestrator\`: `exe-calls.sh` (linear disassembly of `.text` with
+Local scripts, not in the repository: `exe-calls.sh` (linear disassembly of `.text` with
 `llvm-objdump` in `carafe-runtime:latest`, the game folder mounted read-only; 1.24 M lines, 118712 calls, jumps and
 returns to `exe\calls.txt`), `graph.js` (function starts = direct call targets; callers and callees),
 `xdis.sh` (a range of the `.exe`), `exe-vcalls.sh` (calls through a vtable slot), `exe-refs.sh` (code that references

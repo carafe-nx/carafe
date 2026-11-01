@@ -85,6 +85,12 @@ They are written for AI coding agents and are just as useful for people.
 The build applies the patches to copies of the files, so the submodule stays clean. Updating a submodule to a
 new commit is described in [`external/README.md`](external/README.md).
 
+Carafe builds FEX and DXVK itself, at the commits named in `runtime/fex/build-fex.sh` and
+`runtime/dxvk/build-dxvk.sh`. Their changes are patches in `runtime/patches/fex/` and `runtime/patches/dxvk/`, with
+the same header, numbering and paths relative to FEX's or DXVK's root; a patch there may change several files. The
+license line is `MIT, as the file it changes.` for FEX and `Zlib, as the file it changes.` for DXVK, with "files"
+when a patch changes more than one.
+
 ## Commits and pull requests
 
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org): one line in English,
@@ -96,5 +102,5 @@ new commit is described in [`external/README.md`](external/README.md).
 ## License
 
 By contributing you agree that your code is released under the license of the part it goes into:
-GPL-3.0-or-later for Carafe as a whole, LGPL-2.1-or-later for `runtime/overlay/` and `runtime/patches/`,
-ISC for `runtime/loader/`.
+GPL-3.0-or-later for Carafe as a whole, LGPL-2.1-or-later for `runtime/overlay/` and `runtime/patches/autorun/`,
+MIT for `runtime/patches/fex/`, Zlib for `runtime/patches/dxvk/`, ISC for `runtime/loader/`.

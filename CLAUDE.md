@@ -2,7 +2,7 @@
 
 Carafe is a desktop app that turns a Windows game folder into a standalone NSP for a Nintendo Switch
 with custom firmware. The runtime inside every NSP is built on [Autorun](https://github.com/autorunhq/autorun):
-Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
+Wine for Horizon OS with Carafe's builds of FEX and DXVK, and Mesa.
 
 ## Layout
 
@@ -10,9 +10,13 @@ Wine for Horizon OS with Box64/FEX, DXVK and Mesa.
 - `runtime/` — everything that runs on the Switch and goes into each NSP:
   - `loader/` — the loader, the NSP's first code (ISC, based on nx-hbloader);
   - `overlay/` — Carafe's code compiled into Autorun's runtime (LGPL-2.1-or-later);
+  - `orchestrator/` — the orchestrator, compiled into the runtime with the overlay: it lays the game's threads
+    out over the four cores (decisions 36, 42); its policy test runs before every runtime build;
   - `patches/autorun/` — changes to Autorun's sources, one file per patch (LGPL-2.1-or-later);
   - `patches/fex/`, `fex/` — changes to FEX and the build of its WoW64 module from them (MIT, decision 29);
   - `patches/dxvk/`, `dxvk/` — changes to DXVK and the build of its modules from them (Zlib, decision 30);
+  - `mono/` — stages Wine Mono, which goes only into NSPs of games that use .NET (decision 54);
+  - `winrt/` — registers the WinRT classes of Wine's DLLs in the runtime's registry;
   - `Makefile` — builds the runtime into `app/crates/carafe-desktop/resources/runtime/`.
 - `tools/hacbrewpack/` — builds hacBrewPack, the program the app runs to pack NSPs, with Carafe's changes from
   `tools/hacbrewpack/patches/`.

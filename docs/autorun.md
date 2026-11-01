@@ -33,7 +33,8 @@ anything not checked at all is marked "not verified".
   - Atmosphère 1.11.2 and Horizon-OC 2.5.1 (`build-boot-bundle.sh:24-77`) — only for the quick SD install of
     Autorun; without them `build-amd64-components.sh:27-36` builds with an empty `boot_bundle`.
 - The runtime `.nro` holds only the glue code for FEX (`CMakeLists.txt:832-836`); FEX itself comes as DLLs from
-  `horizon-dlls`.
+  `horizon-dlls`. Carafe's NSP replaces FEX's WoW64 DLL and DXVK's DLLs with Carafe's builds (`runtime/fex/`,
+  `runtime/dxvk/`, laid in by `use-dll.py` and `use-dxvk.py`).
 - In `horizon-dlls`, `switch/wine/drive_c/windows` takes 903 MB; a compressed copy in `compressed/` takes 195 MB.
 - Autorun's release archive has no DLLs: the runtime downloads them by a manifest (`build.sh:14-15`,
   `package-autorun.py:269`). Carafe puts them into each NSP instead.
@@ -142,8 +143,10 @@ What the runtime keeps open for writing, which matters for committing save data:
 Committing save data with a file open for writing is `WriteModeFileNotClosed` (2002-6457) in Atmosphère
 (`libvapours/.../fs_results.hpp:565`), and the SDK client aborts on it
 (`libstratosphere/source/fs/fsa/fs_filesystem_accessor.cpp:265-269`). What the FS service answers to libnx's
-`fsFsCommit` with open files is not verified. Carafe's overlay therefore commits only when nothing in save data is
-open for writing (`commitIfQuiet` in `runtime/overlay/carafe_overlay.c`).
+`fsFsCommit` with open files is not verified. Carafe's overlay therefore closes every file the game holds open for
+writing in save data before it commits and reopens each one afterwards at the same offset (`commitNow` in
+`runtime/overlay/carafe_overlay.c`; when to commit is `commitIfDue`,
+[decision 19](decisions/0019-commit-with-open-files.md)).
 
 newlib and libnx details the overlay has to respect:
 
@@ -189,8 +192,8 @@ newlib and libnx details the overlay has to respect:
   and the 132 MB reservation found no range. A block holds at most `FEX_MAXINST` instructions (1000 by default),
   so FEX patch `0003` sizes the decoder for that limit and the IR lists at upstream's 8 MB per 5000 instructions:
   4 MB per thread instead of 24 MB. The native window, about 640 MB, had 360–450 MB free and was left as it is.
-- Eden puts the heap high, so a 32-bit game there keeps a large free range below it; Lab's `--heap-start` places it
-  where the console did (`carafe-lab`, `patches/eden/0051`).
+- Eden puts the heap high, so a 32-bit game there keeps a large free range below it; Carafe's emulator test lab
+  places it where the console did.
 - Where the kernel puts the heap is decided at process creation (ASLR). Rarely it lands inside the low 4 GB; then
   early guest reservations shrink to about 600 MB and the start fails. Ordinary Autorun likely has the same; not
   verified.
@@ -390,7 +393,8 @@ Read from the code; not checked on the console unless stated.
 - **`d3d`**: the line `d3d=dxvk` reads as DXVK+VKD3D (`hw/launcher_settings.h:414-416`), so plain DXVK is the
   absence of the key. `wine` is wined3d on OpenGL, and `DXVK_*` are cleared (`hw/runtime.c:1706-1741, 1823`).
 - **`dxvk-source`**: only the official DXVK ships with the runtime; Sarek and GPLAsync are downloaded by the launcher
-  (`hw/launcher_graphics.c:179`); Sarek is incompatible with VKD3D (`hw/launcher_settings.h:429-436`).
+  (`hw/launcher_graphics.c:179`); Sarek is incompatible with VKD3D (`hw/launcher_settings.h:429-436`). In Carafe's
+  NSP the official DXVK is replaced with Carafe's build (`runtime/dxvk/`), and Carafe does not write the key.
 - **`dxvk-hud`**: sets `DXVK_HUD` (`hw/runtime.c:1826-1829`); an enabled HUD adds
   `dxvk.enableDescriptorBuffer = False` (`hw/launcher_settings.h:237-242`).
 - **`frame-limit`, `vsync`**: a pause before presenting a frame in winevulkan (`dlls/win32u/vulkan.c:82-112, 4078`)
@@ -415,11 +419,13 @@ registry edits. Not verified on the console.
 
 **Keys the runtime reads that Carafe does not expose:**
 
-- `dxvk-version`, `vkd3d-version` (`hw/launcher_settings.h:423-428`); a DXVK version that is not installed falls back
-  to wined3d (`hw/runtime.c:1738-1739`);
-- 74 DXVK options `dxvk.*`/`d3d9.*`/`d3d11.*`/`dxgi.*` (`hw/dxvk_options.c:207-470`); a `dxvk.conf` next to the game
-  overrides them all (`hw/runtime.c:3872-3887`);
-- 19 `FEX_*` options from `.wine-nx.txt` (`hw/runtime.c:1648-1670`, `hw/fex_options.h:46-104`);
+- `sync`, `cpu`, `four-cores`: written the same for every game, `horizon`, `fex` and `1`; `d3d` is written only as
+  `dxvk+vkd3d` for Direct3D 12 games (`app/crates/carafe-core/src/autorun_files.rs`, decision 43);
+- `dxvk-source`, `dxvk-version`, `vkd3d-version` (`hw/launcher_settings.h:423-428`); a DXVK version that is not
+  installed falls back to wined3d (`hw/runtime.c:1738-1739`);
+- the 20 of the 74 DXVK options (`hw/dxvk_options.c:207-470`) that Autorun's table gives only to other DXVK
+  versions or to Sarek and GPLAsync, not to 3.1.1; a `dxvk.conf` next to the game overrides them all
+  (`hw/runtime.c:3872-3887`);
 - 18 `BOX64_DYNAREC_*` options from `<exe>.box64.txt` (`hw/wow64_box64_dynarec.c:474-498`, `hw/box64_options.h:46-101`);
 - `config/settings.json` keys; the old layout format without the `key.` prefix.
 

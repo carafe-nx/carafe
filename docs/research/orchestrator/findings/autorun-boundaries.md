@@ -33,8 +33,7 @@ Neither case holds today. The gain from leaving is zero on its own: it only remo
 ## Evidence
 
 Autorun pinned in Carafe at `636913ca` (paths relative to `external/autorun`, `hw/` = `horizon-wine/source/`), newer
-Autorun at `a54d5964` (`D:\Repositories\carafe-nx\autorun`), Carafe at the working tree of
-`D:\Repositories\carafe-nx\carafe`.
+Autorun at `a54d5964` (a separate checkout), Carafe at its working tree.
 
 ### How Carafe reaches into the runtime today
 
@@ -92,7 +91,7 @@ Autorun at `a54d5964` (`D:\Repositories\carafe-nx\autorun`), Carafe at the worki
 
 ### What runs in a race, and what that says about the limits
 
-From `D:\debug_switch\carafe\nfsu2-exp9\logs\autorun_runtime.log`, race intervals at 1887 MHz:
+From `autorun_runtime.log` of the console run `nfsu2-exp9`, race intervals at 1887 MHz:
 
 - Line 1029: `4w@1 98.7% 44w:dxvk-cs@3 36.9% 40w:dxvk-queue@0 6.9% 104w@0 5.0% 36w:dxvk-submit@2 2.6%
   100w:wine_dsound_mixer@0 1.3%`, 1.53 cores in all. Cores 0 and 2 are each about 90 % idle, and core 3 about 60 %.

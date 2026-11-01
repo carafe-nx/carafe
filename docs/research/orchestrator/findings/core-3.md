@@ -17,7 +17,7 @@ counter.
 ## Evidence
 
 Sources as in [horizon-scheduler.md](horizon-scheduler.md): Atmosphère `6b0c077`, Autorun `636913ca`, Carafe tree,
-console logs `D:\debug_switch\carafe\nfsu2-exp9\logs`.
+the console logs of run `nfsu2-exp9`.
 
 ### What runs on core 3
 
@@ -45,7 +45,7 @@ console logs `D:\debug_switch\carafe\nfsu2-exp9\logs`.
 - `svcCallSecureMonitor` from any core other than 3 panics the secure monitor (Switchbrew, SVC page,
   https://switchbrew.org/wiki/SVC): the system's secure calls are tied to core 3 as well.
 - Audio mixing for `AudioRenderer` runs on the audio DSP, not on the A57 cores, according to Eden's model of the
-  audio module (`carafe-lab/external/eden/src/audio_core/adsp/adsp.h:24-41`, "a 32-bit Linux4Tegra kernel …
+  audio module (Eden's `src/audio_core/adsp/adsp.h:24-41`, "a 32-bit Linux4Tegra kernel …
   launched with the sysmodule"). The system's CPU side of audio still runs on core 3. Not verified on hardware.
 - Requests the game itself causes are served on core 3: every NVK/nvservices ioctl (submits, fences), `vi` for
   presentation, `hid` for input, `fs` for the SD card. The system's load on core 3 therefore grows with the game's

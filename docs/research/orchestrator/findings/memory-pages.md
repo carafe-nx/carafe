@@ -22,8 +22,8 @@ PMU or the trace of T1 decides.
 ## Evidence
 
 Sources: Atmosphère `6b0c077` (paths relative to `libraries/libmesosphere`), Autorun `636913ca`
-(`carafe/external/autorun`), Carafe tree, FEX checkout `carafe/runtime/build/fex-src` at `395b132`, console log
-`D:\debug_switch\carafe\nfsu2-exp9\logs\autorun_runtime.log`.
+(`carafe/external/autorun`), Carafe tree, FEX checkout `carafe/runtime/build/fex-src` at `395b132`,
+`autorun_runtime.log` of the console run `nfsu2-exp9`.
 
 ### What the kernel maps with
 
@@ -92,7 +92,7 @@ Sources: Atmosphère `6b0c077` (paths relative to `libraries/libmesosphere`), Au
   adds a DRAM access.
 - Reach: 4 KB pages 128 KB (L1) / 4 MB (L2); 64 KB pages 2 MB / 64 MB; 2 MB blocks about 32 MB (L1, as 1 MB) / 2 GB.
 - Cache line 64 bytes; a load crossing a 64-byte line or a store crossing a 16-byte boundary costs extra
-  (`D:\debug_switch\carafe\sources\cortex-a57-optimization-guide.txt:1915-1916`, Optimization Guide §4.6, pages 39–40).
+  (Cortex-A57 Software Optimization Guide §4.6, pages 39–40).
 
 ### What the `[A57]` page test measured
 

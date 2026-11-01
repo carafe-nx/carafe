@@ -68,7 +68,7 @@ Ground truth is Wine's importer, `programs/reg/import.c` (and `programs/regedit/
 
 ## Checked in Carafe Lab
 
-The registry probe (`carafe-lab/tools/probes/registry.c`, 32-bit) reads `HKCU\Software\CarafeProbe` and
+The test lab's registry probe (32-bit) reads `HKCU\Software\CarafeProbe` and
 `HKLM\Software\CarafeProbe`, logs what it finds and counts its starts in `Starts`. Built by the app from a UTF-16 `.reg`
 with a `Wow6432Node` key, an `HKEY_USERS` key and a deletion, with one menu row:
 

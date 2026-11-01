@@ -2,6 +2,9 @@
 
 Date: 2026-10-06
 
+Thread sync, the DXVK build and the fourth core for graphics are replaced by
+[43](0043-one-path-for-every-game.md): they are no longer settings.
+
 ## Context
 
 Without Autorun's launcher nothing picks settings for a game. The runtime reads them from `<exe>.keys.txt` and

@@ -19,8 +19,8 @@ turn into frames up to the GPU's ceiling of about 83 fps ([gpu-submission.md](gp
 ## Evidence
 
 Trees as in [shared-memory-attributes.md](shared-memory-attributes.md): DXVK `b1a1c99`
-(`carafe/runtime/build/dxvk-src`), mesa-switch `d4a00ea0ab` (GitHub), Autorun `636913ca`. Logs:
-`D:\debug_switch\carafe\nfsu2-exp9\logs`.
+(`carafe/runtime/build/dxvk-src`), mesa-switch `d4a00ea0ab` (GitHub), Autorun `636913ca`. Logs: the console run
+`nfsu2-exp9`.
 
 ### Already on the GPU in DXVK
 

@@ -30,7 +30,7 @@ Trees, and which one the console runs:
   [../../loading-screen/REPORT.md](../../loading-screen/REPORT.md) (lines 31, 43). Its source is not on disk; the files
   below were read from GitHub at that commit (`src/nouveau/horizon/*`, `src/nouveau/vulkan/nvkmd/switch/*` and the NVK
   files named). The build image itself was not opened: the Docker engine was not running.
-- `carafe-lab/external/mesa@f97d7dc` is upstream Mesa 25.2.8 with no Horizon winsys: a proxy, used only to check that
+- Mesa `f97d7dc` in the test lab is upstream Mesa 25.2.8 with no Horizon winsys: a proxy, used only to check that
   NVK's generic code matches.
 - libnx `146c3d14` (pinned with mesa-switch), read from GitHub. DXVK `b1a1c99` (3.1.1) in
   `carafe/runtime/build/dxvk-src`. Autorun `636913ca` in `carafe/external/autorun`; `dlls/win32u/vulkan.c` is identical

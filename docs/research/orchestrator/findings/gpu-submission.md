@@ -22,7 +22,7 @@ there nothing on the GPU side needs changing; `dxvk-cs` on core 3 runs out at ab
 
 Trees as in [shared-memory-attributes.md](shared-memory-attributes.md): DXVK `b1a1c99` in
 `carafe/runtime/build/dxvk-src`, the console's Mesa `danfromtico/mesa-switch@d4a00ea0ab` (read from GitHub), libnx
-`146c3d14`, Autorun `636913ca`, Eden `58c1e20`. Logs: `D:\debug_switch\carafe\nfsu2-exp9\logs`.
+`146c3d14`, Autorun `636913ca`, Eden `58c1e20`. Logs: the console run `nfsu2-exp9`.
 
 ### The path of a submission
 

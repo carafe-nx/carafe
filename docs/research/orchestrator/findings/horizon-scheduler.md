@@ -18,10 +18,9 @@ a busy core at its own priority up to 10 ms per thread ahead of it.
 
 ## Evidence
 
-Sources: Atmosphère `6b0c077` (`D:\debug_switch\carafe\sources\Atmosphere`; paths below are relative to
-`libraries/libmesosphere` unless they start with `mesosphere/`, `stratosphere/` or `docs/`), Eden `58c1e20`
-(`carafe-lab/external/eden`), Autorun `636913ca` (`carafe/external/autorun`), console logs
-`D:\debug_switch\carafe\nfsu2-exp9\logs`.
+Sources: Atmosphère `6b0c077` (paths below are relative to `libraries/libmesosphere` unless they start with
+`mesosphere/`, `stratosphere/` or `docs/`), Eden `58c1e20` (the test lab's copy), Autorun `636913ca`
+(`carafe/external/autorun`), the console logs of run `nfsu2-exp9`.
 
 ### Which kernel runs
 

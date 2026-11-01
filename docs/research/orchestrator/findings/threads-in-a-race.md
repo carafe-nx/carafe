@@ -18,12 +18,12 @@ output); the Wine server's own thread used about 0.9 % of a core.
 
 ## Evidence
 
-Run `D:\debug_switch\carafe\nfsu2-exp9` (2026-10-27, 1887 MHz, handheld), `logs\autorun_runtime.log`; the same lines
+Console run `nfsu2-exp9` (2026-10-27, 1887 MHz, handheld), `logs\autorun_runtime.log`; the same lines
 are in `logs\SPEED2_profiler.log`, 43 lines earlier. Steady race windows: the 16 reports whose main thread is over
 90 % x86 (lines 1027–1846; `[THREADS]` on lines 1029, 1081, 1131, …, 1844; `[PROF]` blocks after each). The windows
 right after a load (lines 997, 1491, 1951) show the same threads with the main thread at 93–97 %. Replications: exp7
 (`nfsu2-exp7\logs\autorun_runtime.log`, 15 steady windows, lines 873–1330 onward) and exp5 (46 windows); every
-thread's load agrees within 1–3 points. Scripts: `D:\debug_switch\carafe\tools\orchestrator\windows.js` (parses each
+thread's load agrees within 1–3 points. Local scripts, not in the repository: `windows.js` (parses each
 report window; `agg <thread> <table>` sums a table over the steady windows, weighted by samples), `sym.sh`
 (`aarch64-none-elf-addr2line` on `runtime/build/wine-switch/wine-nx-runtime.elf`, which matches this run: the log's
 `threads started at runtime+0x3a7c70` resolves to `log_flusher`, and every system call site resolves to its libnx or

@@ -2,6 +2,9 @@
 
 Date: 2026-10-23
 
+The sections, the DXVK and VKD3D versions, and the choice of FEX or Box64 with Box64's options are replaced by
+[43](0043-one-path-for-every-game.md).
+
 ## Context
 
 A game's settings are chosen in the app before the build. Changing one meant building the NSP again on the PC and

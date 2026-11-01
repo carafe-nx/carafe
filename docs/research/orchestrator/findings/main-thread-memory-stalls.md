@@ -21,7 +21,7 @@ one that sometimes misses to DRAM. A block-entry counter in the profiler or a me
 
 ### Data
 
-- `D:\debug_switch\carafe\nfsu2-exp9\logs\jit-blocks.txt`: 256 busiest FEX blocks, 68969 samples, written at
+- `jit-blocks.txt` of the console run `nfsu2-exp9`: 256 busiest FEX blocks, 68969 samples, written at
   `autorun_runtime.log` line 1379 (`SPEED2_profiler.log` line 1336, the same lines 43 earlier). The samples are pooled
   over the four sampled threads and over the whole run up to t ≈ 166 s, menus included (patch
   `runtime/patches/autorun/0055`: `nx_prof_add( &jit_blocks, block )` for every sampled thread).
@@ -35,7 +35,7 @@ one that sometimes misses to DRAM. A block-entry counter in the profiler or a me
   states 56.2 M, sampler states 45.5 M, texture-stage states 24.0 M, textures 8.3 M, draws 4.1 M, draws from memory
   1.45 M, vertex shader constant sets 7.5 M, stream sources 2.1 M, index buffers 2.1 M, state block applies 1.2 M.
 
-### Scripts (all in `D:\debug_switch\carafe\tools\orchestrator\`)
+### Scripts (local, not in the repository)
 
 - `blocks9\`: hex of each block (`..\dump-hex.js`), disassembled with `..\dis-all.sh` in `carafe-runtime:latest`.
 - `mem.js`: classifies each sampled load and store by the address it uses, following register provenance inside the

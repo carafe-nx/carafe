@@ -87,7 +87,7 @@ Experimental row, off by default, so the one console run checks the measurements
 ## Working without the console
 
 There is no console during the research; it comes back for the final check. The sources are the logs already
-taken (`D:\debug_switch\carafe\nfsu2-exp*`), the sources of every layer, including Atmosphère's mesosphère as the
+taken (the console runs `nfsu2-exp*`), the sources of every layer, including Atmosphère's mesosphère as the
 reference for the Horizon kernel's behaviour, the ARM, NVIDIA and Switchbrew references, and the lab for
 correctness.
 

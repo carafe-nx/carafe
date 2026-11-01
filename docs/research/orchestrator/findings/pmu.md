@@ -15,8 +15,7 @@ sampling, offline cache simulation of an access trace, and per-block counts from
 
 ## Evidence
 
-Sources: Atmosphère `6b0c077` (`D:\debug_switch\carafe\sources\Atmosphere`), the Cortex-A57 Software Optimization
-Guide (`D:\debug_switch\carafe\sources\cortex-a57-optimization-guide.txt`), Linux perf's A57 event tables.
+Sources: Atmosphère `6b0c077`, the Cortex-A57 Software Optimization Guide, Linux perf's A57 event tables.
 
 ### The path from the SD card to `PMUSERENR_EL0`
 

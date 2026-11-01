@@ -33,9 +33,8 @@ work the proxy moves off the game thread is the draws, the changed setters and t
 Sources:
 
 - DXVK at `b1a1c99a` with Carafe's patches, in the patched tree `runtime/build/dxvk-src`;
-- the cloud study `D:\debug_switch\carafe\cloud\results-native-d3d9\files\native-d3d9` (`REPORT.md`, `skeleton/`,
-  `data/`);
-- the console run `D:\debug_switch\carafe\nfsu2-exp9\logs\autorun_runtime.log`, 1887 MHz, handheld.
+- the cloud study `native-d3d9` (`REPORT.md`, `skeleton/`, `data/`);
+- `autorun_runtime.log` of the console run `nfsu2-exp9`, 1887 MHz, handheld.
 
 ### What the game thread does today
 

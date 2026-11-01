@@ -1,8 +1,8 @@
 # External dependencies
 
 Everything in this folder is third-party code. Each project is a git submodule pinned to an exact
-commit and is used without changes. Carafe's own changes to Autorun live in `overlay/` as separate
-patches.
+commit and is used without changes. Carafe's own changes to Autorun live in `runtime/patches/autorun/`
+as separate patches.
 
 | Folder | Upstream | Pinned commit | Version | License |
 | --- | --- | --- | --- | --- |
@@ -21,6 +21,16 @@ These are pinned by Autorun itself, not by Carafe:
   commit `5d6eccb82c266f037dd4305037c986b6303cd59a` at the Autorun commit above;
 - Box64 and FFmpeg: fetched by Autorun's `horizon-wine/tools/bootstrap-*.sh` scripts at the commits
   written in those scripts.
+
+## Pinned by Carafe's build
+
+These are not submodules: the runtime build fetches them itself.
+
+- FEX: [FEX-Emu/FEX](https://github.com/FEX-Emu/FEX) at `395b132f346b1a45def246d10c52245edba1ef02` (FEX-2609),
+  in `runtime/fex/build-fex.sh`, with the patches in `runtime/patches/fex/`;
+- DXVK: [doitsujin/dxvk](https://github.com/doitsujin/dxvk) at `b1a1c99ab52b687cf950d62c88bc2fa316b41663`, in
+  `runtime/dxvk/build-dxvk.sh`, with the patches in `runtime/patches/dxvk/`;
+- Wine Mono 11.3.0, the arm64 release archive, in `runtime/Makefile` (`MONO_VERSION`).
 
 ## Fetching
 

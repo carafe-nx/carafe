@@ -37,7 +37,7 @@ no files to copy to the SD card.
 3. **Install over USB.** Connect the Switch running DBI and press Install — Carafe copies the NSP for you.
 
 Inside the NSP is a runtime built on [Autorun](https://github.com/autorunhq/autorun): Wine for Horizon OS
-with Box64 or FEX to run x86 code, DXVK for Direct3D and Mesa for the GPU.
+with Carafe's builds of FEX to run x86 code and DXVK for Direct3D, and Mesa for the GPU.
 
 ## Requirements
 
@@ -52,8 +52,9 @@ Get the installer from the [latest release](https://github.com/carafe-nx/carafe/
 - `x64-setup.exe` — most Windows PCs;
 - `arm64-setup.exe` — Windows on Arm, such as laptops with Snapdragon chips.
 
-The installer speaks English, Russian and Simplified Chinese and installs Carafe for your Windows account,
-without administrator rights. From then on Carafe updates itself: when a new version is out, a button appears in
+The installer speaks English, Russian, Simplified and Traditional Chinese, Japanese, Korean, French, German,
+Italian, Spanish, Dutch, Portuguese and Brazilian Portuguese. It installs Carafe for your Windows account, without
+administrator rights. From then on Carafe updates itself: when a new version is out, a button appears in
 the library. If you have Carafe 0.1, the installer removes it first: confirm removing the old version and allow
 the administrator prompt once. Your settings and library stay.
 
@@ -101,5 +102,6 @@ Carafe is not affiliated with or endorsed by Nintendo.
 
 Carafe is [GPL-3.0-or-later](LICENSE). The runtime overlay and the Autorun patches are LGPL-2.1-or-later
 ([`runtime/overlay/LICENSE`](runtime/overlay/LICENSE), [`runtime/patches/LICENSE`](runtime/patches/LICENSE)),
-the loader is ISC ([`runtime/loader/LICENSE`](runtime/loader/LICENSE)). Third-party code in `external/` keeps
-its own licenses.
+the loader is ISC ([`runtime/loader/LICENSE`](runtime/loader/LICENSE)). The patches to FEX in
+`runtime/patches/fex/` are MIT and the patches to DXVK in `runtime/patches/dxvk/` are Zlib, as the files they change.
+Third-party code in `external/` keeps its own licenses.

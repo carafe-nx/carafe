@@ -23,7 +23,7 @@ DRAM chase repeated in the race and in a loading screen, logged next to `gpu bus
 
 - The memory clock is read from `clkrst` for `PcvModuleId_EMC` (`carafe/runtime/overlay/carafe_diag.c:39-50, 355-368`)
   and is 1331 MHz handheld in every report of the race run (`logs/autorun_runtime.log:785` and every `[CLOCKS]` line;
-  logs are `D:\debug_switch\carafe\nfsu2-exp9\logs`).
+  the logs are those of the console run `nfsu2-exp9`).
 - Tegra X1 (Jetson TX1): "4 GB of LPDDR4 over a 4 channel x 16 bit interface with a theoretical peak memory bandwidth of
   25.6 GB/s" at 1600 MHz (NVIDIA Jetson TX1 module datasheet, found by web search; not read in full). Scaling to 1331
   MHz gives 21.3 GB/s. That the Switch uses the same 64-bit width is the common description of the console, not

@@ -162,7 +162,7 @@ main thread and `dxvk-cs` already pay 100–135 cycles per reference-count atomi
 
 A proxy `d3d9.dll` (i386, under FEX like DXVK) between the game and DXVK, installed by `runtime/dxvk/use-dxvk.py`
 with DXVK renamed beside it (`findings/d3d9-front-end.md`, `findings/cpu-graphics-split.md`). The cloud study's
-skeleton (`D:\debug_switch\carafe\cloud\results-native-d3d9`) is the start.
+skeleton (`native-d3d9`) is the start.
 
 - **On the game thread:** a shadow of all device state; unchanged setters return at once; `Get*` answered from the
   shadow; everything else appended to a single-producer ring with inline payloads (matrices, constants, vertex data of

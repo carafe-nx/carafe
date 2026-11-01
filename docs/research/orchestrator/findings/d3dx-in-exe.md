@@ -33,7 +33,7 @@ Native code also cannot call back into translated DXVK, so a native `ApplyPass` 
 
 ### Markers in the executables (checked on the local copies)
 
-These were read with a small capstone script over the PE files in `D:\Game`, not run.
+These were read with a small capstone script over the PE files in the game folders, not run.
 
 **Imports:**
 - `SPEED2.EXE` imports `d3d9.dll` and no D3DX DLL;
@@ -75,10 +75,10 @@ effect loader has to be found another way, for example by the code that refers t
 
 ### What the effect code costs (console)
 
-`D:\debug_switch\carafe\nfsu2-exp9\logs\autorun_runtime.log`, race interval at line 1041 (`[PROF] 4w x86 frames`,
+`autorun_runtime.log` of the console run `nfsu2-exp9`, race interval at line 1041 (`[PROF] 4w x86 frames`,
 96–106 s). The top 12 frame pairs only, so the sum is a lower bound. DXVK keeps no frame pointer, so its setters'
-time counts to the D3DX frame that called them. Call chain and roles from the cloud study
-`D:\debug_switch\carafe\cloud\results-d3dx\files\d3dx-effects\REPORT.md`:
+time counts to the D3DX frame that called them. Call chain and roles from the cloud study `d3dx-effects`
+(`REPORT.md`):
 
 | Part | Frame pair | % of main thread |
 |---|---|---|

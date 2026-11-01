@@ -61,7 +61,7 @@ the card.
 
 ### What NFSU2 reads (console)
 
-`D:\debug_switch\carafe\nfsu2-exp9\logs\autorun_runtime.log`, deltas of the `[PROGRESS]` counters per 10 s:
+`autorun_runtime.log` of the console run `nfsu2-exp9`, deltas of the `[PROGRESS]` counters per 10 s:
 
 | Window | Phase (from `[FPS]` and `[D3D9 calls]`) | NtReadFile | read ms | card requests | card ms | card MB |
 |---|---|---:|---:|---:|---:|---:|
@@ -79,8 +79,8 @@ the card.
 - **Race requests** take 4.1–4.6 ms each and carry about 100–150 KB. Load requests take 4.6–6.8 ms and carry about
   300 KB, at about 48 MB/s.
 - **The streamed data.** The game's `TRACKS` folder holds `STREAML4RA.BUN` (118 MB), `STREAML4RD.BUN` (121 MB) and
-  `STREAML4RB.BUN` (28 MB), next to the smaller `L4R*.BUN` files (local copy in `D:\Game\Need for Speed Underground
-  2`). The race reads fit the streaming of world sections. Which file each read comes from is not logged.
+  `STREAML4RB.BUN` (28 MB), next to the smaller `L4R*.BUN` files (read from a local copy of the game folder). The
+  race reads fit the streaming of world sections. Which file each read comes from is not logged.
 - **Who reads.** The main thread's share of `svc 0x21` (IPC) per interval, from the `[PROF] 4w svc` lines:
   - 0.0–0.2 % in the race intervals (lines 1090, 1140, 1240, 1290, 1342, 1394);
   - 1.4 % at 75–85 s (line 1008);

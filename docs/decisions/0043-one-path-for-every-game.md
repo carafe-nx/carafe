@@ -3,7 +3,9 @@
 Date: 2026-10-28
 
 Replaces how [decision 29](0029-fex-built-with-carafe-patches.md) and
-[decision 30](0030-dxvk-built-with-carafe-patches.md) pick the FEX and DXVK revisions.
+[decision 30](0030-dxvk-built-with-carafe-patches.md) pick the FEX and DXVK revisions, the thread sync, DXVK build and
+fourth core of [decision 14](0014-autorun-defaults.md), and the sections and component choices of
+[decision 33](0033-in-game-settings-menu.md).
 
 ## Context
 
@@ -30,7 +32,8 @@ combination is slower and untested, and each one is a case to check and to fix.
   the runtime archive; the app no longer writes `cpu = box64` or Box64's file.
 - **Old settings are read, not kept.** A value for a removed choice is accepted and mapped to the one path; the next
   save or build writes it no more, and the app shows once which settings of a game changed. NSPs built before keep
-  running as they are.
+  running as they are. The notice is not built yet: the app reads the old values but does not show them; it is still
+  planned under the roadmap item "One path for every game".
 - **D3DX is Carafe's.** A game that loads `d3dx9_xx.dll` always gets Wine's D3DX built with Carafe's patches, even if
   it ships Microsoft's DLL in its folder; the effect thread and joined passes extend to it. A game that links D3DX
   into its executable keeps the interception of the effect interface: its code cannot be swapped, but the interface is

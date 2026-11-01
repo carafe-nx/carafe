@@ -39,8 +39,8 @@ can be built and checked one at a time; 5 and 6 need the per-game profile of W12
 ## Evidence
 
 Sources: FEX at `395b132` with Autorun's `horizon.patch` (`636913ca`) and Carafe's `runtime/patches/fex` 0001–0014
-applied, the tree `runtime/build/fex-src`; the ARM Cortex-A57 Software Optimization Guide (UAN 0015B,
-`D:\debug_switch\carafe\sources\cortex-a57-optimization-guide.pdf`, cited by section); the console runs
+applied, the tree `runtime/build/fex-src`; the ARM Cortex-A57 Software Optimization Guide (UAN 0015B, cited by
+section); the console runs
 `nfsu2-exp7` and `nfsu2-exp9` (October 2026, 1887 MHz).
 
 ### How the block dumps were read

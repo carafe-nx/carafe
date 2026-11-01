@@ -4,6 +4,10 @@ Date: 2026-10-30
 
 Follows [decision 51](0051-gpu-command-memory-cached-built-in-code-cache-row-dropped.md).
 
+Single-precision x87 is no longer written from the game's Direct3D version: it became the Experimental row "x87 math
+in 32 bits" (`fex-x87-single`), off by default, because Unreal Engine 3 games keep double precision with
+`D3DCREATE_FPU_PRESERVE`. The Experimental rows are listed in [57](0057-window-hooks-built-in.md).
+
 ## Context
 
 The Experimental section held every speed change of the orchestrator research behind a row, off until measured. The

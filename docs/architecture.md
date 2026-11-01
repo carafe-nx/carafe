@@ -9,11 +9,19 @@ follows a game from the PC to the first frame on the console. Why each piece is 
 - **The desktop app** (`app/`): Tauri with a Rust core and a React window. It reads the game folder, builds the NSP and
   copies it to the Switch over USB.
 - **The runtime** (`runtime/`): everything that goes into each NSP apart from the game. Autorun's Wine for Horizon OS
-  with Box64, FEX, DXVK and Mesa (`external/autorun`), plus Carafe's own pieces:
+  with Mesa (`external/autorun`), plus Carafe's own pieces:
   - `runtime/loader/` — the loader, the NSP's first code;
   - `runtime/overlay/` — code compiled into Autorun's runtime: file overlay, save data commits, loading screen,
     hang diagnostics;
-  - `runtime/patches/autorun/` — changes to Autorun's sources, one file per patch.
+  - `runtime/orchestrator/` — the orchestrator, compiled in with the overlay: it lays the game's threads out over the
+    four cores ([36](decisions/0036-orchestrator.md));
+  - `runtime/patches/autorun/` — changes to Autorun's sources, one file per patch;
+  - `runtime/fex/`, `runtime/dxvk/` — Carafe's builds of FEX and DXVK at pinned commits with the patches in
+    `runtime/patches/fex/` and `runtime/patches/dxvk/`; they replace Autorun's
+    ([43](decisions/0043-one-path-for-every-game.md));
+  - `runtime/mono/` — Wine Mono, laid into the NSPs of games that use .NET
+    ([54](decisions/0054-wine-mono-for-games-that-use-dotnet.md));
+  - `runtime/winrt/` — registers the WinRT classes of Wine's DLLs in the runtime's registry.
 - **hacBrewPack** (`tools/hacbrewpack/`): the program the app runs to pack NCAs into an NSP.
 
 The runtime and hacBrewPack are built in containers and ship inside the installer; players need neither Docker nor
@@ -50,7 +58,9 @@ build tools.
 - **RomFS**:
   - `switch/wine/` — Autorun's runtime: `wine-nx-runtime.nro`, Wine's prefix with its DLLs, fonts and `nls`;
   - `switch/wine/drive_c/Games/<folder>/` — the game with its settings files;
-  - `carafe/` — `argv`, `title`, `icon.jpg` and the splash files for the loading screen.
+  - `carafe/` — `argv`, `title`, `icon.jpg` and the splash files for the loading screen, `fonts/` for Carafe's
+    screens, `menu.txt` for the settings menu ([settings-menu.md](settings-menu.md)) and, when the game has registry
+    entries, `registry.txt`.
 - **Control**: the NACP and an icon per supported language.
 - **Logo**: `NintendoLogo.png` and `StartupMovie.gif`, the boot splash.
 - **`carafe.json`**: unencrypted build settings for the library and for "Rebuild".
@@ -70,7 +80,10 @@ build tools.
    ([9](decisions/0009-loading-screen.md)).
 5. **Wine.** The runtime starts the game's `.exe` straight away, without Autorun's launcher, with the settings from the
    game's `.keys.txt` and `.wine-nx.txt`.
-6. **Play.** Save data is committed 2 s after the last write when nothing in it is open for writing, and again at exit.
+6. **Play.** Save data is committed 2 s after the last write, when half the journal is used, 10 s after the first
+   unsaved change even if the game keeps writing, when the game loses focus or is asked to close, before a restart
+   from the error screen or the settings menu, and at exit. Files the game keeps open for writing are closed for the
+   commit and reopened at the same offset ([19](decisions/0019-commit-with-open-files.md)).
 7. **Exit.** When the game quits, the loader closes the application and the console returns to the HOME Menu.
 
 ## Logs
