@@ -1094,14 +1094,6 @@ fn experimental() -> Vec<Setting> {
             0,
         ),
         Setting::new(
-            "window-hooks",
-            SettingFile::Program,
-            "window-hooks",
-            Apply::Restart,
-            off_on(),
-            0,
-        ),
-        Setting::new(
             "suspend-wakes",
             SettingFile::Program,
             "suspend-wakes",

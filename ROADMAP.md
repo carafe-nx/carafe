@@ -21,11 +21,11 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Offer the lock-wait fix to Autorun
 - [ ] `feature` Warn in the build wizard when the game folder has mods or fixes (proxy DLLs such as `dinput8.dll`, `.asi`)
 - [ ] `feature` A game missing a DLL names it on the console, and the build wizard lets the user add it
-- [ ] `research` MFC games need window hooks: turn them on by default or for MFC games
+- [ ] `feature` Videos played through DirectShow (ASF, AVI, MPEG) decoded with FFmpeg
 - [ ] `feature` Message boxes answered with the controller's buttons, not only by touch
 - [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
 - [ ] `game` Megabonk: reads the controller through Windows.Gaming.Input, which sees no pad
-- [ ] `game` Max Payne: the start-up settings window is drawn black over the whole screen
+- [ ] `game` Max Payne: waits forever for its intro video, which DirectShow cannot open
 - [ ] `game` Rig and Roll: Direct3D 7 through DirectDraw gets no OpenGL context
 - [ ] `game` Indiana Jones and the Emperor's Tomb: "Press Enter" waits for the keyboard
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
@@ -54,6 +54,10 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `feature` Window hooks built in: MFC games start
+- [x] `bug` Texts of programs without Unicode show in the console's language
+- [x] `bug` A dialog shown at start-up keeps its own size, in the middle of the screen
+- [x] `feature` DXVK-Sarek's settings on a page of their own
 - [x] `feature` GOG games get the registry values of their install script, written again when missing
 - [x] `bug` Message boxes and dialogs show their text, icon and buttons
 - [x] `bug` The loading screen steps aside when a program shows a dialog before its first picture

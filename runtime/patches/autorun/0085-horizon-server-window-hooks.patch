@@ -1,13 +1,13 @@
-Carafe: with CARAFE_WINDOW_HOOKS=1 the Horizon server keeps window hooks: set_hook, remove_hook,
-start_hook_chain, finish_hook_chain and get_hook_info work for the hooks a program sets on its own threads,
-and every thread's shared queue data counts the hooks that run in it, so win32u calls them. Programs built
-on MFC hook window creation with WH_CBT before their first window and stop with CMemoryException when the
-hook is refused. Low-level, journal and win event hooks are still refused, as without the variable.
+Carafe: the Horizon server keeps window hooks: set_hook, remove_hook, start_hook_chain, finish_hook_chain and
+get_hook_info work for the hooks a program sets on its own threads, and every thread's shared queue data counts
+the hooks that run in it, so win32u calls them. Programs built on MFC hook window creation with WH_CBT before
+their first window and stop with CMemoryException when the hook is refused. Low-level, journal and win event
+hooks are still refused.
 LGPL-2.1-or-later, as the file it changes.
 
 --- a/dlls/ntdll/unix/horizon.c
 +++ b/dlls/ntdll/unix/horizon.c
-@@ -643,6 +643,11 @@ struct horizon_fd_queue
+@@ -643,6 +643,11 @@
  #define HORIZON_REQ_FREE_USER_HANDLE 279
  #define HORIZON_REQ_SET_CURSOR 280
  #define HORIZON_REQ_GET_NEXT_THREAD 295
@@ -19,7 +19,7 @@ LGPL-2.1-or-later, as the file it changes.
  #define HORIZON_STATUS_SUCCESS 0
  #define HORIZON_STATUS_OBJECT_NAME_EXISTS 0x40000000u
  #define HORIZON_STATUS_IMAGE_MACHINE_TYPE_MISMATCH 0x4000000eu
-@@ -6428,6 +6433,9 @@ static unsigned long long horizon_server_timer_clock(void)
+@@ -6428,6 +6433,9 @@
  static struct horizon_obj_locator horizon_free_queue_shm[32];
  static unsigned int horizon_free_queue_shm_count;
  
@@ -29,7 +29,7 @@ LGPL-2.1-or-later, as the file it changes.
  /* The thread's message queue, created with its shared data and waitable
   * object on first use. */
  static struct horizon_msgq *horizon_server_queue_locked( unsigned int tid )
-@@ -6468,6 +6476,7 @@ static struct horizon_msgq *horizon_server_queue_locked( unsigned int tid )
+@@ -6468,6 +6476,7 @@
      queue->sync = sync;
      queue->shm_id = locator.id;
      queue->shm_offset = locator.offset;
@@ -37,7 +37,7 @@ LGPL-2.1-or-later, as the file it changes.
      return queue;
  }
  
-@@ -6545,6 +6554,7 @@ static void horizon_server_destroy_queue_locked( unsigned int tid )
+@@ -6545,6 +6554,7 @@
      struct horizon_msgq *queue = horizon_msgq_find( &horizon_msg_queues, tid );
      struct horizon_server_object *sync;
  
@@ -45,7 +45,7 @@ LGPL-2.1-or-later, as the file it changes.
      horizon_server_release_input_locked( tid );
      if (!queue) return;
      sync = queue->sync;
-@@ -6720,6 +6730,431 @@ static int horizon_server_handle_free_user_handle( struct horizon_server_connect
+@@ -6720,6 +6730,416 @@
      return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
  }
  
@@ -150,18 +150,6 @@ LGPL-2.1-or-later, as the file it changes.
 +
 +static struct horizon_window_hook *horizon_window_hooks;
 +static int horizon_window_hook_chains[HORIZON_HOOK_KINDS];
-+
-+static int horizon_window_hooks_on( void )
-+{
-+    static int on = -1;
-+
-+    if (on < 0)
-+    {
-+        const char *value = getenv( "CARAFE_WINDOW_HOOKS" );
-+        on = value && value[0] == '1';
-+    }
-+    return on;
-+}
 +
 +static struct horizon_window_hook *horizon_window_hook_from_locked( struct horizon_window_hook *hook, int index,
 +                                                                    unsigned int tid, int global )
@@ -456,9 +444,6 @@ LGPL-2.1-or-later, as the file it changes.
 +                                              const unsigned char *message, int req,
 +                                              const unsigned char *data, unsigned int data_size )
 +{
-+    if (!horizon_window_hooks_on())
-+        return connection->reply_fd != -1 ?
-+               horizon_server_write_status( connection->reply_fd, HORIZON_STATUS_NOT_IMPLEMENTED ) : 0;
 +    switch (req)
 +    {
 +    case HORIZON_REQ_SET_HOOK:
@@ -477,7 +462,7 @@ LGPL-2.1-or-later, as the file it changes.
  static struct horizon_user_window *horizon_server_find_window_locked( unsigned int handle )
  {
      struct horizon_user_window *window;
-@@ -17201,6 +17636,14 @@ static int horizon_server_serve_one( struct horizon_server_connection *connectio
+@@ -17201,6 +17621,14 @@
          case HORIZON_REQ_GET_KEY_STATE:
              status = horizon_server_handle_get_key_state( connection, message );
              break;
