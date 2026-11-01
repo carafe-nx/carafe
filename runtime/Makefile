@@ -21,6 +21,9 @@ FEX_PATCHES := $(sort $(wildcard $(CURDIR)/patches/fex/*.patch))
 DXVK_SRC := $(BUILD)/dxvk-src
 DXVK_BUILD := $(BUILD)/dxvk
 DXVK_PATCHES := $(sort $(wildcard $(CURDIR)/patches/dxvk/*.patch))
+MONO_VERSION := 11.3.0
+MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
+MONO_URL := https://github.com/wine-mono/wine-mono/releases/download/wine-mono-$(MONO_VERSION)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 
 .PHONY: all fetch check-image headers orchestrator-test wine fex dxvk loader layout clean
 
@@ -82,7 +85,12 @@ dxvk: fetch
 loader: fetch
 	$(MAKE) -B -C loader
 
-layout: wine fex dxvk loader
+$(MONO_ARCHIVE):
+	mkdir -p $(BUILD)
+	curl -fL --retry 3 -o $@.part $(MONO_URL)
+	mv $@.part $@
+
+layout: wine fex dxvk loader $(MONO_ARCHIVE)
 	rm -rf $(OUT) $(NPDM)
 	mkdir -p $(OUT)/exefs $(OUT)/control $(OUT)/logo $(OUT)/symbols $(OUT)/romfs/switch \
 		$(OUT)/romfs/carafe/loading $(OUT)/romfs/carafe/fonts $(NPDM)
@@ -107,6 +115,7 @@ layout: wine fex dxvk loader
 		$(OUT)/romfs/carafe/loading/
 	cp $(CURDIR)/overlay/fonts/*.ttf $(OUT)/romfs/carafe/fonts/
 	cp $(CURDIR)/overlay/fonts/OFL.txt $(OUT)/romfs/switch/wine/licenses/MPLUS1p-OFL-1.1.txt
+	python3 $(CURDIR)/mono/use-mono.py $(OUT)/mono $(MONO_ARCHIVE) $(WINE)
 	@echo "runtime: $$(find $(OUT)/romfs -type f | wc -l) files in romfs, $$(du -sh $(OUT) | cut -f1) in $(OUT)"
 
 clean:

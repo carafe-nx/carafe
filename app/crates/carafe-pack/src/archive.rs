@@ -25,6 +25,9 @@ pub const MAGIC: [u8; 8] = *b"CRFRUN01";
 /// The runtime folders that go into the archive.
 pub const ARCHIVED_DIRS: [&str; 4] = ["control", "exefs", "logo", "romfs"];
 
+/// The runtime folders that go into the archive when the runtime has them.
+pub const OPTIONAL_DIRS: [&str; 1] = ["mono"];
+
 const MAX_INDEX_BYTES: u64 = 16 << 20;
 const BUFFER_SIZE: usize = 1 << 20;
 
@@ -248,7 +251,8 @@ enum Unpack {
 }
 
 /// Builds the runtime archive from the folder `runtime` (the `out/runtime-test` layout): the folders
-/// [`ARCHIVED_DIRS`] are taken, paths are sorted, each file is compressed separately.
+/// [`ARCHIVED_DIRS`] are taken, and [`OPTIONAL_DIRS`] when present, paths are sorted, each file is compressed
+/// separately.
 ///
 /// `on_file` receives the path of each added file.
 ///
@@ -268,6 +272,11 @@ pub fn write_archive(
     let mut files = Vec::new();
     for dir in ARCHIVED_DIRS {
         collect(runtime, Path::new(dir), &mut files)?;
+    }
+    for dir in OPTIONAL_DIRS {
+        if runtime.join(dir).is_dir() {
+            collect(runtime, Path::new(dir), &mut files)?;
+        }
     }
     files.sort();
     let data_path = out.with_extension("data.part");
@@ -374,12 +383,13 @@ mod tests {
 
     fn runtime(name: &str) -> PathBuf {
         let root = temp(name);
-        let files: [(&str, &[u8]); 5] = [
+        let files: [(&str, &[u8]); 6] = [
             ("exefs/main", b"loader"),
             ("exefs/main.npdm", b"npdm"),
             ("control/icon_AmericanEnglish.dat", b"icon"),
             ("romfs/switch/wine/a.dll", &[7; 5000]),
             ("romfs/switch/wine/sub/b.dll", b"bbb"),
+            ("mono/switch/wine/drive_c/windows/mono/m.dll", b"mono"),
         ];
         for (path, bytes) in files {
             let path = root.join(path);
@@ -397,12 +407,13 @@ mod tests {
         let source = runtime("round-trip");
         let archive_path = temp("round-trip.bin");
         let count = write_archive(&source, &archive_path, &mut |_| {}).unwrap();
-        assert_eq!(count, 5);
+        assert_eq!(count, 6);
         let archive = RuntimeArchive::open(&archive_path).unwrap();
         assert!(archive.contains("exefs/main"));
         assert!(!archive.contains("symbols/runtime.elf"));
         assert_eq!(archive.read("exefs/main.npdm").unwrap(), b"npdm");
         assert_eq!(archive.file_count("romfs"), 2);
+        assert_eq!(archive.file_count("mono"), 1);
         let dest = temp("round-trip-out");
         let mut last = None;
         let extracted = archive

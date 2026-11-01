@@ -34,6 +34,7 @@ const RUNTIME_NPDM: &str = "exefs/main.npdm";
 const RUNTIME_ICON: &str = "control/icon_AmericanEnglish.dat";
 const RUNTIME_LOGO: &str = "logo";
 const RUNTIME_ROMFS: &str = "romfs";
+const RUNTIME_MONO: &str = "mono";
 const LOGO_FILES: [&str; 2] = ["NintendoLogo.png", "StartupMovie.gif"];
 const ROMFS_WRITE_PREFIX: &str = "Writing ";
 const OPEN_FAILED_PREFIX: &str = "Failed to open ";
@@ -73,6 +74,7 @@ impl HacBrewPacker {
         record: &BuildRecord,
         icon: Option<&IconJpeg>,
         package: &GamePackage,
+        dotnet: bool,
         target: &PackTarget,
         work: &Path,
         cancel: &CancelToken,
@@ -92,7 +94,7 @@ impl HacBrewPacker {
         let runtime = RuntimeArchive::open(&self.runtime)?;
         let game_folder = Path::new(&record.source.folder);
         let game = Tree::scan(game_folder)?;
-        check_paths(&romfs, &runtime, &game, package)?;
+        check_paths(&romfs, &runtime, &game, package, dotnet)?;
         check_space(work, target, runtime.unpacked_size() + game.total_bytes())?;
         create_dir(&exefs)?;
         write(&exefs.join("main"), &runtime.read(RUNTIME_MAIN)?)?;
@@ -104,9 +106,23 @@ impl HacBrewPacker {
             .map_err(|error| AdapterError::Tool(format!("{RUNTIME_NPDM}: {error}")))?;
         write(&exefs.join("main.npdm"), &npdm)?;
         let logo = copy_logo(&runtime, &input)?;
-        let runtime_files = runtime.extract(RUNTIME_ROMFS, &romfs, cancel, &mut |percent| {
+        let mut runtime_files = runtime.extract(RUNTIME_ROMFS, &romfs, cancel, &mut |percent| {
             report(progress, BuildStage::Runtime, percent, None);
         })?;
+        if dotnet {
+            let mono_files = runtime.extract(RUNTIME_MONO, &romfs, cancel, &mut |percent| {
+                report(progress, BuildStage::Runtime, percent, None);
+            })?;
+            runtime_files += mono_files;
+            report(
+                progress,
+                BuildStage::Runtime,
+                100,
+                Some(format!(
+                    "runtime: the game uses .NET, Wine Mono: {mono_files} files"
+                )),
+            );
+        }
         report(
             progress,
             BuildStage::Runtime,
@@ -296,7 +312,9 @@ impl Packer for HacBrewPacker {
         progress: &mut dyn FnMut(BuildProgress),
     ) -> Result<StoredGame, AdapterError> {
         cancel.check()?;
-        let apis = direct3d(Path::new(&record.source.folder), &record.source.executable);
+        let game_folder = Path::new(&record.source.folder);
+        let apis = inspect(game_folder, &record.source.executable, pe::direct3d_apis);
+        let dotnet = inspect(game_folder, &record.source.executable, pe::uses_dotnet);
         let mut package =
             package(record, &apis).map_err(|error| AdapterError::Tool(error.to_string()))?;
         let menu = settings_menu::file(&apis, &menu_texts::lookup).map_err(|error| {
@@ -312,7 +330,9 @@ impl Packer for HacBrewPacker {
         create_dir(&work)?;
         service::hide(&library.join(service::SERVICE_DIR));
         let lock = service::BuildLock::acquire(&work)?;
-        let result = self.build(record, icon, &package, target, &work, cancel, progress);
+        let result = self.build(
+            record, icon, &package, dotnet, target, &work, cancel, progress,
+        );
         drop(lock);
         let _ = remove_dir(&work);
         result
@@ -328,6 +348,7 @@ fn check_paths(
     runtime: &RuntimeArchive,
     game: &Tree,
     package: &GamePackage,
+    dotnet: bool,
 ) -> Result<(), AdapterError> {
     let game_paths: Vec<String> = game
         .paths()
@@ -336,6 +357,7 @@ fn check_paths(
         .collect();
     let entries = runtime
         .paths(RUNTIME_ROMFS)
+        .chain(runtime.paths(RUNTIME_MONO).filter(|_| dotnet))
         .chain([package.game_dir.as_str()])
         .chain(game_paths.iter().map(String::as_str))
         .chain(package.romfs_files.iter().map(|file| file.path.as_str()))
@@ -469,18 +491,22 @@ fn address_space(game_folder: &Path, executable: &str) -> Result<AddressSpace, A
         .map_err(|error| AdapterError::Tool(format!("{}: {error}", path.display())))
 }
 
-fn direct3d(game_folder: &Path, executable: &str) -> Vec<carafe_core::settings_catalog::Api> {
+fn inspect<T: Default>(
+    game_folder: &Path,
+    executable: &str,
+    look: impl FnOnce(&mut pe::ReadAt<'_>) -> Result<T, pe::PeError>,
+) -> T {
     let path = executable
         .split(['/', '\\'])
         .fold(game_folder.to_path_buf(), |path, part| path.join(part));
     let Ok(mut file) = File::open(&path) else {
-        return Vec::new();
+        return T::default();
     };
     let Ok(size) = file.metadata().map(|metadata| metadata.len()) else {
-        return Vec::new();
+        return T::default();
     };
     let mut read = |offset: u64, len: usize| read_at(&mut file, size, offset, len);
-    pe::direct3d_apis(&mut read).unwrap_or_default()
+    look(&mut read).unwrap_or_default()
 }
 
 fn read_at(file: &mut File, size: u64, offset: u64, len: usize) -> Option<Vec<u8>> {

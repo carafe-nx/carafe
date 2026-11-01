@@ -482,6 +482,17 @@ pub fn direct3d_apis(read: &mut ReadAt<'_>) -> Result<Vec<Api>, PeError> {
     Ok(apis)
 }
 
+/// Returns whether an `.exe` imports `mscoree.dll`: a .NET program, or a native one that starts .NET.
+///
+/// # Errors
+///
+/// [`PeError::NotPe`] as [`imported_dlls`].
+pub fn uses_dotnet(read: &mut ReadAt<'_>) -> Result<bool, PeError> {
+    Ok(imported_dlls(read)?
+        .iter()
+        .any(|name| name == "mscoree.dll"))
+}
+
 fn subdirectory(offset: u32) -> Result<u32, PeError> {
     if offset & SUBDIRECTORY == 0 {
         return Err(PeError::BadResources);
@@ -856,6 +867,16 @@ mod tests {
         let none = with_imports(&["kernel32.dll"], &[]);
         assert_eq!(direct3d_apis(&mut reader(&none)), Ok(Vec::new()));
         assert_eq!(direct3d_apis(&mut reader(&exe(I386, &[]))), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn dotnet_comes_from_the_mscoree_import() {
+        let native = with_imports(&["kernel32.dll", "MSCOREE.dll"], &[]);
+        assert_eq!(uses_dotnet(&mut reader(&native)), Ok(true));
+        let delayed = with_imports(&["kernel32.dll"], &["mscoree.dll"]);
+        assert_eq!(uses_dotnet(&mut reader(&delayed)), Ok(true));
+        let plain = with_imports(&["kernel32.dll", "d3d9.dll"], &[]);
+        assert_eq!(uses_dotnet(&mut reader(&plain)), Ok(false));
     }
 
     #[test]
