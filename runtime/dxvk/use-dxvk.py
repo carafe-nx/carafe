@@ -53,7 +53,7 @@ shutil.copyfile(build / 'i386/src/d3d9/d3d9.dll', target)
 say_directx9(target)
 record('drive_c/dxvk', 'd3d9.dll')
 
-DLLS32 = ('d3d10core.dll', 'd3d11.dll', 'dxgi.dll')
+DLLS32 = ('d3d8.dll', 'd3d10core.dll', 'd3d11.dll', 'dxgi.dll')
 for name in DLLS32:
     component = 'd3d10' if name == 'd3d10core.dll' else name[:-4]
     shutil.copyfile(build / 'i386/src' / component / name, target.parent / name)

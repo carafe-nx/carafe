@@ -52,10 +52,10 @@ configure()
     fi
 }
 
-configure i386 i686 x86 -Denable_d3d9=true -Denable_d3d8=false -Denable_d3d10=true -Denable_d3d11=true \
+configure i386 i686 x86 -Denable_d3d8=true -Denable_d3d9=true -Denable_d3d10=true -Denable_d3d11=true \
     -Denable_dxgi=true
 configure amd64 x86_64 x86_64 -Denable_dxgi=true -Denable_d3d8=true -Denable_d3d9=true -Denable_d3d10=true \
     -Denable_d3d11=true
-ninja -C "$build/i386" -j "${JOBS:-2}" src/d3d9/d3d9.dll src/d3d10/d3d10core.dll src/d3d11/d3d11.dll \
-    src/dxgi/dxgi.dll
+ninja -C "$build/i386" -j "${JOBS:-2}" src/d3d8/d3d8.dll src/d3d9/d3d9.dll src/d3d10/d3d10core.dll \
+    src/d3d11/d3d11.dll src/dxgi/dxgi.dll
 ninja -C "$build/amd64" -j "${JOBS:-2}"
