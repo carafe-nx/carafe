@@ -525,6 +525,10 @@ __attribute__((constructor(105))) static void carafeSettingsEnvironment(void) {
         setenv("CARAFE_WINDOW_HOOKS", "1", 1);
         note("[CARAFE] settings: window hooks");
     }
+    if (textValue(text, "suspend-wakes", value, sizeof(value)) && strcmp(value, "1") == 0) {
+        setenv("CARAFE_SUSPEND_WAKES", "1", 1);
+        note("[CARAFE] settings: a suspended thread is woken from its wait");
+    }
     free(text);
 }
 

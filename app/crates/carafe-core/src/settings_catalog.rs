@@ -1086,6 +1086,14 @@ fn experimental() -> Vec<Setting> {
             off_on(),
             0,
         ),
+        Setting::new(
+            "suspend-wakes",
+            SettingFile::Program,
+            "suspend-wakes",
+            Apply::Restart,
+            off_on(),
+            0,
+        ),
         dxvk("dxvk.skipRedundantPipelineBinds", dxvk_bool()),
         dxvk(
             "dxvk.frameRateMethod",
