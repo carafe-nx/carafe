@@ -167,6 +167,7 @@ typedef struct {
 extern const char* const carafe_source_names[CARAFE_SOURCES];
 
 CarafeLanguage carafeLanguage(void);
+const char* carafeWindowsLocale(void);
 int carafePluralForm(int count);
 const char* carafeText(const char* const texts[CARAFE_TEXTS]);
 CarafeCatalog* carafeCatalogLoad(void);

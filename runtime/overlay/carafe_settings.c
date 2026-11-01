@@ -138,6 +138,27 @@ CarafeLanguage carafeLanguage(void) {
     return (CarafeLanguage)language;
 }
 
+const char* carafeWindowsLocale(void) {
+    static const char* const locales[CarafeLanguageCount] = {
+        [CarafeLanguageRu] = "ru-RU",
+        [CarafeLanguageEn] = "en-US",
+        [CarafeLanguageZhHans] = "zh-CN",
+        [CarafeLanguageJa] = "ja-JP",
+        [CarafeLanguageKo] = "ko-KR",
+        [CarafeLanguageZhHant] = "zh-TW",
+        [CarafeLanguageFr] = "fr-FR",
+        [CarafeLanguageFrCa] = "fr-CA",
+        [CarafeLanguageDe] = "de-DE",
+        [CarafeLanguageIt] = "it-IT",
+        [CarafeLanguageEs] = "es-ES",
+        [CarafeLanguageEs419] = "es-MX",
+        [CarafeLanguageNl] = "nl-NL",
+        [CarafeLanguagePt] = "pt-PT",
+        [CarafeLanguagePtBr] = "pt-BR",
+    };
+    return locales[carafeLanguage()];
+}
+
 int carafePluralForm(int count) {
     switch (carafeLanguage()) {
     case CarafeLanguageRu:
