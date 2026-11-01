@@ -29,7 +29,6 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
-- [ ] `bug` Keyboard and mouse layout: B (right click) never reaches the game, and the key on X loses its press
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `research` NFSU2: rare crash at the start of a race in the game's own sound code, two threads racing
 - [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
@@ -53,6 +52,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` The cursor stays on the program's screen: a click no longer lands on the window frame over the black bars
 - [x] `bug` Games on DirectInput 7 and older read the mouse and keyboard
 - [x] `feature` Videos played through DirectShow and Windows Media (ASF, AVI, MPEG) are decoded with FFmpeg
 - [x] `bug` A game no longer hangs when a thread of DirectShow reads its messages while the game waits for it
