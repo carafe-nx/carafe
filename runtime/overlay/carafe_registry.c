@@ -16,12 +16,15 @@
 #define REGISTRY_LIMIT (1024 * 1024)
 #define REGISTRY_HEADER "carafe-registry\t1"
 #define PENDING_HEADER "carafe-registry-pending\t1"
+#define REMOVED_HEADER "carafe-registry-removed\t1"
 #define CARAFE_DIR "sdmc:/switch/wine/carafe"
 #define PENDING_FILE CARAFE_DIR "/registry-pending.txt"
+#define REMOVED_FILE CARAFE_DIR "/registry-removed.txt"
 #define APPLIED_MARK CARAFE_DIR "/registry-applied"
 #define ROLLBACK_FILE "sdmc:/switch/carafe/%016lx/registry-rollback.txt"
 #define PENDING_LIMIT (2 * 1024 * 1024)
 #define MAX_PENDING 256
+#define MAX_REMOVED 256
 #define MAX_ROWS 64
 #define MAX_FIELDS 8
 #define MAX_OPTIONS 32
@@ -32,7 +35,16 @@ typedef enum {
     OpSet,
     OpDeleteValue,
     OpDeleteKey,
+    OpRestore,
+    OpRestoreKey,
 } Op;
+
+typedef struct {
+    bool key;
+    int hive;
+    char path[CARAFE_REG_PATH];
+    char name[CARAFE_REG_NAME];
+} Removed;
 
 typedef struct {
     Op op;
@@ -92,6 +104,8 @@ static bool g_pending_loaded;
 static char* g_rows_text;
 static Row g_rows[MAX_ROWS];
 static int g_row_count;
+static Removed g_removed[MAX_REMOVED];
+static int g_removed_count;
 
 static void note(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
@@ -315,14 +329,25 @@ static uint64_t textHash(const char* text) {
     return hash;
 }
 
+static bool liveKey(int hive, const char* path) {
+    uint16_t wide_path[CARAFE_REG_PATH];
+    size_t path_len = carafeRegistryUtf16(path, wide_path, CARAFE_REG_PATH);
+    unsigned int subkeys = 0;
+    unsigned int values = 0;
+    return wine_nx_registry_key_info != NULL
+        && wine_nx_registry_key_info(hive, wide_path, (unsigned int)path_len * 2, &subkeys, &values) == 0;
+}
+
 static unsigned int applyChange(Op op, int hive, const char* path, const char* name, uint32_t type,
     const uint8_t* data, uint32_t size) {
+    static const uint8_t empty[2] = { 0, 0 };
     uint16_t wide_path[CARAFE_REG_PATH];
     uint16_t wide_name[CARAFE_REG_NAME];
     size_t path_len = carafeRegistryUtf16(path, wide_path, CARAFE_REG_PATH);
     size_t name_len = carafeRegistryUtf16(name, wide_name, CARAFE_REG_NAME);
     switch (op) {
     case OpSet:
+    case OpRestore:
         return wine_nx_registry_set(hive, wide_path, (unsigned int)path_len * 2, wide_name,
             (unsigned int)name_len * 2, type, data, size);
     case OpDeleteValue:
@@ -330,6 +355,17 @@ static unsigned int applyChange(Op op, int hive, const char* path, const char* n
             (unsigned int)name_len * 2);
     case OpDeleteKey:
         return wine_nx_registry_delete_key(hive, wide_path, (unsigned int)path_len * 2);
+    case OpRestoreKey: {
+        if (liveKey(hive, path)) {
+            return 0;
+        }
+        unsigned int status = wine_nx_registry_set(hive, wide_path, (unsigned int)path_len * 2, wide_name, 0,
+            CARAFE_REG_SZ, empty, sizeof(empty));
+        if (status != 0) {
+            return status;
+        }
+        return wine_nx_registry_delete_value(hive, wide_path, (unsigned int)path_len * 2, wide_name, 0);
+    }
     }
     return 0;
 }
@@ -370,12 +406,16 @@ static bool parseOp(char** fields, int count, Op* op, int* hive, const char** pa
         *op = OpDeleteValue;
     } else if (strcmp(fields[0], "deletekey") == 0) {
         *op = OpDeleteKey;
+    } else if (strcmp(fields[0], "restore") == 0 && count >= 6) {
+        *op = OpRestore;
+    } else if (strcmp(fields[0], "restorekey") == 0) {
+        *op = OpRestoreKey;
     } else {
         return false;
     }
     *hive = hiveFromName(fields[1]);
     *path = fields[2];
-    *name = *op == OpDeleteKey ? "" : fields[3];
+    *name = *op == OpDeleteKey || *op == OpRestoreKey ? "" : fields[3];
     return *hive >= 0;
 }
 
@@ -410,7 +450,7 @@ static int applyEntries(char* text) {
                 uint32_t size = 0;
                 uint32_t type = 0;
                 bool ok = true;
-                if (op == OpSet) {
+                if (op == OpSet || op == OpRestore) {
                     type = (uint32_t)strtoul(fields[4], NULL, 10);
                     size_t max = strlen(fields[5]) / 2 + 1;
                     data = malloc(max);
@@ -420,7 +460,7 @@ static int applyEntries(char* text) {
                     unsigned int status = applyChange(op, hive, path, name, type, data, size);
                     if (status == 0) {
                         applied++;
-                    } else if (op == OpSet) {
+                    } else if (op != OpDeleteValue && op != OpDeleteKey) {
                         note("[CARAFE] registry: %s\\%s › %s not written (0x%08x)", hiveShort(hive), path, name,
                             status);
                     }
@@ -476,7 +516,7 @@ static void loadPendingLocked(void) {
             int hive;
             const char* path;
             const char* name;
-            if (parseOp(fields, count, &op, &hive, &path, &name)) {
+            if (parseOp(fields, count, &op, &hive, &path, &name) && op != OpRestore && op != OpRestoreKey) {
                 Change* change = &g_pending[g_pending_count];
                 memset(change, 0, sizeof(*change));
                 change->op = op;
@@ -565,11 +605,176 @@ static void writeRollback(void) {
     fclose(file);
 }
 
+static bool underKey(const char* key, const char* path) {
+    char left[CARAFE_REG_PATH];
+    char right[CARAFE_REG_PATH];
+    trimPath(key, left, sizeof(left));
+    trimPath(path, right, sizeof(right));
+    size_t length = strlen(left);
+    return strncasecmp(left, right, length) == 0 && (right[length] == '\0' || right[length] == '\\');
+}
+
+static void loadRemoved(void) {
+    g_removed_count = 0;
+    char* text = readText(REMOVED_FILE, PENDING_LIMIT);
+    if (text == NULL) {
+        return;
+    }
+    char* line = text;
+    bool first = true;
+    while (line != NULL && *line != '\0' && g_removed_count < MAX_REMOVED) {
+        char* end = strchr(line, '\n');
+        if (end != NULL) {
+            *end = '\0';
+        }
+        if (first) {
+            first = false;
+            if (strcmp(line, REMOVED_HEADER) != 0) {
+                break;
+            }
+        } else {
+            char* fields[MAX_LINE_FIELDS];
+            int count = splitFields(line, fields, MAX_LINE_FIELDS);
+            Op op;
+            int hive;
+            const char* path;
+            const char* name;
+            if (parseOp(fields, count, &op, &hive, &path, &name) && (op == OpDeleteValue || op == OpDeleteKey)) {
+                Removed* removed = &g_removed[g_removed_count++];
+                removed->key = op == OpDeleteKey;
+                removed->hive = hive;
+                trimPath(path, removed->path, sizeof(removed->path));
+                snprintf(removed->name, sizeof(removed->name), "%s", name);
+            }
+        }
+        line = end != NULL ? end + 1 : NULL;
+    }
+    free(text);
+}
+
+static void saveRemoved(void) {
+    mkdir(CARAFE_DIR, 0777);
+    if (g_removed_count == 0) {
+        remove(REMOVED_FILE);
+        return;
+    }
+    char temp[PATH_SIZE];
+    snprintf(temp, sizeof(temp), "%s.new", REMOVED_FILE);
+    FILE* file = fopen(temp, "wb");
+    if (file == NULL) {
+        return;
+    }
+    fprintf(file, "%s\n", REMOVED_HEADER);
+    for (int i = 0; i < g_removed_count; i++) {
+        const Removed* r = &g_removed[i];
+        writeChangeLine(file, r->key ? OpDeleteKey : OpDeleteValue, r->hive, r->path, r->name, 0, NULL, 0);
+    }
+    if (fclose(file) != 0) {
+        remove(temp);
+        return;
+    }
+    remove(REMOVED_FILE);
+    rename(temp, REMOVED_FILE);
+}
+
+static bool removedCovers(int hive, const char* path, const char* name, bool key) {
+    for (int i = 0; i < g_removed_count; i++) {
+        const Removed* r = &g_removed[i];
+        if (r->hive != hive) {
+            continue;
+        }
+        if (r->key ? underKey(r->path, path) : !key && samePath(r->path, path) && strcasecmp(r->name, name) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool noteRemoval(const Change* change) {
+    bool changed = false;
+    if (change->op == OpSet) {
+        for (int i = g_removed_count - 1; i >= 0; i--) {
+            const Removed* r = &g_removed[i];
+            bool same_value = !r->key && samePath(r->path, change->path) && strcasecmp(r->name, change->name) == 0;
+            if (r->hive == change->hive && (same_value || (r->key && underKey(r->path, change->path)))) {
+                memmove(&g_removed[i], &g_removed[i + 1], (size_t)(g_removed_count - i - 1) * sizeof(Removed));
+                g_removed_count--;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+    bool key = change->op == OpDeleteKey;
+    if (removedCovers(change->hive, change->path, change->name, key) || g_removed_count >= MAX_REMOVED) {
+        return false;
+    }
+    Removed* removed = &g_removed[g_removed_count++];
+    removed->key = key;
+    removed->hive = change->hive;
+    trimPath(change->path, removed->path, sizeof(removed->path));
+    snprintf(removed->name, sizeof(removed->name), "%s", key ? "" : change->name);
+    return true;
+}
+
+static void restoreMissing(char* text) {
+    static uint8_t live[CARAFE_REG_DATA];
+    static uint8_t data[CARAFE_REG_DATA];
+    int restored = 0;
+    char* line = text;
+    bool first = true;
+    while (line != NULL && *line != '\0') {
+        char* end = strchr(line, '\n');
+        if (end != NULL) {
+            *end = '\0';
+        }
+        size_t length = strlen(line);
+        if (length > 0 && line[length - 1] == '\r') {
+            line[length - 1] = '\0';
+        }
+        if (first) {
+            first = false;
+            if (strcmp(line, REGISTRY_HEADER) != 0) {
+                return;
+            }
+        } else {
+            char* fields[MAX_LINE_FIELDS];
+            int count = splitFields(line, fields, MAX_LINE_FIELDS);
+            Op op;
+            int hive;
+            const char* path;
+            const char* name;
+            if (parseOp(fields, count, &op, &hive, &path, &name) && (op == OpRestore || op == OpRestoreKey)
+                && !removedCovers(hive, path, name, op == OpRestoreKey)) {
+                uint32_t type = 0;
+                uint32_t size = 0;
+                bool missing = op == OpRestoreKey
+                    ? !liveKey(hive, path)
+                    : !liveValue(hive, path, name, &type, live, CARAFE_REG_DATA, &size, NULL);
+                bool ok = true;
+                if (missing && op == OpRestore) {
+                    type = (uint32_t)strtoul(fields[4], NULL, 10);
+                    ok = hexDecode(fields[5], data, CARAFE_REG_DATA, &size);
+                }
+                if (missing && ok && applyChange(op, hive, path, name, type, data, size) == 0) {
+                    restored++;
+                    note("[CARAFE] registry: %s\\%s › %s was missing, written again", hiveShort(hive), path,
+                        op == OpRestoreKey ? "(key)" : name[0] != '\0' ? name : "@");
+                }
+            }
+        }
+        line = end != NULL ? end + 1 : NULL;
+    }
+    if (restored > 0) {
+        note("[CARAFE] registry: %d missing values of the installer written again", restored);
+    }
+}
+
 void carafeRegistryLoaded(void) {
     if (!available()) {
         return;
     }
     char* text = romfsText();
+    char* restore_text = text != NULL ? strdup(text) : NULL;
     if (text != NULL) {
         bool always = false;
         packageMode(text, &always);
@@ -597,20 +802,30 @@ void carafeRegistryLoaded(void) {
     }
     pthread_mutex_lock(&g_lock);
     loadPendingLocked();
+    loadRemoved();
     if (g_pending_count > 0) {
         if (carafeTrialActive()) {
             writeRollback();
         }
         int applied = 0;
+        bool removed_changed = false;
         for (int i = 0; i < g_pending_count; i++) {
             const Change* c = &g_pending[i];
             applied += applyChange(c->op, c->hive, c->path, c->name, c->type, c->data, c->size) == 0;
+            removed_changed |= noteRemoval(c);
         }
         note("[CARAFE] registry: %d of %d changes made in the settings menu written", applied, g_pending_count);
         g_pending_count = 0;
         savePendingLocked();
+        if (removed_changed) {
+            saveRemoved();
+        }
     }
     pthread_mutex_unlock(&g_lock);
+    if (restore_text != NULL) {
+        restoreMissing(restore_text);
+        free(restore_text);
+    }
 }
 
 static Row* parseRows(char* text) {
@@ -1108,6 +1323,7 @@ void carafeRegistryUndoPending(void) {
 void carafeRegistryReset(void) {
     carafeRegistryUndoPending();
     remove(APPLIED_MARK);
+    remove(REMOVED_FILE);
     note("[CARAFE] registry: the package's entries are laid over the registry again at the next start");
 }
 

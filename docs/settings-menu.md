@@ -103,6 +103,9 @@ option	English	65006e000000
 - `set <root> <path> <name> <type> <hex>` — `<root>` is `HKCU` or `HKLM`, `<type>` the Windows type number, `<hex>` the
   value's bytes as the registry stores them: strings in UTF-16LE with their terminating zero, numbers little-endian.
 - `delete <root> <path> <name>` and `deletekey <root> <path>` — remove a value, or a key with everything under it.
+- `restore <root> <path> <name> <type> <hex>` and `restorekey <root> <path>` — a value or an empty key the game's
+  installer writes ([decision 56](decisions/0056-registry-values-from-gog-install-scripts.md)): written like `set`, and
+  again at any start that finds it missing.
 - `row <name> <hint>`, then `field <root> <path> <name> <type>` for each value the row writes, then
   `option <label> <hex>…` with one `<hex>` per field.
 
@@ -111,4 +114,7 @@ when `carafe/registry-applied` in save data does not hold the hash of this file,
 `carafe/registry-pending.txt` from save data — the changes made in the menu, in the same `set`/`delete`/`deletekey` lines
 under the header `carafe-registry-pending	1` — and removes it. A trial run first keeps the values those changes replace
 in `sdmc:/switch/carafe/<program id>/registry-rollback.txt`; "Bring back" on the error screen makes them the pending
-changes. "Restore recommended" removes the pending changes and `registry-applied`.
+changes. Deletions among those changes go into `carafe/registry-removed.txt` (header `carafe-registry-removed	1`,
+`delete`/`deletekey` lines); a later `set` of the same value takes it off. Last, every `restore` value and `restorekey`
+key that is missing and not on that list is written. "Restore recommended" removes the pending changes,
+`registry-applied` and `registry-removed.txt`.

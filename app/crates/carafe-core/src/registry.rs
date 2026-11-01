@@ -223,6 +223,68 @@ pub struct RegistryEntry {
     pub change: RegistryChange,
 }
 
+/// A value or key the game's installer writes. It is written with the package's entries and again at any start that
+/// finds it missing, unless the player removed it in the console menu; an entry for the same value, or a deletion of
+/// its key, takes its place.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InstalledEntry {
+    /// A value.
+    Value {
+        /// The root key.
+        root: RegistryRoot,
+        /// The key under the root.
+        path: String,
+        /// The value's name; empty for the key's default value.
+        name: String,
+        /// The data.
+        value: RegistryValue,
+    },
+    /// A key, created empty when it is missing.
+    Key {
+        /// The root key.
+        root: RegistryRoot,
+        /// The key under the root.
+        path: String,
+    },
+}
+
+impl InstalledEntry {
+    fn root(&self) -> RegistryRoot {
+        match self {
+            Self::Value { root, .. } | Self::Key { root, .. } => *root,
+        }
+    }
+
+    fn path(&self) -> &str {
+        match self {
+            Self::Value { path, .. } | Self::Key { path, .. } => path,
+        }
+    }
+
+    fn valid(&self) -> bool {
+        let named = match self {
+            Self::Value { name, .. } => check_name(name).is_ok(),
+            Self::Key { .. } => true,
+        };
+        named && check_path(self.path()).is_ok() && !trimmed_path(self.path()).is_empty()
+    }
+
+    fn replaced_by(&self, entry: &RegistryEntry) -> bool {
+        if entry.root != self.root() {
+            return false;
+        }
+        let own = trimmed_path(self.path()).to_lowercase();
+        let other = trimmed_path(&entry.path).to_lowercase();
+        match (&entry.change, self) {
+            (RegistryChange::DeleteKey, _) => {
+                own == other || own.starts_with(&format!("{other}\\"))
+            }
+            (_, Self::Value { name, .. }) => own == other && name.eq_ignore_ascii_case(&entry.name),
+            (_, Self::Key { .. }) => false,
+        }
+    }
+}
+
 /// The type of a value a console menu row writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -477,12 +539,23 @@ fn trimmed_path(path: &str) -> &str {
 
 /// Renders `carafe/registry.txt`, which the runtime reads when the game's registry is loaded.
 ///
+/// `installed` are the values and keys the game's installer writes; those an entry of `settings` replaces, and those
+/// that cannot go into the file, are left out.
+///
 /// # Returns
 ///
-/// `None` when there are no entries and no menu rows.
+/// `None` when there are no entries, no installed values and no menu rows.
 #[must_use]
-pub fn render_registry_file(settings: &RegistrySettings) -> Option<String> {
-    if settings.is_empty() {
+pub fn render_registry_file(
+    settings: &RegistrySettings,
+    installed: &[InstalledEntry],
+) -> Option<String> {
+    let installed: Vec<&InstalledEntry> = installed
+        .iter()
+        .filter(|entry| entry.valid())
+        .filter(|entry| !settings.entries.iter().any(|own| entry.replaced_by(own)))
+        .collect();
+    if settings.is_empty() && installed.is_empty() {
         return None;
     }
     let mut out = String::new();
@@ -511,6 +584,23 @@ pub fn render_registry_file(settings: &RegistrySettings) -> Option<String> {
             }
             RegistryChange::DeleteKey => {
                 let _ = writeln!(out, "deletekey\t{root}\t{path}");
+            }
+        }
+    }
+    for entry in installed {
+        let root = entry.root().short_name();
+        let path = trimmed_path(entry.path());
+        match entry {
+            InstalledEntry::Value { name, value, .. } => {
+                let _ = writeln!(
+                    out,
+                    "restore\t{root}\t{path}\t{name}\t{}\t{}",
+                    value.type_number(),
+                    hex(&value.bytes())
+                );
+            }
+            InstalledEntry::Key { .. } => {
+                let _ = writeln!(out, "restorekey\t{root}\t{path}");
             }
         }
     }
@@ -659,7 +749,7 @@ fn decode(bytes: &[u8]) -> (String, bool) {
     (narrow_text(rest), false)
 }
 
-fn split_root(key: &str) -> Option<(RegistryRoot, String)> {
+pub(crate) fn split_root(key: &str) -> Option<(RegistryRoot, String)> {
     let key = key.trim().trim_matches('\\');
     let (root, rest) = key.split_once('\\').unwrap_or((key, ""));
     let rest = rest.trim_matches('\\');
@@ -1315,7 +1405,7 @@ mod tests {
             menu: vec![row()],
         };
         assert_eq!(settings.validate(), Ok(()));
-        let text = render_registry_file(&settings).unwrap();
+        let text = render_registry_file(&settings, &[]).unwrap();
         assert_eq!(
             text,
             "carafe-registry\t1\nmode\talways\n\
@@ -1332,7 +1422,70 @@ mod tests {
 
     #[test]
     fn nothing_to_write_gives_no_registry_file() {
-        assert_eq!(render_registry_file(&RegistrySettings::default()), None);
+        assert_eq!(
+            render_registry_file(&RegistrySettings::default(), &[]),
+            None
+        );
+    }
+
+    fn installed_value(path: &str, name: &str, number: u32) -> InstalledEntry {
+        InstalledEntry::Value {
+            root: RegistryRoot::LocalMachine,
+            path: path.into(),
+            name: name.into(),
+            value: RegistryValue::Dword { number },
+        }
+    }
+
+    #[test]
+    fn installed_values_are_restored_unless_an_entry_replaces_them() {
+        let settings = RegistrySettings {
+            entries: vec![
+                set(
+                    RegistryRoot::LocalMachine,
+                    "software\\studio\\game",
+                    "LANGUAGE",
+                    RegistryValue::Dword { number: 2 },
+                ),
+                RegistryEntry {
+                    root: RegistryRoot::LocalMachine,
+                    path: "Software\\Studio\\Cache".into(),
+                    name: String::new(),
+                    change: RegistryChange::DeleteKey,
+                },
+            ],
+            ..RegistrySettings::default()
+        };
+        let installed = [
+            installed_value("Software\\Studio\\Game", "Language", 1),
+            installed_value("Software\\Studio\\Game", "Installed", 1),
+            installed_value("Software\\Studio\\Cache\\Old", "Size", 1),
+            installed_value("Software\\Studio\\CacheTwo", "Size", 1),
+            InstalledEntry::Key {
+                root: RegistryRoot::CurrentUser,
+                path: "\\Software\\Studio\\".into(),
+            },
+            installed_value("Software\\\\Bad", "x", 1),
+            installed_value("Software\\Studio", "a\tb", 1),
+        ];
+        assert_eq!(
+            render_registry_file(&settings, &installed).unwrap(),
+            "carafe-registry\t1\nmode\tonce\n\
+             set\tHKLM\tsoftware\\studio\\game\tLANGUAGE\t4\t02000000\n\
+             deletekey\tHKLM\tSoftware\\Studio\\Cache\n\
+             restore\tHKLM\tSoftware\\Studio\\Game\tInstalled\t4\t01000000\n\
+             restore\tHKLM\tSoftware\\Studio\\CacheTwo\tSize\t4\t01000000\n\
+             restorekey\tHKCU\tSoftware\\Studio\n"
+        );
+    }
+
+    #[test]
+    fn installed_values_alone_make_a_registry_file() {
+        let installed = [installed_value("Software\\Game", "Installed", 1)];
+        assert_eq!(
+            render_registry_file(&RegistrySettings::default(), &installed).unwrap(),
+            "carafe-registry\t1\nmode\tonce\nrestore\tHKLM\tSoftware\\Game\tInstalled\t4\t01000000\n"
+        );
     }
 
     #[test]

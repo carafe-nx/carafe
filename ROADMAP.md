@@ -54,6 +54,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `feature` GOG games get the registry values of their install script, written again when missing
 - [x] `bug` Message boxes and dialogs show their text, icon and buttons
 - [x] `bug` The loading screen steps aside when a program shows a dialog before its first picture
 - [x] `feature` Direct3D 8 games run through DXVK

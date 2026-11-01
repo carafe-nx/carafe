@@ -9,6 +9,7 @@ pub mod dbi;
 pub mod disk_space;
 pub mod exe_icon;
 pub mod icon;
+pub mod install_script;
 pub mod keys;
 pub mod library;
 pub mod links;

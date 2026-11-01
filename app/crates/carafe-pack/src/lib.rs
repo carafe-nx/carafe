@@ -20,6 +20,7 @@ use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use carafe_core::BuildRecord;
 use carafe_core::cancel::CancelToken;
 use carafe_core::icon::IconJpeg;
+use carafe_core::install_script::{self, InstallScript};
 use carafe_core::npdm::AddressSpace;
 use carafe_core::package::{GamePackage, ICON_FILE, RECORD_FILE, ROMFS_ICON_FILE, package};
 use carafe_core::pfs0::{self, Pfs0Entry};
@@ -315,8 +316,9 @@ impl Packer for HacBrewPacker {
         let game_folder = Path::new(&record.source.folder);
         let apis = inspect(game_folder, &record.source.executable, pe::direct3d_apis);
         let dotnet = inspect(game_folder, &record.source.executable, pe::uses_dotnet);
-        let mut package =
-            package(record, &apis).map_err(|error| AdapterError::Tool(error.to_string()))?;
+        let scripts = install_scripts(game_folder);
+        let mut package = package(record, &apis, &scripts)
+            .map_err(|error| AdapterError::Tool(error.to_string()))?;
         let menu = settings_menu::file(&apis, &menu_texts::lookup).map_err(|error| {
             AdapterError::Tool(format!("{}: {error}", settings_menu::MENU_FILE))
         })?;
@@ -509,6 +511,33 @@ fn inspect<T: Default>(
     look(&mut read).unwrap_or_default()
 }
 
+fn install_scripts(game_folder: &Path) -> Vec<InstallScript> {
+    let Ok(entries) = fs::read_dir(game_folder) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .filter(|entry| install_script::is_install_script(&entry.file_name().to_string_lossy()))
+        .filter(|entry| {
+            entry
+                .metadata()
+                .is_ok_and(|metadata| metadata.len() <= install_script::MAX_SCRIPT_BYTES)
+        })
+        .map(|entry| entry.path())
+        .collect();
+    paths.sort();
+    paths
+        .iter()
+        .filter_map(|path| fs::read(path).ok())
+        .filter_map(|bytes| serde_json::from_slice(strip_bom(&bytes)).ok())
+        .collect()
+}
+
+fn strip_bom(bytes: &[u8]) -> &[u8] {
+    bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes)
+}
+
 fn read_at(file: &mut File, size: u64, offset: u64, len: usize) -> Option<Vec<u8>> {
     if offset.checked_add(len as u64)? > size {
         return None;
@@ -651,6 +680,38 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
         assert_eq!(result, Err(AdapterError::Cancelled));
         assert_eq!(left, (false, false));
+    }
+
+    #[test]
+    fn install_scripts_are_read_from_the_folder_root() {
+        let dir = std::env::temp_dir().join(format!("carafe-pack-gog-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("goggame-3.script")).unwrap();
+        let step = |name: &str| {
+            format!(
+                r#"{{"actions":[{{"install":{{"action":"setRegistry","arguments":{{"root":"HKLM",
+                    "subkey":"Software\\G","valueName":"{name}","valueData":"1"}}}}}}]}}"#
+            )
+        };
+        let mut bom = vec![0xEF, 0xBB, 0xBF];
+        bom.extend(step("b").into_bytes());
+        fs::write(dir.join("GOGGAME-2.script"), bom).unwrap();
+        fs::write(dir.join("goggame-1.script"), step("a")).unwrap();
+        fs::write(dir.join("goggame-4.script"), b"{not json").unwrap();
+        fs::write(dir.join("other.script"), step("c")).unwrap();
+        let scripts = install_scripts(&dir);
+        let missing = install_scripts(&dir.join("missing"));
+        fs::remove_dir_all(&dir).unwrap();
+        let names: Vec<String> = scripts
+            .iter()
+            .flat_map(|script| install_script::installed_entries(script, "C:\\Games\\G"))
+            .map(|entry| match entry {
+                carafe_core::registry::InstalledEntry::Value { name, .. } => name,
+                carafe_core::registry::InstalledEntry::Key { path, .. } => path,
+            })
+            .collect();
+        assert_eq!(names, vec!["b", "a"]);
+        assert!(missing.is_empty());
     }
 
     fn jpeg_256() -> Vec<u8> {

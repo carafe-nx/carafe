@@ -3,13 +3,16 @@
 use thiserror::Error;
 
 use crate::autorun_files::{AutorunFiles, executable_stem};
+use crate::install_script::{self, InstallScript};
 use crate::nacp;
 use crate::record::BuildRecord;
-use crate::registry;
+use crate::registry::{self, InstalledEntry};
 use crate::settings_catalog::Api;
 
 /// Games folder in RomFS; under it is the game folder with its files.
 pub const GAMES_DIR: &str = "switch/wine/drive_c/Games";
+
+const WINDOWS_GAMES_DIR: &str = "C:\\Games";
 
 /// Name of the build record inside the NSP.
 pub const RECORD_FILE: &str = "carafe.json";
@@ -63,22 +66,32 @@ pub enum PackageError {
     MultilineArgument(String),
 }
 
-/// Composes the contents of a game's NSP from the build record and the Direct3D versions `apis` its `.exe` uses.
+/// Composes the contents of a game's NSP from the build record, the Direct3D versions `apis` its `.exe` uses and the
+/// GOG install `scripts` found in its folder.
 ///
 /// The game folder in RomFS is named like the folder on the PC. The runtime gets the path to the `.exe` in
 /// `carafe/argv`, the title for the loading screen in `carafe/title`; next to the `.exe` go `<name>.keys.txt`,
 /// `<name>.wine-nx.txt` and, if there are arguments,
-/// `<name>.args.txt`, and `carafe/registry.txt` when the game has registry entries or menu rows. The console
-/// menu's `carafe/menu.txt` comes from [`crate::settings_menu::render`].
+/// `<name>.args.txt`, and `carafe/registry.txt` when the game has registry entries, values its install scripts write
+/// or menu rows. The console menu's `carafe/menu.txt` comes from [`crate::settings_menu::render`].
 ///
 /// # Errors
 ///
 /// [`PackageError`] if the folder name, the path to the `.exe` or the arguments cannot be passed to the runtime.
-pub fn package(record: &BuildRecord, apis: &[Api]) -> Result<GamePackage, PackageError> {
+pub fn package(
+    record: &BuildRecord,
+    apis: &[Api],
+    scripts: &[InstallScript],
+) -> Result<GamePackage, PackageError> {
     let source = &record.source;
     let folder_name = folder_name(&source.folder)?;
     let executable = executable_path(&source.executable)?;
     let game_dir = format!("{GAMES_DIR}/{folder_name}");
+    let windows_dir = format!("{WINDOWS_GAMES_DIR}\\{folder_name}");
+    let installed: Vec<InstalledEntry> = scripts
+        .iter()
+        .flat_map(|script| install_script::installed_entries(script, &windows_dir))
+        .collect();
     let exe_dir = match executable.rsplit_once('/') {
         Some((dir, _)) => format!("{game_dir}/{dir}"),
         None => game_dir.clone(),
@@ -103,7 +116,7 @@ pub fn package(record: &BuildRecord, apis: &[Api]) -> Result<GamePackage, Packag
             contents: settings.program,
         },
     ];
-    if let Some(contents) = registry::render_registry_file(&record.settings.registry) {
+    if let Some(contents) = registry::render_registry_file(&record.settings.registry, &installed) {
         romfs_files.push(GeneratedFile {
             path: registry::REGISTRY_FILE.to_owned(),
             contents,
@@ -232,7 +245,7 @@ mod tests {
             "openttd.exe",
             &[],
         );
-        let package = package(&record, &[]).unwrap();
+        let package = package(&record, &[], &[]).unwrap();
         assert_eq!(
             package.game_dir,
             "switch/wine/drive_c/Games/openttd-15.3-windows-win32"
@@ -258,7 +271,7 @@ mod tests {
         use crate::registry::{RegistryChange, RegistryEntry, RegistryRoot, RegistryValue};
 
         let mut record = record("C:\\Games\\Probe", "probe.exe", &[]);
-        assert!(file(&package(&record, &[]).unwrap(), "carafe/registry.txt").is_none());
+        assert!(file(&package(&record, &[], &[]).unwrap(), "carafe/registry.txt").is_none());
         record.settings.registry.entries.push(RegistryEntry {
             root: RegistryRoot::CurrentUser,
             path: "Software\\Probe".to_owned(),
@@ -267,11 +280,30 @@ mod tests {
                 value: RegistryValue::Dword { number: 1280 },
             },
         });
-        let package = package(&record, &[]).unwrap();
+        let package = package(&record, &[], &[]).unwrap();
         assert_eq!(
             file(&package, "carafe/registry.txt"),
             Some(
                 "carafe-registry\t1\nmode\tonce\nset\tHKCU\tSoftware\\Probe\tWidth\t4\t00050000\n"
+            )
+        );
+    }
+
+    #[test]
+    fn install_scripts_add_values_with_the_folder_the_game_sees() {
+        let record = record("D:\\Game\\SPORE", "SporebinEP1\\SporeApp.exe", &[]);
+        let script: InstallScript = serde_json::from_str(
+            r#"{"actions":[{"install":{"action":"setRegistry","arguments":{"root":"HKEY_LOCAL_MACHINE",
+                "subkey":"SOFTWARE\\electronic arts\\spore","valueData":"{app}","valueName":"installloc",
+                "valueType":"string"}}}]}"#,
+        )
+        .unwrap();
+        let package = package(&record, &[], &[script]).unwrap();
+        assert_eq!(
+            file(&package, "carafe/registry.txt"),
+            Some(
+                "carafe-registry\t1\nmode\tonce\nrestore\tHKLM\tSOFTWARE\\electronic arts\\spore\tinstallloc\t1\t\
+                 43003a005c00470061006d00650073005c00530050004f00520045000000\n"
             )
         );
     }
@@ -283,7 +315,7 @@ mod tests {
             "bin\\Fallout2.exe",
             &["-v", "win32"],
         );
-        let package = package(&record, &[]).unwrap();
+        let package = package(&record, &[], &[]).unwrap();
         let bin = "switch/wine/drive_c/Games/Fallout 2/bin";
         assert!(file(&package, &format!("{bin}/Fallout2.keys.txt")).is_some());
         assert_eq!(
@@ -300,7 +332,7 @@ mod tests {
     #[test]
     fn no_box64_file_is_packed() {
         let record = record("C:\\Games\\x", "game.exe", &[]);
-        let package = package(&record, &[]).unwrap();
+        let package = package(&record, &[], &[]).unwrap();
         assert!(
             !package
                 .romfs_files
@@ -328,7 +360,7 @@ mod tests {
     fn executable_must_stay_inside_the_folder() {
         for bad in ["..\\game.exe", "C:\\game.exe", "/game.exe", "bin//game.exe"] {
             assert_eq!(
-                package(&record("C:\\Games\\x", bad, &[]), &[]),
+                package(&record("C:\\Games\\x", bad, &[]), &[], &[]),
                 Err(PackageError::ExecutableOutside(bad.to_owned()))
             );
         }
@@ -337,11 +369,11 @@ mod tests {
     #[test]
     fn folder_needs_a_usable_name() {
         assert_eq!(
-            package(&record("D:\\", "game.exe", &[]), &[]),
+            package(&record("D:\\", "game.exe", &[]), &[], &[]),
             Err(PackageError::NoFolderName("D:\\".to_owned()))
         );
         assert_eq!(
-            package(&record("/tmp/a\"b", "game.exe", &[]), &[]),
+            package(&record("/tmp/a\"b", "game.exe", &[]), &[], &[]),
             Err(PackageError::BadFolderName("a\"b".to_owned()))
         );
     }
@@ -349,7 +381,7 @@ mod tests {
     #[test]
     fn multiline_arguments_are_rejected() {
         assert_eq!(
-            package(&record("C:\\Games\\x", "game.exe", &["a\nb"]), &[]),
+            package(&record("C:\\Games\\x", "game.exe", &["a\nb"]), &[], &[]),
             Err(PackageError::MultilineArgument("a\nb".to_owned()))
         );
     }
