@@ -1,0 +1,16 @@
+Carafe: a dialog shows at its own size: the start-up hint to maximize the first window is kept for the
+program's own window, since a dialog's controls stay where they are and the rest of a maximized dialog is empty.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -5029,6 +5029,9 @@
+     if ((!(style & (WS_POPUP | WS_CHILD))
+          || ((style & (WS_POPUP | WS_CHILD | WS_CAPTION)) == (WS_POPUP | WS_CAPTION)))
+         && !get_window_relative( hwnd, GW_OWNER )
++#ifdef __SWITCH__
++        && get_class_long( hwnd, GCW_ATOM, FALSE ) != LOWORD(DIALOG_CLASS_ATOM)
++#endif
+         && set_startup_info_flags( STARTF_USESHOWWINDOW, 0 ) & STARTF_USESHOWWINDOW)
+     {
+         if (cmd == SW_SHOW || cmd == SW_SHOWNORMAL || cmd == SW_SHOWDEFAULT)
