@@ -256,6 +256,7 @@ static const Strings* const STRINGS[CarafeLanguageCount] = {
 
 extern unsigned int wine_nx_gl_swaps __attribute__((weak));
 extern unsigned int wine_nx_vk_presents __attribute__((weak));
+extern unsigned int wine_nx_dialogs_shown __attribute__((weak));
 void wine_nx_compositor_redraw(void);
 unsigned int wine_nx_compositor_frames_fast(void);
 void wine_nx_threads_report_stalled(void);
@@ -439,6 +440,10 @@ static void checkFinish(u64 now, unsigned int gl, unsigned int vulkan) {
         return;
     }
     if (gl != 0 || vulkan != 0 || g_game_tick == 0 || __atomic_load_n(&g_surface_reserved, __ATOMIC_ACQUIRE)) {
+        return;
+    }
+    if (&wine_nx_dialogs_shown && __atomic_load_n(&wine_nx_dialogs_shown, __ATOMIC_RELAXED) != 0) {
+        finish("the program shows a message");
         return;
     }
     if (g_window_tick == 0) {
