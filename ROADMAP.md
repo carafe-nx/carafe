@@ -23,10 +23,10 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` A game missing a DLL names it on the console, and the build wizard lets the user add it
 - [ ] `feature` Message boxes answered with the controller's buttons, not only by touch
 - [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
-- [ ] `game` Megabonk: reads the controller through Windows.Gaming.Input, which sees no pad
 - [ ] `game` Indiana Jones and the Emperor's Tomb: stays on the loading screen once its video thread gets DirectDraw
 - [ ] `game` Rig and Roll: check driving in 3D; the installed copy asks for its CD
-- [ ] `game` Indiana Jones and the Emperor's Tomb: "Press Enter" waits for the keyboard
+- [ ] `bug` The controller is no HID device: DirectInput 8 joysticks and Windows.Gaming.Input see no pad (Indiana Jones, Megabonk)
+- [ ] `game` Cat Mail Co: stops at start-up after Unity asks for Windows.System.DispatcherQueue
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
