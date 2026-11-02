@@ -52,6 +52,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` Logs keep their last lines when a game is closed from the HOME Menu and note when the game was held still
 - [x] `bug` The cursor stays on the program's screen: a click no longer lands on the window frame over the black bars
 - [x] `bug` Games on DirectInput 7 and older read the mouse and keyboard
 - [x] `feature` Videos played through DirectShow and Windows Media (ASF, AVI, MPEG) are decoded with FFmpeg

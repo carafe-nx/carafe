@@ -29,6 +29,7 @@
 #define PATH_SIZE FS_MAX_PATH
 #define COPY_CHUNK 0x10000
 #define COMMIT_POLL_NS 1000000000LL
+#define PAUSE_REPORT_NS 5000000000LL
 #define COMMIT_MAX_WAIT_NS 10000000000ULL
 #define COMMIT_QUIET_NS 2000000000ULL
 #define LOG_HISTORY 5
@@ -114,6 +115,8 @@ static Mutex g_times_mutex;
 static bool g_times_dirty;
 static time_t g_wall_start = EARLIEST_FILE_TIME;
 static u64 g_wall_tick;
+
+void wine_nx_runtime_log_flush(void) __attribute__((weak));
 
 static void logLine(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 
@@ -1447,6 +1450,9 @@ static bool handleAppletMessage(void) {
     if (!keep_running || message == AppletMessage_ExitRequest) {
         commitIfDue("on close request");
         logLine("close requested, exit unlocked");
+        if (wine_nx_runtime_log_flush) {
+            wine_nx_runtime_log_flush();
+        }
         if (g_exit_locked) {
             g_exit_locked = false;
             appletUnlockExit();
@@ -1456,10 +1462,33 @@ static bool handleAppletMessage(void) {
     return true;
 }
 
+static void reportPause(u64* last) {
+    u64 now = armGetSystemTick();
+    if (*last && now - *last >= armNsToTicks(PAUSE_REPORT_NS)) {
+        u64 from_ms = armTicksToNs(*last - g_started) / 1000000;
+        u64 gap_ms = armTicksToNs(now - *last) / 1000000;
+        logLine(
+            "did not run for %lu.%03lu s from %lu.%03lu s: the console slept, the game waited behind the HOME Menu "
+            "or every core was busy; focus %d now",
+            gap_ms / 1000,
+            gap_ms % 1000,
+            from_ms / 1000,
+            from_ms % 1000,
+            (int)appletGetFocusState()
+        );
+        if (wine_nx_runtime_log_flush) {
+            wine_nx_runtime_log_flush();
+        }
+    }
+    *last = now;
+}
+
 static void commitLoop(void* arg) {
     (void)arg;
     bool listening = true;
+    u64 last = 0;
     while (!g_stop) {
+        reportPause(&last);
         if (listening && R_SUCCEEDED(eventWait(appletGetMessageEvent(), COMMIT_POLL_NS))) {
             listening = handleAppletMessage();
         } else if (!listening) {
