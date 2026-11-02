@@ -91,6 +91,10 @@ the same header, numbering and paths relative to FEX's or DXVK's root; a patch t
 license line is `MIT, as the file it changes.` for FEX and `Zlib, as the file it changes.` for DXVK, with "files"
 when a patch changes more than one.
 
+dxwrapper (`external/dxwrapper`) is a Visual Studio project. `docker compose run --rm dxwrapper` builds it with
+Microsoft's compiler under Wine (`docker/dxwrapper`), reading the Release configuration from its project files
+(`runtime/dxwrapper/build-dxwrapper.py`); the runtime build lays out what it built.
+
 ## Commits and pull requests
 
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org): one line in English,

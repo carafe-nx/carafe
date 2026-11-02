@@ -19,6 +19,8 @@ Wine for Horizon OS with Carafe's builds of FEX and DXVK, and Mesa.
   - `winrt/` — registers the WinRT classes of Wine's DLLs in the runtime's registry;
   - `media/` — adds demuxers and decoders to the FFmpeg build of Autorun's media backend (decision 58);
   - `dshow/` — registers DirectShow's filter categories and filters in the runtime's registry (decision 58);
+  - `dxwrapper/` — builds dxwrapper from `external/dxwrapper` with Microsoft's compiler in its own container; it draws
+    DirectDraw and Direct3D 1–7 through Direct3D 9 (decision 59);
   - `Makefile` — builds the runtime into `app/crates/carafe-desktop/resources/runtime/`.
 - `tools/hacbrewpack/` — builds hacBrewPack, the program the app runs to pack NSPs, with Carafe's changes from
   `tools/hacbrewpack/patches/`.
@@ -30,8 +32,8 @@ Wine for Horizon OS with Carafe's builds of FEX and DXVK, and Mesa.
 
 ## Building
 
-- The runtime and hacBrewPack build only in containers: `docker compose run --rm runtime` and
-  `docker compose run --rm hacbrewpack`. Git for Windows must not fetch the submodules: it rewrites
+- The runtime and hacBrewPack build only in containers: `docker compose run --rm dxwrapper`, then
+  `docker compose run --rm runtime`, and `docker compose run --rm hacbrewpack`. Git for Windows must not fetch the submodules: it rewrites
   line endings. The containers fetch them.
 - From `app/`: `npm run dev` and `npm run build` build the runtime first; `dev:app` and `build:app`
   use the runtime already built; `npm run runtime` builds only the runtime; `npm run check` runs

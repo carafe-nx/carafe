@@ -88,6 +88,7 @@ Carafe stands on the work of others:
 - [Autorun](https://github.com/autorunhq/autorun) — the Windows runtime for Horizon OS, with
   [Wine](https://www.winehq.org), [Box64](https://github.com/ptitSeb/box64), [FEX](https://github.com/FEX-Emu/FEX),
   [DXVK](https://github.com/doitsujin/dxvk) and [Mesa](https://www.mesa3d.org);
+- [dxwrapper](https://github.com/elishacloud/dxwrapper) — DirectDraw and Direct3D 1–7 through Direct3D 9;
 - [hacBrewPack](https://github.com/rlaphoenix/hacBrewPack) — builds the NSP;
 - [nx-hbloader](https://github.com/switchbrew/nx-hbloader) and [devkitPro](https://devkitpro.org) — the loader
   and the Switch toolchain;

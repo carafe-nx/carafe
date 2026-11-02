@@ -8,3 +8,7 @@
 [submodule "external/nx-hbloader"]
 	path = external/nx-hbloader
 	url = https://github.com/switchbrew/nx-hbloader.git
+[submodule "external/dxwrapper"]
+	path = external/dxwrapper
+	url = https://github.com/elishacloud/dxwrapper.git
+	ignore = dirty

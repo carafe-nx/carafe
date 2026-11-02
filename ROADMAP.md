@@ -24,7 +24,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Message boxes answered with the controller's buttons, not only by touch
 - [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
 - [ ] `game` Megabonk: reads the controller through Windows.Gaming.Input, which sees no pad
-- [ ] `game` Rig and Roll: Direct3D 7 through DirectDraw gets no OpenGL context
+- [ ] `game` Indiana Jones and the Emperor's Tomb: stays on the loading screen once its video thread gets DirectDraw
+- [ ] `game` Rig and Roll: check driving in 3D; the installed copy asks for its CD
 - [ ] `game` Indiana Jones and the Emperor's Tomb: "Press Enter" waits for the keyboard
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
@@ -52,6 +53,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `feature` DirectDraw and Direct3D 1–7 games draw through dxwrapper and DXVK
 - [x] `bug` Logs keep their last lines when a game is closed from the HOME Menu and note when the game was held still
 - [x] `bug` The cursor stays on the program's screen: a click no longer lands on the window frame over the black bars
 - [x] `bug` Games on DirectInput 7 and older read the mouse and keyboard

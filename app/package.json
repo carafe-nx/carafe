@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "runtime": "docker compose -f ../compose.yaml run --rm runtime",
+    "runtime": "docker compose -f ../compose.yaml run --rm dxwrapper && docker compose -f ../compose.yaml run --rm runtime",
     "hacbrewpack": "docker compose -f ../compose.yaml run --rm hacbrewpack",
     "pack": "cargo run --release -p carafe-pack --example pack_runtime -- crates/carafe-desktop/resources/runtime crates/carafe-desktop/resources/carafe-runtime.bin",
     "dev": "npm run runtime && npm run hacbrewpack && npm run dev:app",

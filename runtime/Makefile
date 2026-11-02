@@ -21,6 +21,7 @@ FEX_PATCHES := $(sort $(wildcard $(CURDIR)/patches/fex/*.patch))
 DXVK_SRC := $(BUILD)/dxvk-src
 DXVK_BUILD := $(BUILD)/dxvk
 DXVK_PATCHES := $(sort $(wildcard $(CURDIR)/patches/dxvk/*.patch))
+DXWRAPPER_BUILD := $(BUILD)/dxwrapper
 MEDIA_SRC := $(BUILD)/ffmpeg-source
 MONO_VERSION := 11.3.0
 MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
@@ -100,6 +101,8 @@ $(MONO_ARCHIVE):
 	mv $@.part $@
 
 layout: wine fex dxvk loader $(MONO_ARCHIVE)
+	@test -f $(DXWRAPPER_BUILD)/stamp || \
+		{ echo "dxwrapper is not built: run docker compose run --rm dxwrapper first" >&2; exit 1; }
 	rm -rf $(OUT) $(NPDM)
 	mkdir -p $(OUT)/exefs $(OUT)/control $(OUT)/logo $(OUT)/symbols $(OUT)/romfs/switch \
 		$(OUT)/romfs/carafe/loading $(OUT)/romfs/carafe/fonts $(NPDM)
@@ -118,6 +121,9 @@ layout: wine fex dxvk loader $(MONO_ARCHIVE)
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 libwow64fex.dll \
 		$(FEX_BUILD)/Bin/libwow64fex.dll
 	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
+	mkdir -p $(OUT)/romfs/switch/wine/drive_c/dxwrapper
+	cp $(DXWRAPPER_BUILD)/ddraw.dll $(DXWRAPPER_BUILD)/dxwrapper.dll $(DXWRAPPER_BUILD)/dxwrapper.ini \
+		$(OUT)/romfs/switch/wine/drive_c/dxwrapper/
 	python3 $(CURDIR)/winrt/add-winrt-classes.py $(OUT)/romfs $(AUTORUN)
 	python3 $(CURDIR)/dshow/add-directshow-filters.py $(OUT)/romfs
 	cp -r $(SWITCH)/stage/switch/. $(OUT)/romfs/switch/
@@ -126,6 +132,7 @@ layout: wine fex dxvk loader $(MONO_ARCHIVE)
 		$(OUT)/romfs/carafe/loading/
 	cp $(CURDIR)/overlay/fonts/*.ttf $(OUT)/romfs/carafe/fonts/
 	cp $(CURDIR)/overlay/fonts/OFL.txt $(OUT)/romfs/switch/wine/licenses/MPLUS1p-OFL-1.1.txt
+	cp $(DXWRAPPER_BUILD)/License.txt $(OUT)/romfs/switch/wine/licenses/dxwrapper.txt
 	python3 $(CURDIR)/mono/use-mono.py $(OUT)/mono $(MONO_ARCHIVE) $(WINE)
 	@echo "runtime: $$(find $(OUT)/romfs -type f | wc -l) files in romfs, $$(du -sh $(OUT) | cut -f1) in $(OUT)"
 

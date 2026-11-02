@@ -13,6 +13,11 @@ services:
     build: docker
     command: make -C runtime
 
+  dxwrapper:
+    <<: *build
+    build: docker/dxwrapper
+    command: python3 runtime/dxwrapper/build-dxwrapper.py external/dxwrapper runtime/build/dxwrapper
+
   hacbrewpack:
     <<: *build
     image: mstorsjo/llvm-mingw:20260505@sha256:974eec0b217e2a97cca35d7418741be32a55880010620937497a2a78e73cd482
