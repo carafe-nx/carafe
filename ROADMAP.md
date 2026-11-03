@@ -23,7 +23,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` A game missing a DLL names it on the console, and the build wizard lets the user add it
 - [ ] `feature` Message boxes answered with the controller's buttons, not only by touch
 - [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
-- [ ] `game` Indiana Jones and the Emperor's Tomb: stays on the loading screen once its video thread gets DirectDraw
+- [ ] `game` Indiana Jones and the Emperor's Tomb: a green frame before the title screen
 - [ ] `game` Rig and Roll: check driving in 3D; the installed copy asks for its CD
 - [ ] `bug` The controller is no HID device: DirectInput 8 joysticks and Windows.Gaming.Input see no pad (Indiana Jones, Megabonk)
 - [ ] `game` Cat Mail Co: stops at start-up after Unity asks for Windows.System.DispatcherQueue
@@ -53,6 +53,9 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` Videos drawn with GDI show over a Direct3D game, and the loading screen leaves at their first picture
+- [x] `bug` Programs start with Explorer's window hint: a window is no longer maximized and then restored off screen
+- [x] `game` Indiana Jones and the Emperor's Tomb: no hang when its video thread opens DirectDraw, quick start
 - [x] `feature` DirectDraw and Direct3D 1–7 games draw through dxwrapper and DXVK
 - [x] `bug` Logs keep their last lines when a game is closed from the HOME Menu and note when the game was held still
 - [x] `bug` The cursor stays on the program's screen: a click no longer lands on the window frame over the black bars
