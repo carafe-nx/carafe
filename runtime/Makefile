@@ -27,7 +27,7 @@ MONO_VERSION := 11.3.0
 MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 MONO_URL := https://github.com/wine-mono/wine-mono/releases/download/wine-mono-$(MONO_VERSION)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 
-.PHONY: all fetch check-image headers orchestrator-test wine fex dxvk loader layout clean
+.PHONY: all fetch check-image headers orchestrator-test wine fex dxvk loader layout quick clean
 
 all: layout
 
@@ -135,6 +135,18 @@ layout: wine fex dxvk loader $(MONO_ARCHIVE)
 	cp $(DXWRAPPER_BUILD)/License.txt $(OUT)/romfs/switch/wine/licenses/dxwrapper.txt
 	python3 $(CURDIR)/mono/use-mono.py $(OUT)/mono $(MONO_ARCHIVE) $(WINE)
 	@echo "runtime: $$(find $(OUT)/romfs -type f | wc -l) files in romfs, $$(du -sh $(OUT) | cut -f1) in $(OUT)"
+
+quick: orchestrator-test
+	@test -f $(OUT)/romfs/switch/wine/build-manifest.json || { echo "no runtime laid out yet: run make first" >&2; exit 1; }
+	rm -rf $(OVERLAY_OBJECTS) $(ORCHESTRATOR_OBJECTS)
+	cmake --build $(SWITCH) --target wine-nx-runtime-nro -j $(JOBS)
+	cp $(SWITCH)/wine-nx-runtime.nro $(OUT)/romfs/switch/wine/wine-nx-runtime.nro
+	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
+	python3 -c 'import hashlib, json, sys; path, nro = sys.argv[1:]; m = json.load(open(path)); \
+		m["files"]["wine-nx-runtime.nro"] = hashlib.sha256(open(nro, "rb").read()).hexdigest(); \
+		open(path, "w").write(json.dumps(m, indent=2) + "\n")' \
+		$(OUT)/romfs/switch/wine/build-manifest.json $(OUT)/romfs/switch/wine/wine-nx-runtime.nro
+	@echo "runtime: wine-nx-runtime.nro rebuilt into $(OUT)"
 
 clean:
 	rm -rf $(BUILD) $(OUT)
