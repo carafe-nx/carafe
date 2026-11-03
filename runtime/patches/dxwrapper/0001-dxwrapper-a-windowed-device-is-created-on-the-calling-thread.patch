@@ -1,0 +1,33 @@
+Carafe: a windowed Direct3D 9 device is created on the thread that called DirectDraw, as DirectDraw allows for
+DDSCL_NORMAL from any thread. dxwrapper handed every device created from another thread to the window's thread
+and waited for it; a program whose window thread sleeps while another thread plays a video through DirectDraw
+waited forever. A fullscreen device, which changes the window, is still created on the window's thread.
+Zlib, as the file it changes.
+
+--- a/ddraw/IDirectDrawX.cpp
++++ b/ddraw/IDirectDrawX.cpp
+@@ -3512,13 +3512,20 @@
+ 		FocusWindowThreadID = GetWindowThreadProcessId(hWnd, nullptr);
+ 		if (WndDataStruct && FocusWindowThreadID != GetCurrentThreadId())
+ 		{
+-			LOG_LIMIT(100, __FUNCTION__ << " " << FunctionName << " Warning: trying to create Direct3D9 device from a different thread than the hwnd was created from!");
++			if (!Device.IsWindowed || FullScreenWindowed)
++			{
++				LOG_LIMIT(100, __FUNCTION__ << " " << FunctionName << " Warning: trying to create Direct3D9 device from a different thread than the hwnd was created from!");
+ 
+-			SendMessage(hWnd, WM_APP_CREATE_D3D9_DEVICE, (WPARAM)this, WM_MAKE_KEY(hWnd, this));
++				SendMessage(hWnd, WM_APP_CREATE_D3D9_DEVICE, (WPARAM)this, WM_MAKE_KEY(hWnd, this));
+ 
+-			Sleep(0);
++				Sleep(0);
+ 
+-			return d3d9Device ? DD_OK : DDERR_GENERIC;
++				return d3d9Device ? DD_OK : DDERR_GENERIC;
++			}
++
++			LOG_LIMIT(100, __FUNCTION__ << " " << FunctionName << " Creating windowed Direct3D9 device on the calling thread, as DirectDraw allows for DDSCL_NORMAL");
++
++			FocusWindowThreadID = GetCurrentThreadId();
+ 		}
+ 	}
+ 

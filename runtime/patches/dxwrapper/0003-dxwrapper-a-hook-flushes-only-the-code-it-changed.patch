@@ -1,0 +1,18 @@
+Carafe: installing a hook flushes the instruction cache only for the bytes it changed and for its trampoline.
+A flush with no address means the whole process; on x86 it costs nothing, but FEX throws away every block it has
+translated, so each of the hooks dxwrapper installs while a program's threads already run made them translate
+their code again: loading dxwrapper from a running program took over a minute.
+Zlib, as the file it changes.
+
+--- a/DDrawCompat/v0.3.2/Common/Hook.cpp
++++ b/DDrawCompat/v0.3.2/Common/Hook.cpp
+@@ -168,7 +168,8 @@
+ 		VirtualProtect(targetFunc, src - targetFunc, PAGE_EXECUTE_READ, &oldProtect);
+ 
+ 		origFuncPtr = trampoline;
+-		CALL_ORIG_FUNC(FlushInstructionCache)(GetCurrentProcess(), nullptr, 0);
++		CALL_ORIG_FUNC(FlushInstructionCache)(GetCurrentProcess(), trampoline, trampolineSize);
++		CALL_ORIG_FUNC(FlushInstructionCache)(GetCurrentProcess(), targetFunc, src - targetFunc);
+ 
+ 		HMODULE module = nullptr;
+ 		GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,

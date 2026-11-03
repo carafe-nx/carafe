@@ -137,13 +137,23 @@ def dx7_settings(source, target):
 
 revision = subprocess.run(['git', '-C', str(src), 'rev-parse', 'HEAD'], stdout=subprocess.PIPE, text=True,
                           check=True).stdout.strip()
-stamp = revision + hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+patches = sorted((Path(__file__).resolve().parent.parent / 'patches/dxwrapper').glob('*.patch'))
+stamp = revision + hashlib.sha256(Path(__file__).read_bytes() + b''.join(p.read_bytes() for p in patches)).hexdigest()
 products = [out / name for name in ('ddraw.dll', 'dxwrapper.dll', 'dxwrapper.ini', 'License.txt')]
 if (out / 'stamp').exists() and (out / 'stamp').read_text() == stamp and all(p.exists() for p in products):
     print(f'dxwrapper: {revision[:12]} already built')
     sys.exit(0)
 
 shutil.rmtree(out, ignore_errors=True)
+work = out.parent / 'dxwrapper-src'
+shutil.rmtree(work, ignore_errors=True)
+shutil.copytree(src, work, ignore=lambda folder, names: [
+    name for name in names if name == '.git' or (Path(folder) == src and name == 'DirectX')])
+for patch in patches:
+    subprocess.run(['git', 'apply', str(patch)], cwd=work, check=True,
+                   env=dict(os.environ, GIT_CEILING_DIRECTORIES=str(work.parent)))
+    print(f'dxwrapper: applied {patch.name}')
+src = work
 subprocess.run(['wineserver', '-p'], check=True)
 subprocess.run(['wine', 'wineboot'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 try:

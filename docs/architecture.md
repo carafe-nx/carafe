@@ -22,8 +22,9 @@ follows a game from the PC to the first frame on the console. Why each piece is 
   - `runtime/mono/` — Wine Mono, laid into the NSPs of games that use .NET
     ([54](decisions/0054-wine-mono-for-games-that-use-dotnet.md));
   - `runtime/winrt/` — registers the WinRT classes of Wine's DLLs in the runtime's registry;
-  - `runtime/dxwrapper/` — dxwrapper (`external/dxwrapper`), built with Microsoft's compiler in its own container:
-    32-bit games draw DirectDraw and Direct3D 1–7 through it and Direct3D 9
+  - `runtime/dxwrapper/` — dxwrapper (`external/dxwrapper`) with the patches in `runtime/patches/dxwrapper/`, built
+    with Microsoft's compiler in its own container: 32-bit games draw DirectDraw and Direct3D 1–7 through it and
+    Direct3D 9
     ([59](decisions/0059-directdraw-through-dxwrapper.md)).
 - **hacBrewPack** (`tools/hacbrewpack/`): the program the app runs to pack NCAs into an NSP.
 

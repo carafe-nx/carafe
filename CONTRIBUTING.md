@@ -93,7 +93,9 @@ when a patch changes more than one.
 
 dxwrapper (`external/dxwrapper`) is a Visual Studio project. `docker compose run --rm dxwrapper` builds it with
 Microsoft's compiler under Wine (`docker/dxwrapper`), reading the Release configuration from its project files
-(`runtime/dxwrapper/build-dxwrapper.py`); the runtime build lays out what it built.
+(`runtime/dxwrapper/build-dxwrapper.py`); the runtime build lays out what it built. Its changes are patches in
+`runtime/patches/dxwrapper/`, written like DXVK's, with paths relative to dxwrapper's root and the license line
+`Zlib, as the file it changes.`; the build applies them to a copy of the submodule.
 
 ## Commits and pull requests
 
@@ -107,4 +109,5 @@ Microsoft's compiler under Wine (`docker/dxwrapper`), reading the Release config
 
 By contributing you agree that your code is released under the license of the part it goes into:
 GPL-3.0-or-later for Carafe as a whole, LGPL-2.1-or-later for `runtime/overlay/` and `runtime/patches/autorun/`,
-MIT for `runtime/patches/fex/`, Zlib for `runtime/patches/dxvk/`, ISC for `runtime/loader/`.
+MIT for `runtime/patches/fex/`, Zlib for `runtime/patches/dxvk/` and `runtime/patches/dxwrapper/`, ISC for
+`runtime/loader/`.

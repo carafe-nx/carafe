@@ -28,6 +28,15 @@ Three ways were tried in the lab:
   configuration of `dxwrapper.vcxproj` and `Stub/stub.vcxproj` and compiles them; Detours, which dxwrapper ships as a
   prebuilt library, is compiled from its submodule. The settings are dxwrapper's own `Settings.ini` with `Dd7to9`
   turned on, as its release does for DirectX 7 games.
+- Carafe's changes to dxwrapper are patches in `runtime/patches/dxwrapper/` (Zlib, like dxwrapper). The build copies
+  the submodule to `runtime/build/dxwrapper-src`, applies them in order there and counts their bytes in its stamp.
+- `0001`: a windowed Direct3D 9 device is created on the thread that called DirectDraw; an exclusive one still goes
+  to the window's thread. dxwrapper sent every creation to the window's thread and waited, so a game that opens
+  DirectDraw from a worker thread while its window thread sleeps without pumping messages waited forever.
+- `0002`: a windowed device leaves another thread's window style and size as they are, as `DDSCL_NORMAL` does on
+  Windows. Changing that window waits for its thread in the same way.
+- `0003`: a DDrawCompat hook flushes the instruction cache only for the bytes it changed. A flush of the whole
+  process makes FEX throw away all the code it has translated: loading dxwrapper mid-game took 80 s, now 1.3 s.
 - The layout puts `ddraw.dll` (dxwrapper's stub), `dxwrapper.dll` and `dxwrapper.ini` into `C:\dxwrapper`, and its
   license into the runtime's licenses.
 - Autorun patch `0105` puts `C:\dxwrapper` before `C:\dxvk` in the search path of every 32-bit game, so a game's
