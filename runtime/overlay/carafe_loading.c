@@ -22,8 +22,6 @@
 #include "osk.h"
 
 #define STALL_SECONDS 60
-#define WINDOW_FRAMES_PER_SECOND 20
-#define WINDOW_CONFIRMATIONS 2
 #define VULKAN_FRAMES_SHOWN 30
 #define PROBE_INTERVAL_NS 250000000ULL
 #define PROBE_CONTENT_PIXELS 8
@@ -257,8 +255,8 @@ static const Strings* const STRINGS[CarafeLanguageCount] = {
 extern unsigned int wine_nx_gl_swaps __attribute__((weak));
 extern unsigned int wine_nx_vk_presents __attribute__((weak));
 extern unsigned int wine_nx_dialogs_shown __attribute__((weak));
+extern int wine_nx_window_picture_shown __attribute__((weak));
 void wine_nx_compositor_redraw(void);
-unsigned int wine_nx_compositor_frames_fast(void);
 void wine_nx_threads_report_stalled(void);
 void wine_nx_runtime_trace(const char* msg) __attribute__((weak));
 
@@ -267,7 +265,6 @@ unsigned int __real_wine_nx_osk_generation(void);
 int __real_wine_nx_osk_frame(int screen_width, int screen_height, struct wine_nx_osk_frame* frame);
 unsigned int __real_wine_nx_osk_copy(int screen_width, int screen_height, void* pixels, int stride, int rgba);
 void __real_wine_nx_compositor_cursor(int x, int y, int visible);
-void* __real_wine_nx_vk_reserve_window(void);
 
 typedef void (*GetIntegervFn)(GLenum name, GLint* value);
 typedef void (*BindFramebufferFn)(GLenum target, GLuint framebuffer);
@@ -333,7 +330,6 @@ bool __nx_applet_auto_notifyrunning = false;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool g_enabled;
 static bool g_active;
-static bool g_surface_reserved;
 static unsigned int g_pictures_copied;
 static bool g_shown;
 static char g_title[128];
@@ -352,9 +348,6 @@ static u64 g_last_bytes;
 static unsigned int g_last_frames;
 static unsigned int g_first_vulkan;
 static bool g_vulkan_seen;
-static unsigned int g_window_frames;
-static u64 g_window_tick;
-static int g_window_hits;
 static u64 g_reported_tick;
 static bool g_report_due;
 
@@ -426,7 +419,7 @@ static void finish(const char* reason) {
     trace("loading screen hidden after %u s: %s", secondsBetween(g_start_tick, armGetSystemTick()), reason);
 }
 
-static void checkFinish(u64 now, unsigned int gl, unsigned int vulkan) {
+static void checkFinish(unsigned int gl, unsigned int vulkan) {
     if (__real_wine_nx_osk_visible()) {
         finish("the program opened the keyboard");
         return;
@@ -439,28 +432,18 @@ static void checkFinish(u64 now, unsigned int gl, unsigned int vulkan) {
         finish("Vulkan frames");
         return;
     }
-    if (gl != 0 || vulkan != 0 || g_game_tick == 0 || __atomic_load_n(&g_surface_reserved, __ATOMIC_ACQUIRE)) {
+    if (g_game_tick == 0) {
+        return;
+    }
+    if (&wine_nx_window_picture_shown && __atomic_load_n(&wine_nx_window_picture_shown, __ATOMIC_ACQUIRE)) {
+        finish("the game drew a picture in its window");
+        return;
+    }
+    if (gl != 0 || vulkan != 0) {
         return;
     }
     if (&wine_nx_dialogs_shown && __atomic_load_n(&wine_nx_dialogs_shown, __ATOMIC_RELAXED) != 0) {
         finish("the program shows a message");
-        return;
-    }
-    if (g_window_tick == 0) {
-        g_window_tick = now;
-        g_window_frames = wine_nx_compositor_frames_fast();
-        return;
-    }
-    if (secondsBetween(g_window_tick, now) < 1) {
-        return;
-    }
-    unsigned int window_frames = wine_nx_compositor_frames_fast();
-    unsigned int per_second = (window_frames - g_window_frames) / secondsBetween(g_window_tick, now);
-    g_window_frames = window_frames;
-    g_window_tick = now;
-    g_window_hits = per_second >= WINDOW_FRAMES_PER_SECOND ? g_window_hits + 1 : 0;
-    if (g_window_hits >= WINDOW_CONFIRMATIONS) {
-        finish("the game is drawing its windows");
     }
 }
 
@@ -505,7 +488,7 @@ static void updateStatus(void) {
         g_loader_step = step;
         g_generation++;
     }
-    checkFinish(now, gl, vulkan);
+    checkFinish(gl, vulkan);
 }
 
 static TTF_Font* fontAt(int size) {
@@ -1071,12 +1054,8 @@ unsigned int __wrap_wine_nx_osk_copy(int screen_width, int screen_height, void* 
     return copied;
 }
 
-void* __wrap_wine_nx_vk_reserve_window(void) {
-    void* window = __real_wine_nx_vk_reserve_window();
-    if (window != NULL) {
-        __atomic_store_n(&g_surface_reserved, true, __ATOMIC_RELEASE);
-    }
-    return window;
+int wine_nx_watch_window_pictures(void) {
+    return loadingActive();
 }
 
 void __wrap_wine_nx_compositor_cursor(int x, int y, int visible) {

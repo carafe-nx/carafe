@@ -26,7 +26,8 @@ stays black, and the player cannot tell a slow start from a hang.
 - **When it leaves:** OpenGL — two checks in a row see bright pixels near the edges of the frame; Vulkan — after 30
   frames; without either — when the compositor shows at least 20 frames per second for two seconds; when the program
   opens the keyboard; at the latest after 180 s. The 180 s limit is replaced by
-  [decision 24](0024-loading-screen-without-time-limit.md).
+  [decision 24](0024-loading-screen-without-time-limit.md), the 20 frames per second rule by
+  [decision 60](0060-the-screen-shows-what-a-window-shows-last.md).
 
 ## Rejected
 

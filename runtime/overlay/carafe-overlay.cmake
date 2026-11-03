@@ -27,7 +27,6 @@ set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_thread_report
     wine_nx_thread_balance
     wine_nx_compositor_cursor
-    wine_nx_vk_reserve_window
     svcArbitrateLock
     horizon_futex_wait
     horizon_server_sync_call
