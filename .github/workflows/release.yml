@@ -69,6 +69,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Build dxwrapper
+        run: |
+          git submodule update --init --depth 1 external/dxwrapper
+          git -C external/dxwrapper config -f .gitmodules --get-regexp '\.path$' | awk '$2 != "DirectX" { print $2 }' |
+            xargs git -C external/dxwrapper submodule update --init --depth 1 --
+          docker compose build dxwrapper
+          docker compose run --rm dxwrapper
+
       - name: Build the runtime
         run: |
           docker compose build runtime
