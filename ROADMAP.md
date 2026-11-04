@@ -26,13 +26,14 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `game` Indiana Jones and the Emperor's Tomb: a green frame before the title screen
 - [ ] `game` Rig and Roll: check driving in 3D; the installed copy asks for its CD
 - [ ] `bug` The controller is no HID device: DirectInput 8 joysticks and Windows.Gaming.Input see no pad (Indiana Jones, Megabonk)
-- [ ] `game` Cat Mail Co: stops at start-up after Unity asks for Windows.System.DispatcherQueue
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `research` NFSU2: rare crash at the start of a race in the game's own sound code, two threads racing
-- [ ] `game` OpenTTD: rare start-up hang is worked around, but its root cause is still unknown
+- [ ] `bug` A thread terminated while it waits for an event in the server takes 250 ms to end
+- [ ] `game` Undertale: can stop at start-up with FEX's TSO emulation off; NFSU2 crashes with it on
+- [ ] `bug` A terminated thread's stack is freed, while Windows keeps it: its wait-on-address entry is left dangling
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
 - [ ] `feature` A choice to map controller buttons by position instead of by their labels
 - [ ] `feature` Back up and restore game saves over USB
@@ -53,6 +54,9 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` 32-bit games no longer lose a wakeup between threads: an x86 locked instruction is a full barrier
+- [x] `bug` Suspending a thread works as on Windows, 64-bit and 32-bit: garbage collectors no longer hang a game
+- [x] `game` Cat Mail Co starts with the default settings and closes from the HOME Menu
 - [x] `bug` Videos drawn with GDI show over a Direct3D game, and the loading screen leaves at their first picture
 - [x] `bug` Programs start with Explorer's window hint: a window is no longer maximized and then restored off screen
 - [x] `game` Indiana Jones and the Emperor's Tomb: no hang when its video thread opens DirectDraw, quick start
