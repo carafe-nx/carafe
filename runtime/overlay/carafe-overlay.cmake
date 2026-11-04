@@ -28,10 +28,6 @@ set(CARAFE_WRAPPED_SYMBOLS
     wine_nx_thread_balance
     wine_nx_compositor_cursor
     svcArbitrateLock
-    svcWaitForAddress
-    svcWaitProcessWideKeyAtomic
-    svcWaitSynchronization
-    svcSleepThread
     horizon_futex_wait
     horizon_server_sync_call
     main

@@ -28,14 +28,19 @@ Horizon has no signals, and Autorun's in-process server could not reach a thread
 - **A thread in a system call is in the kernel.** The system call dispatcher and the Unix call dispatcher keep the
   caller's registers (the callee-saved ones, the frame, the link register, the return point, the arguments, `fpcr` and
   `fpsr`) in their frame (`0118`).
-- **A suspended thread in the kernel is held there.** A thread blocked in a Horizon wait inside a system call marks
-  itself blocked (`svcWaitForAddress`, `svcWaitProcessWideKeyAtomic`, `svcWaitSynchronization` and `svcSleepThread` are
-  wrapped); the server holds it when it is suspended and publishes the registers of its call at once. The wait goes on.
-  A suspended thread that reaches the end of its call, a callback into the program, an APC or a continued context
-  holds itself there until it is resumed (`0119`, `0121`).
+- **One state word per thread says where it is.** The word in the runtime's thread registry holds the requests (suspend,
+  end) and the thread's place: inside the kernel, held there, or just leaving it. Every change is a single atomic step
+  on the word and is signalled on it (`0119`).
+- **A suspended thread in the kernel is held there, whether it waits or runs.** The server marks it held and publishes
+  the registers of its call at once; the call goes on. The thread stops when it leaves the call, at a callback into
+  the program, an APC or a continued context, and a thread suspended on its way into a call stops at the entry
+  (`0118`, `0119`, `0121`).
+- **A thread outside the kernel is paused by Horizon** when it runs program code (decision 31); one paused on its way
+  back from a call gives the registers it is returning with. A thread that runs the runtime's own code for another
+  reason (an exception, a call the emulator makes for itself) is never paused there: it stops at its next call.
 - **Registers set while it is held are applied** when the thread goes back to the program (`0118`, `0120`, `0121`).
-- **The server waits for the thread, not for a timer.** Each hold and each publication signals the thread's hold word,
-  and `GetThreadContext` waits on that word.
+- **The server waits for the thread, not for a timer.** `GetThreadContext` waits for the thread's word to change; a
+  resume clears the request and the hold in the same steps the thread uses to hold itself, so neither is ever missed.
 - **The emulator is left alone.** A call made by FEX for itself (in simulation, in a syscall callback or on the
   emulator's stack) is not a kernel entry of the program; such a thread stops at FEX's next consistent point through
   the ARM64EC doorbell, as before.
@@ -68,9 +73,10 @@ Horizon has no signals, and Autorun's in-process server could not reach a thread
 - The threads probe of the lab (`suspend` mode, 18 checks) gives the same answers as on Windows, 64-bit and 32-bit:
   ten kinds of wait, a spinning thread, 300 rounds of suspending nine threads with no wait ended early,
   `SetThreadContext` of a spinning and of a sleeping thread, SSE registers that keep their values through 200
-  suspensions, and `TerminateThread` of four kinds of wait. In one 32-bit run of the 300 rounds one of the nine
-  threads was not woken after its last resume, the lost wakeup of TSO emulation being off. A thread
-  terminated in a wait for an event in the server still takes about 250 ms to end; on Windows it ends at once.
+  suspensions, and `TerminateThread` of four kinds of wait; twice on each, with one state word per thread. Before
+  that word a thread could hold itself after its resume had already been sent, and in one 32-bit run one of the nine
+  threads never went on. A thread terminated in a wait for an event in the server still takes about 250 ms to end; on
+  Windows it ends at once.
 - Unity games no longer depend on an Experimental row; Cat Mail Co starts with the default settings and closes from
   the HOME Menu.
 - OpenTTD reached its first frame in 19 launches out of 20 without `0005`, in 14–25 s; the one other launch ended
@@ -79,5 +85,9 @@ Horizon has no signals, and Autorun's in-process server could not reach a thread
 - Every system call and Unix call saves 416 bytes of registers and checks one word on the way in and out. In the
   lab's probe a 64-bit system call costs 2–5 % more than with v0.5.2; the 32-bit figures move by more than that from
   run to run. Need for Speed Underground 2 races at 24–47 fps, as with v0.5.2 (24–52).
-- Without `0005` a 32-bit program running with FEX's TSO emulation off can still lose a wakeup in its own code:
-  Undertale stopped at start-up in two launches out of six with TSO off and in none of four with it on.
+- Without `0005` Undertale stopped at start-up in two launches out of six, every thread waiting; the cause is not
+  found. With FEX's TSO emulation on it started in four out of four, too few to tell, and later it started in fifteen
+  launches out of fifteen with TSO off.
+- In the lab's run of all 24 test games every game ended as it did before the one state word. Need for Speed Carbon
+  crashed once in DXVK while it started its compiler threads, its x86 registers not matching the code it stopped in;
+  it then started in twelve launches out of twelve, as it did with the commit before (twelve out of twelve).

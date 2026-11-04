@@ -8,14 +8,15 @@ LGPL-2.1-or-later, as the file it changes.
 
 --- a/dlls/ntdll/unix/signal_arm64.c
 +++ b/dlls/ntdll/unix/signal_arm64.c
-@@ -49,6 +49,89 @@
+@@ -49,13 +49,122 @@
      (void)callback;
  }
  
 +#define KERNEL_FRAME_SIZE  416
 +#define KERNEL_FRAME_WORDS (KERNEL_FRAME_SIZE / sizeof(ULONG_PTR))
 +
-+extern const void *wine_nx_kernel_boundary( int stop_here );
++extern const void *wine_nx_kernel_enter( const void *frame );
++extern const void *wine_nx_kernel_leave( void );
 +extern int wine_nx_suspend_requested( void );
 +extern void horizon_contexts_from_server( CONTEXT *context, const void *server_contexts );
 +extern __thread volatile int *wine_nx_stop_word;
@@ -60,9 +61,8 @@ LGPL-2.1-or-later, as the file it changes.
 +    if (word && (__atomic_load_n( word, __ATOMIC_ACQUIRE ) & 2)) NtTerminateThread( GetCurrentThread(), word[1] );
 +}
 +
-+static void kernel_boundary( void )
++static void continue_changed( const void *changed )
 +{
-+    const void *changed = wine_nx_kernel_boundary( 1 );
 +    CONTEXT context;
 +
 +    if (!changed) return;
@@ -71,40 +71,58 @@ LGPL-2.1-or-later, as the file it changes.
 +    signal_set_full_context( &context );
 +}
 +
++static void return_to_kernel( const void *frame )
++{
++    wine_nx_kernel_frame = frame;
++    continue_changed( wine_nx_kernel_enter( frame ) );
++}
++
 +static const void *enter_kernel( const ULONG_PTR *frame )
 +{
 +    const void *outer = wine_nx_kernel_frame;
 +
-+    wine_nx_kernel_frame = program_frame( frame ) ? frame : NULL;
-+    if (wine_nx_kernel_frame) kernel_boundary();
++    return_to_kernel( program_frame( frame ) ? frame : NULL );
 +    return outer;
 +}
 +
 +static void leave_kernel( const void *outer )
 +{
-+    if (wine_nx_kernel_frame) kernel_boundary();
-+    wine_nx_kernel_frame = outer;
++    const void *changed = wine_nx_kernel_frame ? wine_nx_kernel_leave() : NULL;
++
++    wine_nx_kernel_frame = NULL;
++    continue_changed( changed );
++    return_to_kernel( outer );
 +}
 +
 +static const void *enter_program( void )
 +{
 +    const void *outer = wine_nx_kernel_frame;
++    const void *changed = outer ? wine_nx_kernel_leave() : NULL;
 +
-+    if (outer) wine_nx_kernel_boundary( 1 );
 +    wine_nx_kernel_frame = NULL;
++    continue_changed( changed );
 +    return outer;
 +}
 +
  NTSTATUS signal_set_full_context( CONTEXT *context )
  {
      extern void horizon_continue_context( const CONTEXT *context );
-@@ -56,6 +139,14 @@
++    const void *changed;
+     CONTEXT resume;
  
      if (!context || (context->ContextFlags & CONTEXT_ARM64_FULL) != CONTEXT_ARM64_FULL)
          return STATUS_INVALID_PARAMETER;
-+    if (wine_nx_kernel_frame) wine_nx_kernel_boundary( 0 );
-+    wine_nx_kernel_frame = NULL;
-+    if (wine_nx_suspend_requested() && !horizon_suspend_pending)
++    if (wine_nx_kernel_frame)
++    {
++        changed = wine_nx_kernel_leave();
++        wine_nx_kernel_frame = NULL;
++        if (changed)
++        {
++            horizon_contexts_from_server( &resume, changed );
++            context = &resume;
++        }
++    }
++    else if (wine_nx_suspend_requested() && !horizon_suspend_pending)
 +    {
 +        resume = *context;
 +        wait_suspend( &resume );
@@ -113,7 +131,7 @@ LGPL-2.1-or-later, as the file it changes.
      if (is_arm64ec())
      {
          void *start, *end;
-@@ -106,9 +197,30 @@
+@@ -106,9 +215,30 @@
  {
      BOOL self;
      NTSTATUS status = set_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARM64 );
@@ -145,7 +163,7 @@ LGPL-2.1-or-later, as the file it changes.
  }
  
  NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
-@@ -118,6 +230,14 @@
+@@ -118,6 +248,14 @@
  
      status = get_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARM64 );
      if (status || !self) return status;
@@ -160,7 +178,7 @@ LGPL-2.1-or-later, as the file it changes.
      return horizon_capture_context( context ) ? STATUS_UNSUCCESSFUL : STATUS_SUCCESS;
  }
  
-@@ -216,12 +336,15 @@
+@@ -216,12 +354,15 @@
  NTSTATUS call_user_apc_dispatcher( CONTEXT *context, unsigned int flags, ULONG_PTR arg1, ULONG_PTR arg2,
                                     ULONG_PTR arg3, PNTAPCFUNC func, NTSTATUS status )
  {
@@ -172,11 +190,11 @@ LGPL-2.1-or-later, as the file it changes.
      if (!horizon_capture_context( &here ))
          wine_nx_call_pe_apc( func, arg1, arg2, arg3, &here, NtCurrentTeb() );
      if (context) return signal_set_full_context( context );
-+    wine_nx_kernel_frame = outer;
++    return_to_kernel( outer );
      return status;
  }
  
-@@ -366,6 +489,7 @@
+@@ -366,6 +507,7 @@
      PEB *peb = teb ? teb->Peb : NULL;
      KERNEL_CALLBACK_PROC *table;
      struct switch_callback_frame *frame;
@@ -184,7 +202,7 @@ LGPL-2.1-or-later, as the file it changes.
  
      if (ret_ptr) *ret_ptr = NULL;
      if (ret_len) *ret_len = 0;
-@@ -395,6 +519,7 @@
+@@ -395,6 +537,7 @@
      frame->ret_len = 0;
      frame->status = STATUS_SUCCESS;
      switch_cb_top = frame;
@@ -192,15 +210,15 @@ LGPL-2.1-or-later, as the file it changes.
  
      if (!setjmp( frame->jmp ))
      {
-@@ -403,6 +528,7 @@
+@@ -403,6 +546,7 @@
      }
      /* else: NtCallbackReturn longjmp'd here with frame.{ret_ptr,ret_len,status} set */
  
-+    wine_nx_kernel_frame = outer;
++    return_to_kernel( outer );
      switch_cb_top = frame->prev;
      free( frame->args );
      frame->args = NULL;
-@@ -589,7 +715,7 @@
+@@ -589,7 +733,7 @@
      int stop;
  
      if (!word || !(stop = __atomic_load_n( word, __ATOMIC_ACQUIRE ))) return;
@@ -209,7 +227,7 @@ LGPL-2.1-or-later, as the file it changes.
      {
          memset( &context, 0, sizeof(context) );
          if (!horizon_capture_context( &context )) wait_suspend( &context );
-@@ -612,6 +738,8 @@
+@@ -612,6 +756,8 @@
  {
      unsigned int table_idx = (syscall_id >> 12) & 3;
      unsigned int func_idx  = syscall_id & 0xfff;
@@ -218,7 +236,7 @@ LGPL-2.1-or-later, as the file it changes.
  #ifdef __SWITCH__
      /* + and - ask for the launcher back. A thread cannot be ended from outside
       * on Horizon, so each ends itself here, where every one of them passes. */
-@@ -621,7 +749,7 @@
+@@ -621,7 +767,7 @@
  
          if (&wine_nx_quit_requested && wine_nx_quit_requested && &wine_nx_quit_point) wine_nx_quit_point();
      }
@@ -227,7 +245,7 @@ LGPL-2.1-or-later, as the file it changes.
  #endif
      SYSTEM_SERVICE_TABLE *table = &KeServiceDescriptorTable[table_idx];
      ULONG_PTR *handler;
-@@ -630,12 +758,11 @@
+@@ -630,12 +776,11 @@
      BOOL trace_syscall = &wine_nx_runtime_verbose && wine_nx_runtime_verbose &&
                           !(table_idx == 1 && func_idx == 1051); /* NtUserGetMessage idle polling */
  
@@ -244,7 +262,7 @@ LGPL-2.1-or-later, as the file it changes.
      /* winebox64 reads each x86 syscall's stack arguments through this. */
      if ((void *)handler == (void *)NtReadVirtualMemory) trace_syscall = FALSE;
      else if (!(++wine_nx_syscall_sample & 63))
-@@ -702,7 +829,8 @@
+@@ -702,7 +847,8 @@
          wine_nx_runtime_trace( buf );
      }
  
@@ -254,7 +272,7 @@ LGPL-2.1-or-later, as the file it changes.
      return result;
  }
  
-@@ -728,7 +856,19 @@
+@@ -728,7 +874,19 @@
      ".type __wine_syscall_dispatcher, %function\n"
      "__wine_syscall_dispatcher:\n"
      "    /* save callee-saved regs + LR + x18 (PE TEB register) */\n"
@@ -275,7 +293,7 @@ LGPL-2.1-or-later, as the file it changes.
      /* x30 at entry = address of `ret` in PE syscall stub (set by `blr x16`).
       * Stub saved the real PE caller's LR into x9 before the blr.
       * Overwrite the saved x30 slot with x9 so our final `ret` jumps directly
-@@ -749,7 +889,7 @@
+@@ -749,7 +907,7 @@
      "    mov w19, w8\n"          /* syscall_id */
      "    mov x20, x0\n"         /* save original x0 */
      "    mov x21, x7\n"         /* save original x7 */
@@ -284,7 +302,7 @@ LGPL-2.1-or-later, as the file it changes.
  
      "    /* set up call to wine_nx_do_syscall(stack_args, x0..x7, syscall_id) */\n"
      "    /* arg 0 (x0): stack_args = caller SP */\n"
-@@ -787,7 +927,7 @@
+@@ -787,7 +945,7 @@
      "    ldp q12, q13, [x29, #160]\n"
      "    ldp q14, q15, [x29, #192]\n"
      "    ldp q6, q7, [x29, #224]\n"
@@ -293,7 +311,7 @@ LGPL-2.1-or-later, as the file it changes.
      "    lsr x16, x30, #39\n"
      "    cbnz x16, 1f\n"
      "    ldr x16, [x18, #0x60]\n"
-@@ -825,11 +965,18 @@
+@@ -825,11 +983,18 @@
   */
  typedef NTSTATUS (*unixlib_entry_t)( void *args );
  
@@ -314,7 +332,7 @@ LGPL-2.1-or-later, as the file it changes.
  }
  
  __asm__(
-@@ -840,27 +987,41 @@
+@@ -840,27 +1005,41 @@
      "__wine_unix_call_dispatcher:\n"
      "wine_nx_pe_unix_call_dispatcher:\n"
      "    /* x0=handle, x1=index, x2=args — save x18 (PE TEB) then forward */\n"
