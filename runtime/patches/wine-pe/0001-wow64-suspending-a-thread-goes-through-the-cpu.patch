@@ -1,0 +1,47 @@
+Carafe: as Windows' wow64 does, suspending a thread of the program goes through the CPU backend
+(BTCpuSuspendLocalThread). The emulator stops the thread at a consistent point and writes the registers it holds
+into the thread's CPU area, where reading and writing them afterwards finds them; on its own the emulator keeps
+them only in its own state.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/wow64/syscall.c
++++ b/dlls/wow64/syscall.c
+@@ -109,6 +109,7 @@
+ static BOOLEAN  (WINAPI *pBTCpuIsProcessorFeaturePresent)(UINT);
+ static void     (WINAPI *pBTCpuProcessInit)(void);
+ static NTSTATUS (WINAPI *pBTCpuSetContext)(HANDLE,HANDLE,void *,void *);
++static NTSTATUS (WINAPI *pBTCpuSuspendLocalThread)(HANDLE,ULONG *);
+ static void     (WINAPI *pBTCpuThreadInit)(void);
+ static void *   (WINAPI *p__wine_get_unix_opcode)(void);
+ static void *   (WINAPI *pKiRaiseUserExceptionDispatcher)(void);
+@@ -734,6 +735,22 @@
+ }
+ 
+ 
++static BOOL is_local_thread( HANDLE handle )
++{
++    THREAD_BASIC_INFORMATION info;
++
++    if (handle == GetCurrentThread()) return TRUE;
++    if (NtQueryInformationThread( handle, ThreadBasicInformation, &info, sizeof(info), NULL )) return FALSE;
++    return info.ClientId.UniqueProcess == NtCurrentTeb()->ClientId.UniqueProcess;
++}
++
++NTSTATUS wow64_suspend_thread( HANDLE handle, ULONG *count )
++{
++    if (pBTCpuSuspendLocalThread && is_local_thread( handle )) return pBTCpuSuspendLocalThread( handle, count );
++    return NtSuspendThread( handle, count );
++}
++
++
+ /**********************************************************************
+  *           wow64_NtGetContextThread
+  */
+@@ -1034,6 +1051,7 @@
+     GET_PTR( BTCpuResetToConsistentState );
+     GET_PTR( BTCpuSetContext );
+     GET_PTR( BTCpuSimulate );
++    GET_PTR( BTCpuSuspendLocalThread );
+     GET_PTR( BTCpuFlushInstructionCache2 );
+     GET_PTR( BTCpuFlushInstructionCacheHeavy );
+     GET_PTR( BTCpuNotifyMapViewOfSection );

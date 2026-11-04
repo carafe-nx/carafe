@@ -1,0 +1,212 @@
+Carafe: SuspendThread works as on Windows for a thread inside a system call: the server holds it there, gives
+its registers at the call at once and lets it go on resume, applying registers set meanwhile. GetThreadContext
+waits for the thread's own signal rather than polling, a thread that only waits in the server is held the same
+way, and the snapshot of a thread's runtime registers is gone.
+A thread being terminated is alerted, so an alert wait ends at once and the thread ends on its way out.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -3330,6 +3330,9 @@
+     struct context_data *thread_contexts;
+     struct context_data *frozen_context;
+     Handle frozen;
++    struct context_data *held_contexts;
++    unsigned int held_count;
++    int held, held_changed;
+ #endif
+     unsigned int thread_context_count;
+     int thread_context_valid;
+@@ -5106,6 +5109,8 @@
+ #ifndef HORIZON_STANDALONE_SYNTAX
+         free( object->frozen_context );
+         object->frozen_context = NULL;
++        free( object->held_contexts );
++        object->held_contexts = NULL;
+ #endif
+     }
+     while (object->apc_first)
+@@ -12579,6 +12584,13 @@
+                                         Handle *handle ) __attribute__((weak));
+ extern int wine_nx_in_runtime_code( uint64_t address ) __attribute__((weak));
+ extern int wine_nx_thread_pause_granted( void ) __attribute__((weak));
++extern int wine_nx_thread_hold( const void *teb, unsigned int tid, const void **frame, int *changed )
++    __attribute__((weak));
++extern void wine_nx_thread_release( const void *teb, unsigned int tid, const void *changed ) __attribute__((weak));
++extern void wine_nx_thread_wait_held( const void *teb, unsigned int tid, s64 timeout ) __attribute__((weak));
++extern void wine_nx_thread_signal( const void *teb, unsigned int tid ) __attribute__((weak));
++extern void wine_nx_kernel_context( const void *frame, CONTEXT *context );
++extern unsigned int horizon_contexts_to_server( struct context_data server_contexts[2], CONTEXT *context );
+ 
+ static int horizon_server_has_doorbell_locked( struct horizon_server_object *object )
+ {
+@@ -12661,21 +12673,59 @@
+     CARAFE_DIAG_EVENT( CARAFE_DIAG_SUSPENDED_DONE, 0, object->thread.tid, object->ending );
+ }
+ 
+-static int horizon_server_snapshot_locked( struct horizon_server_object *object, struct context_data *context )
++static int horizon_server_hold_locked( struct horizon_server_object *object )
+ {
+-    ThreadContext kernel;
+-    Handle handle = 0;
+-    Result rc;
++    const void *teb = (const void *)(ULONG_PTR)object->thread.teb;
++    const void *frame = NULL;
++    int changed = 0;
++    CONTEXT context;
+ 
+-    if (!horizon_server_can_pause()) return 0;
+-    if (!horizon_server_stop_request_locked( object, 0, 0, 0, &handle ) || !handle) return 0;
+-    if (R_FAILED( svcSetThreadActivity( handle, ThreadActivity_Paused ) )) return 0;
+-    rc = svcGetThreadContext3( &kernel, handle );
+-    svcSetThreadActivity( handle, ThreadActivity_Runnable );
+-    if (R_FAILED( rc )) return 0;
+-    horizon_server_context_from_kernel( context, &kernel );
++    if (object->held || object->frozen) return 1;
++    if (!object->thread.started || object->thread.terminated || object->ending || !wine_nx_thread_hold) return 0;
++    if (!object->held_contexts && !(object->held_contexts = calloc( 2, sizeof(*object->held_contexts) ))) return 0;
++    if (!wine_nx_thread_hold( teb, object->thread.tid, &frame, &changed )) return 0;
++    if (!changed)
++    {
++        wine_nx_kernel_context( frame, &context );
++        object->held_count = horizon_contexts_to_server( object->held_contexts, &context );
++    }
++    object->thread_contexts = object->held_contexts;
++    object->thread_context_count = object->held_count;
++    object->thread_context_valid = 1;
++    object->held = 1;
++    CARAFE_DIAG_EVENT( CARAFE_DIAG_SUSPENDED_WAIT, 0, object->thread.tid, object->thread.suspend );
+     return 1;
+ }
++
++static void horizon_server_release_locked( struct horizon_server_object *object )
++{
++    if (object->held)
++    {
++        object->held = 0;
++        object->thread_contexts = NULL;
++        object->thread_context_count = 0;
++        object->thread_context_valid = 0;
++        CARAFE_DIAG_EVENT( CARAFE_DIAG_SUSPENDED_DONE, 0, object->thread.tid, object->ending );
++    }
++    if (wine_nx_thread_release)
++        wine_nx_thread_release( (const void *)(ULONG_PTR)object->thread.teb, object->thread.tid,
++                                object->held_changed ? object->held_contexts : NULL );
++    object->held_changed = 0;
++}
++
++static void horizon_server_wait_thread_locked( struct horizon_server_object *object )
++{
++    if (!wine_nx_thread_wait_held)
++    {
++        horizon_server_sleep_locked( HORIZON_SERVER_WAIT_SLICE );
++        return;
++    }
++    if (horizon_server_pool_worker && !horizon_server_pool_blocked) horizon_server_pool_blocking_locked();
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    wine_nx_thread_wait_held( (const void *)(ULONG_PTR)object->thread.teb, object->thread.tid,
++                              HORIZON_SERVER_WAIT_SLICE * 100 );
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++}
+ #endif
+ 
+ /* A client thread and its connection thread take turns, so they share a core:
+@@ -12795,6 +12845,7 @@
+             horizon_server_set_suspend_doorbell_locked( object, 0 );
+             horizon_server_thaw_locked( object );
+             horizon_server_stop_request_locked( object, 0, HORIZON_STOP_SUSPEND, 0, NULL );
++            horizon_server_release_locked( object );
+         }
+ #endif
+         CARAFE_DIAG_EVENT(
+@@ -12829,6 +12880,9 @@
+         if (!status && !reply.count && !horizon_server_has_doorbell_locked( object ) &&
+             !horizon_server_freeze_locked( object ))
+             horizon_server_stop_request_locked( object, HORIZON_STOP_SUSPEND, 0, 0, NULL );
++        if (!status && object->thread.started && !reply.count && horizon_server_has_doorbell_locked( object ))
++            horizon_server_stop_request_locked( object, HORIZON_STOP_SUSPEND, 0, 0, NULL );
++        if (!status && !reply.count) horizon_server_hold_locked( object );
+ #endif
+         CARAFE_DIAG_EVENT(
+             CARAFE_DIAG_SUSPEND,
+@@ -12901,10 +12955,10 @@
+         else if (!object->thread.started) status = HORIZON_STATUS_NOT_SUPPORTED;
+         else
+         {
+-            while (!object->thread_context_valid && object->thread.suspend &&
+-                   !object->thread.terminated && !horizon_server_freeze_locked( object ))
++            while (!object->thread_context_valid && object->thread.suspend && !object->thread.terminated &&
++                   !horizon_server_freeze_locked( object ) && !horizon_server_hold_locked( object ))
+             {
+-                horizon_server_sleep_locked( HORIZON_SERVER_WAIT_SLICE );
++                horizon_server_wait_thread_locked( object );
+                 horizon_server_quit_check_locked();
+             }
+             if (object->thread.terminated) status = HORIZON_STATUS_ACCESS_DENIED;
+@@ -12917,12 +12971,6 @@
+                 found = 1;
+                 break;
+             }
+-            if (!found && !status && request->machine == IMAGE_FILE_MACHINE_ARM64 &&
+-                horizon_server_snapshot_locked( object, &context ))
+-            {
+-                context.flags &= request->flags | request->native_flags | SERVER_CTX_EXEC_SPACE;
+-                found = 1;
+-            }
+             if (!found && !status) status = HORIZON_STATUS_NOT_SUPPORTED;
+         }
+     }
+@@ -12958,9 +13006,9 @@
+             else
+             {
+                 while (!object->thread_context_valid && object->thread.suspend &&
+-                       !object->thread.terminated)
++                       !object->thread.terminated && !horizon_server_hold_locked( object ))
+                 {
+-                    horizon_server_sleep_locked( HORIZON_SERVER_WAIT_SLICE );
++                    horizon_server_wait_thread_locked( object );
+                     horizon_server_quit_check_locked();
+                 }
+                 if (object->thread.terminated) status = HORIZON_STATUS_ACCESS_DENIED;
+@@ -12970,6 +13018,7 @@
+                         if (contexts[i].machine == object->thread_contexts[j].machine)
+                         {
+                             horizon_server_merge_context( &object->thread_contexts[j], &contexts[i] );
++                            object->held_changed = object->held;
+                             found = 1;
+                         }
+                 if (!found && !status) status = HORIZON_STATUS_NOT_SUPPORTED;
+@@ -13030,6 +13079,8 @@
+                 object->thread.suspend = 0;
+                 horizon_server_set_suspend_doorbell_locked( object, 0 );
+                 horizon_server_thaw_locked( object );
++                horizon_server_release_locked( object );
++                NtAlertThreadByThreadId( ULongToHandle( object->thread.tid ) );
+                 horizon_server_signal_changed_locked();
+             }
+             else
+@@ -16968,7 +17019,7 @@
+         }
+ #ifndef HORIZON_STANDALONE_SYNTAX
+         if (connection->thread && connection->thread->thread.started &&
+-            connection->thread->thread.suspend)
++            connection->thread->thread.suspend && (suspend_context_count || connection->thread->held))
+         {
+             struct horizon_server_object *thread = connection->thread;
+ 
+@@ -16982,11 +17033,12 @@
+             {
+                 thread->thread_contexts = suspend_reply.contexts;
+                 thread->thread_context_count = suspend_context_count;
+-                if (suspend_context_count)
+-                    memcpy( thread->thread_contexts, suspend_contexts,
+-                            suspend_context_count * sizeof(*suspend_contexts) );
++                memcpy( thread->thread_contexts, suspend_contexts,
++                        suspend_context_count * sizeof(*suspend_contexts) );
+                 thread->thread_context_valid = 1;
+                 horizon_server_signal_changed_locked();
++                if (wine_nx_thread_signal)
++                    wine_nx_thread_signal( (const void *)(ULONG_PTR)thread->thread.teb, thread->thread.tid );
+             }
+             CARAFE_DIAG_EVENT(
+                 CARAFE_DIAG_SUSPENDED_WAIT,

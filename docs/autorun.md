@@ -291,11 +291,13 @@ OpenTTD x86 under Autorun sometimes hung at start-up. The investigation found se
   not know about. Code cannot be mapped there, `map_code_memory_range` turns the kernel's `0xd401` into `EEXIST`
   (`horizon.c:17441-17470`), and Wine's free-area search (`virtual.c:2009-2030`) steps down 64 KB at a time — about
   a million probes. Patch `0003` reads the alias region with `svcGetInfo` and refuses it up front.
-- **Lost wakeups.** Threads waited in Wine's `RtlWaitOnAddress` (`dlls/ntdll/sync.c:877-918`) for an alert that was
-  never sent: every earlier wait got its wakeup, the last one did not. Turning on FEX TSO
-  (`FEX_TSOENABLED = 1`) did not help and made start-up slower, so memory ordering is not the cause. The root cause
-  is still unknown. Patch `0005` waits in 250 ms slices instead of forever, which got OpenTTD to the menu in 10 runs
-  out of 10.
+- **Lost wakeups.** Threads waited in Wine's `RtlWaitOnAddress` (`dlls/ntdll/sync.c:877-918`) or in
+  `NtWaitForAlertByThreadId` for an alert that was never sent: every earlier wait got its wakeup, the last one did
+  not. Patch `0005` waited in 250 ms slices instead of forever and hid it. With `0005` gone (decision 61), Heroes of
+  Might and Magic IV stopped at start-up every time, and the cause showed: without ARMv8.1 atomics FEX's locked
+  instructions were no full barriers, so wined3d's handshake with its command thread missed on both sides
+  (decision 62, FEX `0024`). Whether OpenTTD's earlier hangs were the same is not verified: turning on FEX TSO
+  (`FEX_TSOENABLED = 1`) did not help it then.
 - Diagnostics: patch `0001` records thread and server events and `0004` counts alerts and waits; together with
   `runtime/overlay/carafe_diag.c` they print `[CARAFE-DIAG]` reports when start-up stalls. They stay in release
   builds.

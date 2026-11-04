@@ -2,6 +2,8 @@
 
 Date: 2026-11-01
 
+The row `suspend-wakes` is gone: see [0061](0061-thread-suspension-as-on-windows.md).
+
 ## Context
 
 Autorun's Horizon server, the server that runs inside the game's process, refused window hooks. Programs built on MFC

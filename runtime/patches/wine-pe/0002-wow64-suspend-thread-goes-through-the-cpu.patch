@@ -1,0 +1,18 @@
+Carafe: NtSuspendThread of a 32-bit program goes through the CPU backend for the program's own threads.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/wow64/process.c
++++ b/dlls/wow64/process.c
+@@ -1131,10 +1131,11 @@
+  */
+ NTSTATUS WINAPI wow64_NtSuspendThread( UINT *args )
+ {
++    extern NTSTATUS wow64_suspend_thread( HANDLE handle, ULONG *count );
+     HANDLE handle = get_handle( &args );
+     ULONG *count = get_ptr( &args );
+ 
+-    return NtSuspendThread( handle, count );
++    return wow64_suspend_thread( handle, count );
+ }
+ 
+ 

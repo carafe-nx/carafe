@@ -542,10 +542,6 @@ __attribute__((constructor(105))) static void carafeSettingsEnvironment(void) {
         setenv("CARAFE_LARGE_GUEST_PAGES", "1", 1);
         note("[CARAFE] settings: large views of the game's memory start on 2 MB");
     }
-    if (textValue(text, "suspend-wakes", value, sizeof(value)) && strcmp(value, "1") == 0) {
-        setenv("CARAFE_SUSPEND_WAKES", "1", 1);
-        note("[CARAFE] settings: a suspended thread is woken from its wait");
-    }
     free(text);
 }
 

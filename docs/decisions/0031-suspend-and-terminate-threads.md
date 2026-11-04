@@ -2,6 +2,9 @@
 
 Date: 2026-10-20
 
+Suspending a thread inside a system call and reading its registers are replaced by
+[0061](0061-thread-suspension-as-on-windows.md).
+
 ## Context
 
 Autorun's in-process server stops a running thread only at a safe point: an ARM64EC thread at the doorbell Box64

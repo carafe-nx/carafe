@@ -22,12 +22,14 @@ DXVK_SRC := $(BUILD)/dxvk-src
 DXVK_BUILD := $(BUILD)/dxvk
 DXVK_PATCHES := $(sort $(wildcard $(CURDIR)/patches/dxvk/*.patch))
 DXWRAPPER_BUILD := $(BUILD)/dxwrapper
+PE_MODULES := $(BUILD)/wine-pe-modules
+PE_PATCHES := $(sort $(wildcard $(CURDIR)/patches/wine-pe/*.patch))
 MEDIA_SRC := $(BUILD)/ffmpeg-source
 MONO_VERSION := 11.3.0
 MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 MONO_URL := https://github.com/wine-mono/wine-mono/releases/download/wine-mono-$(MONO_VERSION)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 
-.PHONY: all fetch check-image headers orchestrator-test wine fex dxvk loader layout quick clean
+.PHONY: all fetch check-image headers orchestrator-test wine pe fex dxvk loader layout quick clean
 
 all: layout
 
@@ -86,6 +88,9 @@ wine: headers orchestrator-test $(MEDIA_SRC)/configure $(SWITCH)/build.ninja
 	python3 $(WINE)/tools/package-amd64.py --build $(SWITCH) --fex --vulkan --dxvk --vkd3d \
 		--stage-output $(SWITCH)/stage
 
+pe: headers
+	JOBS=$(JOBS) sh $(CURDIR)/wine-pe/build-pe.sh $(AUTORUN) $(PE) $(PE_MODULES) $(PE_PATCHES)
+
 fex: fetch
 	JOBS=$(JOBS) sh $(CURDIR)/fex/build-fex.sh $(AUTORUN) $(FEX_SRC) $(FEX_BUILD) $(FEX_PATCHES)
 
@@ -100,7 +105,7 @@ $(MONO_ARCHIVE):
 	curl -fL --retry 3 -o $@.part $(MONO_URL)
 	mv $@.part $@
 
-layout: wine fex dxvk loader $(MONO_ARCHIVE)
+layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
 	@test -f $(DXWRAPPER_BUILD)/stamp || \
 		{ echo "dxwrapper is not built: run docker compose run --rm dxwrapper first" >&2; exit 1; }
 	rm -rf $(OUT) $(NPDM)
@@ -120,6 +125,7 @@ layout: wine fex dxvk loader $(MONO_ARCHIVE)
 	cp -r $(AUTORUN)/horizon-dlls/switch/. $(OUT)/romfs/switch/
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 libwow64fex.dll \
 		$(FEX_BUILD)/Bin/libwow64fex.dll
+	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 wow64.dll $(PE_MODULES)/wow64.dll
 	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
 	mkdir -p $(OUT)/romfs/switch/wine/drive_c/dxwrapper
 	cp $(DXWRAPPER_BUILD)/ddraw.dll $(DXWRAPPER_BUILD)/dxwrapper.dll $(DXWRAPPER_BUILD)/dxwrapper.ini \
