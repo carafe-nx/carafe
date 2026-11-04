@@ -32,7 +32,9 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `research` NFSU2: rare crash at the start of a race in the game's own sound code, two threads racing
 - [ ] `bug` A thread terminated while it waits for an event in the server takes 250 ms to end
-- [ ] `game` Undertale: can stop at start-up with FEX's TSO emulation off; NFSU2 crashes with it on
+- [ ] `game` Undertale: can stop at start-up with every thread waiting; cause not found
+- [ ] `game` NFSU2: crashes at start-up with FEX's TSO emulation on
+- [ ] `game` NFSU2: frame rate drops to 30 for a few seconds in races, CPU and GPU both idle
 - [ ] `bug` A terminated thread's stack is freed, while Windows keeps it: its wait-on-address entry is left dangling
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
 - [ ] `feature` A choice to map controller buttons by position instead of by their labels
