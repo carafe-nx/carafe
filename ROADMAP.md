@@ -31,11 +31,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game
 - [ ] `research` Dead Space: rare crash while loading a level when the runtime cannot place game memory
 - [ ] `research` NFSU2: rare crash at the start of a race in the game's own sound code, two threads racing
-- [ ] `bug` A thread terminated while it waits for an event in the server takes 250 ms to end
 - [ ] `game` Undertale: can stop at start-up with every thread waiting; cause not found
-- [ ] `game` NFSU2: crashes at start-up with FEX's TSO emulation on
 - [ ] `game` NFSU2: frame rate drops to 30 for a few seconds in races, CPU and GPU both idle
-- [ ] `bug` A terminated thread's stack is freed, while Windows keeps it: its wait-on-address entry is left dangling
 - [ ] `game` Heroes of Might and Magic IV: rare crash in the Bink video player (`binkw32.dll`) during the intro
 - [ ] `feature` A choice to map controller buttons by position instead of by their labels
 - [ ] `feature` Back up and restore game saves over USB
@@ -56,6 +53,9 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `research` FEX's TSO emulation slows NFSU2 on the console, so it stays off by default
+- [x] `bug` A thread terminated in a lock wait no longer breaks other threads' waits later
+- [x] `bug` A thread terminated while it waits in the server ends at once, not 250 ms later
 - [x] `bug` 32-bit games no longer lose a wakeup between threads: an x86 locked instruction is a full barrier
 - [x] `bug` Suspending a thread works as on Windows, 64-bit and 32-bit: garbage collectors no longer hang a game
 - [x] `game` Cat Mail Co starts with the default settings and closes from the HOME Menu

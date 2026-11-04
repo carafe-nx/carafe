@@ -34,7 +34,9 @@ Box64, which runs the 64-bit programs, already puts `dmb ish` before and after e
 ## Rejected
 
 - **TSO emulation** (`FEX_TSOENABLED=1`). It orders the loads and stores that follow, but costs every memory access
-  of the program, while only locked instructions need the barrier.
+  of the program, while only locked instructions need the barrier. On the console Need for Speed Underground 2 ran at
+  31–58 fps with it, about 46 on average, and at 57–60 without it on the same runtime; Undertale, which stops at 30,
+  kept its 30. It stays off in the Balanced and Fast sets and on in Reliable.
 - **Waking waits on a timer** (`0005`). The wakeup was still lost; the wait only ended late.
 
 ## Consequences

@@ -52,6 +52,16 @@ Horizon has no signals, and Autorun's in-process server could not reach a thread
   write-protected to stop a WoW64 thread in translated code; on Horizon FEX's heap is the runtime's own `malloc`, which
   `NtProtectVirtualMemory` does not know, so that suspension failed.
 - **A terminated thread is alerted**, so an alert wait ends at once and the thread ends on its way out (`0121`).
+- **A thread held in a wait in the server looks at everything again when it is let go**, before it waits on: whether
+  it is being ended, an APC, the objects (`0125`). FEX suspends a thread before it terminates it, and the termination
+  is what lets it go; the thread used to wait on without seeing that it was ending until the wait's next recheck.
+- **A thread terminated in an address wait has its entry taken out of the table by the runtime.** `RtlWaitOnAddress`
+  gives `NtWaitForAlertByThreadId` the place of its wait's entry and of its queue's lock, in a layout the same for
+  32-bit and 64-bit code. While the thread waits there it does not hold the lock; if the wait ends because the thread
+  is being ended, the thread takes the entry out under the lock on its way out, before its stack can be freed (`0126`,
+  `0127`, `wine-pe/0003`). Critical sections, SRW locks and condition variables wait through this table. Both
+  `ntdll.dll` builds, 64-bit and 32-bit, are built from Autorun's source with the patches, as `wow64.dll` is; built
+  without them, they have the same code as the prebuilt ones, only the data lies elsewhere.
 - `0086` and the Experimental row `suspend-wakes` are gone; `0087` (a WoW64 context is read only once the thread has
   stopped) is always on. The snapshot of a thread's runtime registers in `get_thread_context` is gone. `0005`, which
   ended every endless alert wait after 250 ms, is gone: it made waits return early and it was what ended threads
@@ -59,6 +69,9 @@ Horizon has no signals, and Autorun's in-process server could not reach a thread
 
 ## Rejected
 
+- **Sending a thread being ended back to `ntdll.dll` to take its address wait out.** FEX destroys a thread's emulator
+  state before it terminates it, as Windows never runs a terminated thread's code again, so a 32-bit thread could not
+  run its own `ntdll.dll` any more; it ended at its next exception with the entry still in the table.
 - **Waking the waiting thread** (`0086`). Waits end early, only alert waits are covered, and the thread may stop inside
   FEX, where its x64 registers are not consistent.
 - **Pausing a waiting thread with `svcSetThreadActivity`.** A thread paused in a condition variable or a mutex wait is
@@ -75,8 +88,16 @@ Horizon has no signals, and Autorun's in-process server could not reach a thread
   `SetThreadContext` of a spinning and of a sleeping thread, SSE registers that keep their values through 200
   suspensions, and `TerminateThread` of four kinds of wait; twice on each, with one state word per thread. Before
   that word a thread could hold itself after its resume had already been sent, and in one 32-bit run one of the nine
-  threads never went on. A thread terminated in a wait for an event in the server still takes about 250 ms to end; on
-  Windows it ends at once.
+  threads never went on. A thread terminated in a wait for an event in the server took 252 ms to end before `0125`,
+  and ends in 1–7 ms with it; on Windows it ends at once. The probe's `terminate` mode shows it, with the runtime's
+  diagnostic events of the termination.
+- A thread terminated in `WaitOnAddress` used to leave its wait entry, which lives on its stack, in the process's table
+  of address waits, and the stack is freed once the next thread ends. On Windows that holds for `WaitOnAddress` only:
+  its critical sections, SRW locks and condition variables keep their waiters in the lock itself. Wine's go through the
+  same table, so a thread terminated in any of them broke the later waits of its queue. In the probe's `terminate`
+  mode a thread is terminated in a condition variable and in an SRW lock, another thread ends, and a third waits 200
+  times on an address of the same queue: Windows passes, 32-bit and 64-bit; the 64-bit runtime crashed in `ntdll.dll`
+  reading the dead entry before `0126`, `0127` and `wine-pe/0003`.
 - Unity games no longer depend on an Experimental row; Cat Mail Co starts with the default settings and closes from
   the HOME Menu.
 - OpenTTD reached its first frame in 19 launches out of 20 without `0005`, in 14–25 s; the one other launch ended
