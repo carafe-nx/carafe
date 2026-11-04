@@ -125,7 +125,12 @@ layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
 	cp -r $(AUTORUN)/horizon-dlls/switch/. $(OUT)/romfs/switch/
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 libwow64fex.dll \
 		$(FEX_BUILD)/Bin/libwow64fex.dll
-	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 wow64.dll $(PE_MODULES)/wow64.dll
+	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 wow64.dll \
+		$(PE_MODULES)/aarch64-windows/wow64.dll
+	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 ntdll.dll \
+		$(PE_MODULES)/aarch64-windows/ntdll.dll
+	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 ntdll.dll \
+		$(PE_MODULES)/i386-windows/ntdll.dll
 	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
 	mkdir -p $(OUT)/romfs/switch/wine/drive_c/dxwrapper
 	cp $(DXWRAPPER_BUILD)/ddraw.dll $(DXWRAPPER_BUILD)/dxwrapper.dll $(DXWRAPPER_BUILD)/dxwrapper.ini \

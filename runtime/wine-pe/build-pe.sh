@@ -6,19 +6,24 @@ pe=$2
 out=$3
 shift 3
 
-module=dlls/wow64
-arch=aarch64-windows
-dll=$module/$arch/wow64.dll
+dlls="dlls/wow64/aarch64-windows/wow64.dll dlls/ntdll/aarch64-windows/ntdll.dll dlls/ntdll/i386-windows/ntdll.dll"
 src=$out/src
-obj=$out/$arch
+obj=$out/obj
 
 commands() {
     make -s -C "$pe" -n "$@" | sed -e ':a' -e '/\\$/{N;s/\\\n//;ba' -e '}'
 }
 
-rm -rf "$src" "$obj"
+strip_tool() {
+    case $1 in
+    i386-windows) echo i686-w64-mingw32-strip ;;
+    *) echo aarch64-w64-mingw32-strip ;;
+    esac
+}
+
+rm -rf "$out"
 mkdir -p "$src" "$obj"
-make -C "$pe" -j"${JOBS:-2}" "$dll"
+make -C "$pe" -j"${JOBS:-2}" $dlls
 
 for patch in "$@"; do
     file=$(sed -n 's#^+++ b/\([^\t ]*\).*#\1#p' "$patch")
@@ -29,22 +34,27 @@ for patch in "$@"; do
     patch --batch --forward -p1 -d "$src" -i "$patch"
 done
 
-objects=$(awk -v rule="$dll:" 'index($0, rule) == 1 { found = 1 } found { print } found && /^\t/ { exit }' \
-    "$pe/Makefile" | tr ' \\\t' '\n\n\n' | grep "^$module/$arch/.*\.o$")
-
-for object in $objects; do
-    name=$(basename "$object" .o)
-    source=$autorun/$module/$name.c
-    if [ -f "$src/$module/$name.c" ]; then source=$src/$module/$name.c; fi
-    command=$(commands -W "$autorun/$module/$name.c" "$object" | grep -e "-c -o $object ")
-    command=$(printf '%s' "$command" | sed "s#-c -o $object $autorun/$module/$name.c#-c -o $obj/$name.o $source#")
-    (cd "$pe" && eval "$command")
+for dll in $dlls; do
+    module=${dll%/*/*}
+    arch=$(basename "$(dirname "$dll")")
+    name=$(basename "$dll")
+    rm -f "$pe/$dll"
+    link=" $(commands "$dll" | grep -e "winegcc") "
+    objects=$(printf '%s' "$link" | tr ' ' '\n' | grep "^$module/[a-z0-9_]*-windows/[a-z0-9_]*\.o$" || true)
+    for source in $(find "$src/$module" -maxdepth 1 -name '*.c' 2>/dev/null); do
+        file=$module/$(basename "$source")
+        for object in $(printf '%s\n' $objects | grep "/$(basename "$source" .c)\.o$" || true); do
+            command=$(commands -W "$autorun/$file" "$object" | grep -e "-c -o $object ")
+            command=$(printf '%s' "$command" | sed "s#-c -o $object $autorun/$file#-c -o $obj/$object $source#")
+            mkdir -p "$obj/$(dirname "$object")"
+            (cd "$pe" && eval "$command")
+            link=$(printf '%s' "$link" | sed "s# $object # $obj/$object #g")
+        done
+    done
+    mkdir -p "$out/$arch"
+    link=$(printf '%s' "$link" | sed "s#-o $dll #-o $out/$arch/$name #")
+    (cd "$pe" && eval "$link")
+    $(strip_tool "$arch") --strip-debug "$out/$arch/$name"
+    make -C "$pe" "$dll"
+    test -s "$out/$arch/$name"
 done
-
-rm -f "$pe/$dll"
-link=$(commands "$dll" | grep -e "winegcc")
-link=$(printf '%s' "$link" | sed -e "s#$module/$arch/\([a-z0-9_]*\)\.o#$obj/\1.o#g" -e "s#-o $dll #-o $out/wow64.dll #")
-(cd "$pe" && eval "$link")
-aarch64-w64-mingw32-strip --strip-debug "$out/wow64.dll"
-make -C "$pe" "$dll"
-test -s "$out/wow64.dll"

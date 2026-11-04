@@ -1,0 +1,42 @@
+Carafe: RtlWaitOnAddress tells NtWaitForAlertByThreadId where its wait's entry and its queue's lock are, in a
+layout the same for 32-bit and 64-bit code, so that a thread ended while it waits has the entry taken out of
+the table by the runtime (`autorun/0126`). Critical sections, SRW locks and condition variables wait through
+this table.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/sync.c
++++ b/dlls/ntdll/sync.c
+@@ -835,6 +835,16 @@
+     LONG lock;
+ };
+ 
++#define FUTEX_EXIT_MAGIC 0x46555458
++
++struct futex_exit
++{
++    ULONG magic;
++    ULONG pointer_size;
++    ULONG64 entry;
++    ULONG64 lock;
++};
++
+ static struct futex_queue futex_queues[256];
+ 
+ static struct futex_queue *get_futex_queue( const void *addr )
+@@ -880,6 +890,7 @@
+ {
+     struct futex_queue *queue = get_futex_queue( addr );
+     struct futex_entry entry;
++    struct futex_exit ending = { FUTEX_EXIT_MAGIC, sizeof(void *), (ULONG_PTR)&entry, (ULONG_PTR)&queue->lock };
+     NTSTATUS ret;
+ 
+     TRACE("addr %p cmp %p size %#Ix timeout %s\n", addr, cmp, size, debugstr_timeout( timeout ));
+@@ -906,7 +917,7 @@
+ 
+     spin_unlock( &queue->lock );
+ 
+-    ret = NtWaitForAlertByThreadId( NULL, timeout );
++    ret = NtWaitForAlertByThreadId( &ending, timeout );
+ 
+     /* We may have already been removed by a call to RtlWakeAddressSingle() or RtlWakeAddressAll(). */
+     if (entry.addr)
