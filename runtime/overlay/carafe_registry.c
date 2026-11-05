@@ -8,6 +8,7 @@
 
 #include <switch.h>
 
+#include "carafe_hid.h"
 #include "carafe_overlay.h"
 #include "carafe_registry.h"
 #include "carafe_settings.h"
@@ -770,6 +771,7 @@ static void restoreMissing(char* text) {
 }
 
 void carafeRegistryLoaded(void) {
+    carafeHidRegister();
     if (!available()) {
         return;
     }

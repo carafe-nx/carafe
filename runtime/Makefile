@@ -131,6 +131,12 @@ layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
 		$(PE_MODULES)/aarch64-windows/ntdll.dll
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 ntdll.dll \
 		$(PE_MODULES)/i386-windows/ntdll.dll
+	for dll in dinput.dll dinput8.dll; do \
+		python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 $$dll \
+			$(PE_MODULES)/aarch64-windows/$$dll && \
+		python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 $$dll \
+			$(PE_MODULES)/i386-windows/$$dll || exit 1; \
+	done
 	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
 	mkdir -p $(OUT)/romfs/switch/wine/drive_c/dxwrapper
 	cp $(DXWRAPPER_BUILD)/ddraw.dll $(DXWRAPPER_BUILD)/dxwrapper.dll $(DXWRAPPER_BUILD)/dxwrapper.ini \

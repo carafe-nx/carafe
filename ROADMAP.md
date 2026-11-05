@@ -25,7 +25,9 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `game` Dishonored: stays on the loading screen while GOG Galaxy polls a socket
 - [ ] `game` Indiana Jones and the Emperor's Tomb: a green frame before the title screen
 - [ ] `game` Rig and Roll: check driving in 3D; the installed copy asks for its CD
-- [ ] `bug` The controller is no HID device: DirectInput 8 joysticks and Windows.Gaming.Input see no pad (Indiana Jones, Megabonk)
+- [ ] **`bug` The controller is no HID device: DirectInput 8 joysticks and Windows.Gaming.Input see no pad (Indiana Jones, Megabonk, Cat Mail Co)**
+- [ ] `game` Cat Mail Co and Fields of Mistria: the game's memory runs out (Cat Mail Co when a new game loads)
+- [ ] `game` Indiana Jones and the Emperor's Tomb: reads the pad, but its title screen answers only its keyboard bindings
 - [ ] `research` A 64-bit program that draws only with GDI never hides the loading screen
 - [ ] `research` Saves: confirm whether they can still be lost on HOME and sleep, and in games that keep a file open the whole session
 - [ ] `bug` Mouse wheel mapped to a button does nothing in the game

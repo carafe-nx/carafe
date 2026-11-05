@@ -14,6 +14,8 @@ set(CARAFE_WAITS_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_waits.c")
 set(CARAFE_FEX_STATS_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_fex_stats.c")
 set(CARAFE_LOCK_BOOST_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_lock_boost.c")
 set(CARAFE_MESA_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_mesa.c")
+set(CARAFE_HID_FILE "${CMAKE_CURRENT_LIST_DIR}/carafe_hid.c")
+set(CARAFE_HID_KERNEL_HEADER "${CMAKE_CURRENT_LIST_DIR}/carafe_hid_kernel.h")
 set(CARAFE_ORCHESTRATOR_FILE "${CMAKE_CURRENT_LIST_DIR}/../orchestrator/orchestrator.c")
 set(CARAFE_ORCHESTRATOR_POLICY_FILE "${CMAKE_CURRENT_LIST_DIR}/../orchestrator/orchestrator_policy.c")
 set(CARAFE_PATCH_DIR "${CMAKE_CURRENT_LIST_DIR}/../patches/autorun")
@@ -114,6 +116,16 @@ function(carafe_add_overlay)
             "${CARAFE_SETTINGS_FILE}" "${CARAFE_MENU_FILE}" "${CARAFE_REGISTRY_FILE}" "${CARAFE_ORCHESTRATOR_FILE}"
             "${CARAFE_ORCHESTRATOR_POLICY_FILE}"
     )
+    get_filename_component(carafe_autorun "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
+    set(carafe_winebus "${carafe_autorun}/dlls/winebus.sys")
+    set(carafe_hidparse "${carafe_autorun}/dlls/hidparse.sys/main.c")
+    target_sources(wine-nx-runtime PRIVATE "${CARAFE_HID_FILE}" "${carafe_winebus}/hid.c" "${carafe_hidparse}")
+    set_source_files_properties(
+        "${CARAFE_HID_FILE}" "${carafe_winebus}/hid.c"
+        PROPERTIES INCLUDE_DIRECTORIES "${carafe_winebus}"
+    )
+    set_property(SOURCE "${CARAFE_HID_FILE}" APPEND PROPERTY COMPILE_OPTIONS -std=gnu11)
+    set_property(SOURCE "${carafe_hidparse}" APPEND PROPERTY COMPILE_OPTIONS -include "${CARAFE_HID_KERNEL_HEADER}")
     target_compile_definitions(wine-nx-runtime PRIVATE ${CARAFE_OVERLAY_DEFINITIONS})
     set_source_files_properties(
         "${CARAFE_LOADING_FILE}"
