@@ -1,0 +1,135 @@
+Carafe: successful primary drawing arms a foreground-window publication before queuing its presentation.
+Zlib, as the file it changes.
+
+--- a/ddraw/IDirectDrawX.cpp
++++ b/ddraw/IDirectDrawX.cpp
+@@ -27,8 +27,48 @@
+ #include "Shaders\GammaPixelShader.h"
+ #include "Shaders\FixUpVertexShader.h"
+ #include "Shaders\FixUpMultiStageVertexShader.h"
++#include <cstdint>
++#include <cstdlib>
+ 
+ namespace {
++	void PublishWindowPicture(HWND window)
++	{
++		static HANDLE event = []() -> HANDLE
++		{
++			char value[64] = {};
++			const DWORD length = GetEnvironmentVariableA("WINE_NX_WINDOW_PICTURE_EVENT", value, sizeof(value));
++			if (!length || length >= sizeof(value))
++			{
++				return nullptr;
++			}
++			char* next = nullptr;
++			const unsigned long process = std::strtoul(value, &next, 16);
++			if (next == value || *next != ':' || process != GetCurrentProcessId())
++			{
++				return nullptr;
++			}
++			char* first = next + 1;
++			const unsigned long long handle = std::strtoull(first, &next, 16);
++			if (next == first || *next || !handle || handle > UINTPTR_MAX)
++			{
++				return nullptr;
++			}
++			return reinterpret_cast<HANDLE>(static_cast<uintptr_t>(handle));
++		}();
++		static LONG published = 0;
++		if (!event || InterlockedCompareExchange(&published, 0, 0) || !window
++			|| !IsWindowVisible(window) || GetForegroundWindow() != window)
++		{
++			return;
++		}
++		DWORD process = 0;
++		GetWindowThreadProcessId(window, &process);
++		if (process == GetCurrentProcessId() && SetEvent(event))
++		{
++			InterlockedExchange(&published, 1);
++		}
++	}
++
+ 	// Store a list of ddraw devices
+ 	std::vector<m_IDirectDrawX*> DDrawVector;
+ 
+@@ -5605,7 +5645,7 @@ HRESULT m_IDirectDrawX::PresentScene(m_IDirectDrawSurfaceX* pPrimarySurface, REC
+ 	}
+ 
+ 	// Begin scene
+-	d3d9Device->BeginScene();
++	const HRESULT beginResult = d3d9Device->BeginScene();
+ 
+ 	// Copy or draw primary surface before presenting
+ 	if (IsPrimaryRenderTarget() && !pPrimarySurface->GetD9Texture(false))
+@@ -5655,7 +5695,7 @@ HRESULT m_IDirectDrawX::PresentScene(m_IDirectDrawSurfaceX* pPrimarySurface, REC
+ 	}
+ 
+ 	// End scene
+-	d3d9Device->EndScene();
++	const HRESULT endResult = d3d9Device->EndScene();
+ 
+ #ifdef ENABLE_PROFILING
+ 	Logging::Log() << __FUNCTION__ << " (" << this << ") hr = " << (D3DERR)hr << " Timing = " << Logging::GetTimeLapseInUS(startTime);
+@@ -5664,7 +5704,7 @@ HRESULT m_IDirectDrawX::PresentScene(m_IDirectDrawSurfaceX* pPrimarySurface, REC
+ 	// Present to d3d9
+ 	if (SUCCEEDED(hr))
+ 	{
+-		hr = Present(pDestRect, pDestRect);
++		hr = Present(pDestRect, pDestRect, SUCCEEDED(beginResult) && SUCCEEDED(endResult));
+ 	}
+ 
+ 	return hr;
+@@ -5752,15 +5792,19 @@ DWORD WINAPI m_IDirectDrawX::PresentThreadFunction(LPVOID)
+ 						if (pPrimarySurface->GetD9Texture(false))
+ 						{
+ 							// Begin scene
+-							d3d9Device->BeginScene();
++							const HRESULT beginResult = d3d9Device->BeginScene();
+ 
+ 							// Draw surface before presenting
+-							pDDraw->DrawPrimarySurface(pPrimarySurface, nullptr);
++							const HRESULT drawResult = pDDraw->DrawPrimarySurface(pPrimarySurface, nullptr);
+ 
+ 							// End scene
+-							d3d9Device->EndScene();
++							const HRESULT endResult = d3d9Device->EndScene();
+ 
+ 							// Present to d3d9
++							if (SUCCEEDED(beginResult) && SUCCEEDED(drawResult) && SUCCEEDED(endResult))
++							{
++								PublishWindowPicture(pDDraw->GetHwnd());
++							}
+ 							d3d9Device->Present(nullptr, nullptr, nullptr, nullptr);
+ 
+ 							// Store last successful present time
+@@ -5777,7 +5821,7 @@ DWORD WINAPI m_IDirectDrawX::PresentThreadFunction(LPVOID)
+ 	return S_OK;
+ }
+ 
+-HRESULT m_IDirectDrawX::Present(RECT* pSourceRect, RECT* pDestRect)
++HRESULT m_IDirectDrawX::Present(RECT* pSourceRect, RECT* pDestRect, bool primaryDrawn)
+ {
+ 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ")";
+ 
+@@ -5859,6 +5903,10 @@ HRESULT m_IDirectDrawX::Present(RECT* pSourceRect, RECT* pDestRect)
+ 		}
+ 		else
+ 		{
++			if (primaryDrawn)
++			{
++				PublishWindowPicture(GetHwnd());
++			}
+ 			hr = d3d9Device->Present(pSourceRect, pDestRect, nullptr, nullptr);
+ 		}
+ 	}
+--- a/ddraw/IDirectDrawX.h
++++ b/ddraw/IDirectDrawX.h
+@@ -81,7 +81,7 @@ private:
+ 	HRESULT CopyPrimarySurface(m_IDirectDrawSurfaceX* pPrimarySurface, LPDIRECT3DSURFACE9 pDestBuffer);
+ 	HRESULT DrawPrimarySurface(m_IDirectDrawSurfaceX* pPrimarySurface, LPDIRECT3DTEXTURE9 pDisplayTexture);
+ 	static DWORD WINAPI PresentThreadFunction(LPVOID);
+-	HRESULT Present(RECT* pSourceRect, RECT* pDestRect);
++	HRESULT Present(RECT* pSourceRect, RECT* pDestRect, bool primaryDrawn = false);
+ 	void RestoreD3DDeviceState();
+ 	void Clear3DSurfaceFlag();
+ 	void ResetAllSurfaceDisplay();
