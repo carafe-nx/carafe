@@ -16,7 +16,7 @@ two languages and two themes.
 - **Clean architecture.** `carafe-core` holds the domain without I/O: PE parsing, NPDM, NACP, PFS0, `carafe.json`,
   path limits, Autorun settings files. Ports are traits; adapters (`carafe-folder`, `carafe-images`, `carafe-library`,
   `carafe-mtp`, `carafe-pack`, `carafe-steamgriddb`) implement them; `carafe-desktop` is the composition root. Rules
-  are in `app/CLAUDE.md`.
+  are in the [development guide](../development.md#layers).
 - **Own PE reader** in the core: three fields are needed, no crate for that.
 - **Icons are drawn by the window** on a canvas, so what the wizard shows is exactly what reaches the Switch. The core
   checks the result: baseline JPEG, 256×256, at most 128 KiB. Sources: the `.exe` icon scaled by whole numbers, the

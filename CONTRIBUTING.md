@@ -60,8 +60,7 @@ from the repository root. `make clean` in `runtime/` or `tools/hacbrewpack/` rem
 - `docker/`, `compose.yaml` — the build containers;
 - `assets/` — static images.
 
-[`CLAUDE.md`](CLAUDE.md) and [`app/CLAUDE.md`](app/CLAUDE.md) describe the layers and the code style in detail.
-They are written for AI coding agents and are just as useful for people.
+The [development guide](docs/development.md) describes the layers, code style and build workflow.
 
 ## Code
 

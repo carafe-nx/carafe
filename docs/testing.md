@@ -9,7 +9,7 @@ There is no emulator loop: everything that runs on the Switch is tested on the c
 - `npm run dev` builds the runtime and hacBrewPack in containers and opens the app. After a change in `runtime/`
   this rebuilds the runtime; `npm run dev:app` opens the app with the runtime already built.
 - The window can be driven without the mouse: `npm run cdp -- <command>` takes screenshots, clicks and reads the
-  console of the running app ([`app/CLAUDE.md`](../app/CLAUDE.md), "Driving the window").
+  console of the running app ([development guide](development.md#driving-the-window)).
 
 ## The console
 
