@@ -137,13 +137,12 @@ layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
 		python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 $$dll \
 			$(PE_MODULES)/i386-windows/$$dll || exit 1; \
 	done
-	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD)
-	mkdir -p $(OUT)/romfs/switch/wine/drive_c/dxwrapper
-	cp $(DXWRAPPER_BUILD)/ddraw.dll $(DXWRAPPER_BUILD)/dxwrapper.dll $(DXWRAPPER_BUILD)/dxwrapper.ini \
-		$(OUT)/romfs/switch/wine/drive_c/dxwrapper/
+	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 ddraw.dll $(DXWRAPPER_BUILD)/ddraw.dll
+	cp $(DXWRAPPER_BUILD)/dxwrapper.dll $(DXWRAPPER_BUILD)/dxwrapper.ini $(OUT)/romfs/switch/wine/drive_c/windows/syswow64/
 	python3 $(CURDIR)/winrt/add-winrt-classes.py $(OUT)/romfs $(AUTORUN)
 	python3 $(CURDIR)/dshow/add-directshow-filters.py $(OUT)/romfs
 	cp -r $(SWITCH)/stage/switch/. $(OUT)/romfs/switch/
+	python3 $(CURDIR)/dxvk/use-dxvk.py $(OUT)/romfs $(DXVK_BUILD) $(DXVK_SRC)
 	cp $(SWITCH)/wine-nx-runtime.elf $(OUT)/symbols/
 	cp $(ROOT)/assets/switch/NintendoLogo.png $(ROOT)/assets/switch/StartupMovie.gif \
 		$(OUT)/romfs/carafe/loading/

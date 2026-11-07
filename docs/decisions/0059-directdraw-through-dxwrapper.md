@@ -1,5 +1,8 @@
 # 59. DirectDraw and Direct3D 1–7 through dxwrapper
 
+The `C:\dxwrapper` folder and patch `0105` are replaced by
+[64](0064-the-runtimes-direct3d-is-the-system-direct3d.md).
+
 Date: 2026-11-02
 
 ## Context

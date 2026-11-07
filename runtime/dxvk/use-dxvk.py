@@ -1,17 +1,23 @@
 import copy
 import hashlib
 import json
+import re
 import shutil
 import struct
+import subprocess
 import sys
 import zlib
 from pathlib import Path
 
-romfs, build = Path(sys.argv[1]), Path(sys.argv[2])
+romfs, build, source = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 wine = romfs / 'switch/wine'
 manifest_path = wine / 'horizon-dlls/manifest.json'
 manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+build_manifest_path = wine / 'build-manifest.json'
 DLLS = ('d3d8.dll', 'd3d9.dll', 'd3d10core.dll', 'd3d11.dll', 'dxgi.dll')
+SYSTEM = {'i386': 'drive_c/windows/syswow64', 'amd64': 'drive_c/windows/system32'}
+ARCH = {'i386': 'i386', 'amd64': 'x86_64'}
+FOLDERS = ('drive_c/dxvk', 'drive_c/dxvk64')
 
 
 def say_directx9(path):
@@ -34,63 +40,52 @@ def say_directx9(path):
     path.write_bytes(data)
 
 
-def record(folder, name):
-    data = (wine / folder / name).read_bytes()
+def entry_for(folder, name):
     entries = [f for f in manifest['files'] if f['name'] == name and f['path'] == folder]
-    if len(entries) != 1:
+    if len(entries) > 1:
         sys.exit(f'{folder}/{name}: {len(entries)} entries in {manifest_path}')
-    entries[0]['size'] = len(data)
-    entries[0]['sha256'] = hashlib.sha256(data).hexdigest()
+    if entries:
+        return entries[0]
+    template = next(f for f in manifest['files'] if f['name'] == 'd3d9.dll' and f['path'] == folder)
+    entry = copy.deepcopy(template)
+    entry['name'] = name
+    entry['url'] = entry['url'][:-len('d3d9.dll')] + name
+    entry['compressed']['url'] = entry['compressed']['url'][:-len('d3d9.dll.z')] + name + '.z'
+    manifest['files'].append(entry)
+    return entry
 
 
-def compressed(entry, data):
+def install(arch, name):
+    folder = SYSTEM[arch]
+    component = 'd3d10' if name == 'd3d10core.dll' else name[:-4]
+    target = wine / folder / name
+    shutil.copyfile(build / arch / 'src' / component / name, target)
+    if arch == 'i386' and name == 'd3d9.dll':
+        say_directx9(target)
+    data = target.read_bytes()
+    entry = entry_for(folder, name)
+    entry['arch'] = ARCH[arch]
+    entry['size'] = len(data)
+    entry['sha256'] = hashlib.sha256(data).hexdigest()
     packed = zlib.compress(data, 9)
     entry['compressed'].update(size=len(packed), sha256=hashlib.sha256(packed).hexdigest())
 
 
-target = wine / 'drive_c/dxvk/d3d9.dll'
-shutil.copyfile(build / 'i386/src/d3d9/d3d9.dll', target)
-say_directx9(target)
-record('drive_c/dxvk', 'd3d9.dll')
+for arch in SYSTEM:
+    for name in DLLS:
+        install(arch, name)
 
-DLLS32 = ('d3d8.dll', 'd3d10core.dll', 'd3d11.dll', 'dxgi.dll')
-for name in DLLS32:
-    component = 'd3d10' if name == 'd3d10core.dll' else name[:-4]
-    shutil.copyfile(build / 'i386/src' / component / name, target.parent / name)
-    if not any(f['name'] == name and f['path'] == 'drive_c/dxvk' for f in manifest['files']):
-        entry = copy.deepcopy(next(f for f in manifest['files'] if f['name'] == name and f['path'] == 'drive_c/dxvk64'))
-        entry.update(path='drive_c/dxvk', arch='i386', url=entry['url'].replace('/dxvk64/', '/dxvk/'))
-        entry['source']['extra'] = 'dxvk32'
-        entry['compressed']['url'] = entry['compressed']['url'].replace('/dxvk64/', '/dxvk/')
-        manifest['files'].append(entry)
-    record('drive_c/dxvk', name)
-    compressed(next(f for f in manifest['files'] if f['name'] == name and f['path'] == 'drive_c/dxvk'),
-               (target.parent / name).read_bytes())
-
-dxvk64 = wine / 'drive_c/dxvk64'
-dxvk_manifest = json.loads((dxvk64 / 'dxvk-manifest.json').read_text(encoding='utf-8'))
-for name in DLLS:
-    component = 'd3d10' if name == 'd3d10core.dll' else name[:-4]
-    shutil.copyfile(build / 'amd64/src' / component / name, dxvk64 / name)
-    dxvk_manifest['files'][name] = hashlib.sha256((dxvk64 / name).read_bytes()).hexdigest()
-    record('drive_c/dxvk64', name)
-(dxvk64 / 'dxvk-manifest.json').write_text(json.dumps(dxvk_manifest, indent=2) + '\n', encoding='utf-8')
-record('drive_c/dxvk64', 'dxvk-manifest.json')
-
-dxvk32_files = {name: hashlib.sha256((target.parent / name).read_bytes()).hexdigest() for name in ('d3d9.dll',) + DLLS32}
-dxvk32_manifest = dict(dxvk_manifest, architecture='i386', files=dxvk32_files)
-(target.parent / 'dxvk-manifest.json').write_text(json.dumps(dxvk32_manifest, indent=2) + '\n', encoding='utf-8')
-if not any(f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk' for f in manifest['files']):
-    entry = copy.deepcopy(next(f for f in manifest['files'] if f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk64'))
-    entry.update(path='drive_c/dxvk', arch='i386', url=entry['url'].replace('/dxvk64/', '/dxvk/'))
-    entry['source']['extra'] = 'dxvk32'
-    entry['compressed']['url'] = entry['compressed']['url'].replace('/dxvk64/', '/dxvk/')
-    manifest['files'].append(entry)
-record('drive_c/dxvk', 'dxvk-manifest.json')
-packed = zlib.compress((target.parent / 'dxvk-manifest.json').read_bytes(), 9)
-for f in manifest['files']:
-    if f['name'] == 'dxvk-manifest.json' and f['path'] == 'drive_c/dxvk':
-        f['compressed'].update(size=len(packed), sha256=hashlib.sha256(packed).hexdigest())
-
+for folder in FOLDERS:
+    shutil.rmtree(wine / folder, ignore_errors=True)
+manifest['files'] = [f for f in manifest['files'] if f['path'] not in FOLDERS]
 manifest_path.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + '\n', encoding='utf-8')
-print(f'DXVK: Carafe build of {1 + len(DLLS32)} 32-bit modules (version {dxvk32_manifest["version"]}) and {len(DLLS)} 64-bit modules')
+
+version = re.search(r"project\('dxvk'.*?version\s*:\s*'([^']+)'", (source / 'meson.build').read_text(encoding='utf-8'))
+if not version:
+    sys.exit(f'{source / "meson.build"} has no version')
+revision = subprocess.run(['git', '-C', str(source), 'rev-parse', 'HEAD'], stdout=subprocess.PIPE, text=True,
+                          check=True).stdout.strip()
+build_manifest = json.loads(build_manifest_path.read_text(encoding='utf-8'))
+build_manifest['system-dxvk'] = {'version': version.group(1), 'revision': revision}
+build_manifest_path.write_text(json.dumps(build_manifest, indent=2) + '\n', encoding='utf-8')
+print(f'DXVK {version.group(1)}: Carafe build of {len(DLLS)} modules in {SYSTEM["i386"]} and {SYSTEM["amd64"]}')

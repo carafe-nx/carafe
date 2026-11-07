@@ -1,5 +1,7 @@
 # 55. Direct3D 8 goes through DXVK for 32-bit games too
 
+Where the modules go is replaced by [64](0064-the-runtimes-direct3d-is-the-system-direct3d.md).
+
 Date: 2026-11-01
 
 ## Context

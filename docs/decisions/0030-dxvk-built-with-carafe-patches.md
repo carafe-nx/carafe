@@ -2,7 +2,8 @@
 
 Date: 2026-10-20
 
-The DXVK revision is pinned by [decision 43](0043-one-path-for-every-game.md).
+The DXVK revision is pinned by [decision 43](0043-one-path-for-every-game.md). Where the modules go and the
+`dxvk-manifest.json` are replaced by [64](0064-the-runtimes-direct3d-is-the-system-direct3d.md).
 
 ## Context
 

@@ -9,6 +9,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 
 ## Planned
 
+- [ ] **`feature` The runtime's Direct3D is the system Direct3D: DXVK and dxwrapper in the system folders, no folder in front of system32**
+- [ ] `bug` Wine's d3dx9 disassembles the address register as `a` instead of `a0`, so d3d8to9 cannot rebuild skinned shaders (#64)
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] `bug` The + of the menu combination reaches the game: NFSU skips its intro
 - [ ] `research` FEX: many threads ending at once wait on its compile locks for tens of seconds
