@@ -57,6 +57,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 <details>
 <summary>Done</summary>
 
+- [x] `bug` Heroes of Might and Magic IV starts through system DirectDraw: fullscreen reset preserves the game's window resize
 - [x] `research` FEX's TSO emulation slows NFSU2 on the console, so it stays off by default
 - [x] `bug` A thread terminated in a lock wait no longer breaks other threads' waits later
 - [x] `bug` A thread terminated while it waits in the server ends at once, not 250 ms later

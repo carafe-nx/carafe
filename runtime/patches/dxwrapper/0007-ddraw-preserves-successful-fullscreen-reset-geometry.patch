@@ -1,0 +1,16 @@
+Carafe: prepare exclusive window geometry before device creation, not after a successful fullscreen Reset.
+The reset already establishes the fullscreen client area. Reapplying decorated window dimensions afterward
+changes that client area under DXVK and can consume the application's subsequent resize before it handles it.
+Keep fullscreen-windowed preparation and failed-reset recreation unchanged. Zlib, as the file it changes.
+
+--- a/ddraw/IDirectDrawX.cpp
++++ b/ddraw/IDirectDrawX.cpp
+@@ -3756,7 +3756,7 @@
+ 	};
+ 
+ 	// Prepare window and display size
+-	if ((!presParams.Windowed || FullScreenWindowed) && !Config.EnableWindowMode)
++	if (((!presParams.Windowed && !d3d9Device) || FullScreenWindowed) && !Config.EnableWindowMode)
+ 	{
+ 		SetWindowFullScreen::FullScreen(hm, hWnd, presParams.BackBufferWidth, presParams.BackBufferHeight);
+ 	}
