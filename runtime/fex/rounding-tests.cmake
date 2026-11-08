@@ -1,0 +1,13 @@
+if(PROJECT_NAME STREQUAL "FEX")
+    set(CARAFE_FEX_TEST_SOURCE "${CMAKE_CURRENT_LIST_DIR}/test/rounding.cpp")
+    set(CARAFE_FEX_TEST_HOST "${CMAKE_CURRENT_LIST_DIR}/test/windows-host.cpp")
+    function(carafe_add_fex_rounding_test)
+        add_executable(carafe-fex-rounding-test "${CARAFE_FEX_TEST_SOURCE}" "${CARAFE_FEX_TEST_HOST}")
+        target_include_directories(carafe-fex-rounding-test PRIVATE "${CMAKE_SOURCE_DIR}/Source/Windows")
+        target_include_directories(carafe-fex-rounding-test PRIVATE "${CMAKE_SOURCE_DIR}/Source/Windows/include")
+        target_link_libraries(carafe-fex-rounding-test PRIVATE FEXCore Common CommonTools CommonWindows JemallocLibs
+            "${CMAKE_BINARY_DIR}/Source/Windows/libntdll_ex.a")
+        add_dependencies(carafe-fex-rounding-test ntdll_exlib)
+    endfunction()
+    cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL carafe_add_fex_rounding_test)
+endif()

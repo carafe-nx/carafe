@@ -41,5 +41,6 @@ cmake -S "$src" -B "$build" -G Ninja \
     -DOVERRIDE_VERSION="$version" -DOVERRIDE_HASH="$revision" \
     -DENABLE_LTO=OFF -DBUILD_TESTING=OFF -DBUILD_FEXCONFIG=OFF \
     -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF -DENABLE_OFFLINE_TELEMETRY=OFF -DTUNE_CPU=none \
-    -DFEX_HORIZON=ON -DFEX_HORIZON_ABI_DIR="$horizon_wine/fex" >/dev/null
-cmake --build "$build" --target wow64fex -j "${JOBS:-2}"
+    -DFEX_HORIZON=ON -DFEX_HORIZON_ABI_DIR="$horizon_wine/fex" \
+    -DCMAKE_PROJECT_INCLUDE="$(dirname "$0")/rounding-tests.cmake" >/dev/null
+cmake --build "$build" --target wow64fex carafe-fex-rounding-test -j "${JOBS:-2}"
