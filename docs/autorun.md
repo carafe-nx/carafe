@@ -178,13 +178,17 @@ newlib and libnx details the overlay has to respect:
   (`dlls/ntdll/unix/virtual.c:5002-5031`).
 - Carafe solves this with a 32-bit process and patches `0006` and `0007` in `runtime/patches/autorun/`; the
   investigation is in [research/fixed-base/REPORT.md](research/fixed-base/REPORT.md). The builder picks the NPDM
-  address space from the `.exe` header (`app/crates/carafe-core/src/pe.rs`, `npdm.rs`).
+  address space from the `.exe` header (`app/crates/carafe-core/src/pe.rs`, `npdm.rs`). Only immovable x86 images
+  starting below 128 MiB require this 32-bit layout; a fixed image at or above that boundary can use the 39-bit host.
+  See [decision 68](decisions/0068-section-placement-and-host-address-space.md).
 - A 32-bit program without the large-address-aware flag gets addresses only below 2 GB (`set_large_address_space`,
   `dlls/ntdll/unix/virtual.c:4961-4996`; WoW64 takes the limit from `SystemEmulationBasicInformation`). In a 32-bit
   process it shares them with the native window `[0x18140000, 0x40000000)` and with the part of the 2 GB heap
   region that lands below 2 GB. NFS Carbon (#47) asked for 132 MB in one piece and found none while about 1.1 GB
-  below 4 GB was free; with the heap at 1 GB only about 400 MB were left to it. Patch `0040` gives every 32-bit
-  program addresses up to 4 GB; the image keeps its flag, so `GlobalMemoryStatus` still reports at most 2 GB.
+  below 4 GB was free; with the heap at 1 GB only about 400 MB were left to it. The former patch `0040` forced
+  addresses up to 4 GB for all 32-bit programs. It is removed: the runtime now respects the executable's
+  large-address-aware flag. A larger host layout frees native allocations from the low guest range without
+  extending a non-LAA game's address contract; see [decision 68](decisions/0068-section-placement-and-host-address-space.md).
 - That limit was not what ran out. A 32-bit process has about 1.3 GB for the guest whatever the heap's place
   (`[VA] early guest reservations`), and FEX took a large part of it: every thread that compiles holds a decoded
   instruction buffer for 65536 instructions (8 MB, `Frontend.h`) and two IR lists of 8 MB (`IREmitter.h`), pooled

@@ -1,5 +1,10 @@
 # x86 games with a fixed base in a Carafe NSP
 
+The low-address restrictions in this report concern fixed images below
+`0x08000000`. Fixed images at or above that boundary can use the 39-bit host
+layout; the current selection rule is described in
+[decision 68](../../decisions/0068-section-placement-and-host-address-space.md).
+
 How Carafe runs 32-bit Windows games whose `.exe` has no relocations and must load at its fixed base (usually
 `0x400000`), such as Need for Speed Underground (NFSU). The analysis was done on 2026-10-07 from the sources
 listed below and from experiments on a host; nothing in it relies on changing the system's kernel.

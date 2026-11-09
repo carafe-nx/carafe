@@ -29,7 +29,7 @@ MONO_VERSION := 11.3.0
 MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 MONO_URL := https://github.com/wine-mono/wine-mono/releases/download/wine-mono-$(MONO_VERSION)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 
-.PHONY: all fetch check-image headers orchestrator-test wine pe fex dxvk loader layout quick clean
+.PHONY: all fetch check-image headers orchestrator-test section-memory-test wine pe fex dxvk loader layout quick clean
 
 all: layout
 
@@ -79,7 +79,51 @@ orchestrator-test:
 		$(CURDIR)/orchestrator/test/orchestrator_test.c $(CURDIR)/orchestrator/orchestrator_policy.c
 	$(BUILD)/orchestrator-test
 
-wine: headers orchestrator-test $(MEDIA_SRC)/configure $(SWITCH)/build.ninja
+section-memory-test:
+	mkdir -p $(BUILD)/section-memory-test/dlls/ntdll/unix
+	cp $(AUTORUN)/dlls/ntdll/unix/horizon_memfile.h $(BUILD)/section-memory-test/dlls/ntdll/unix/
+	cp $(AUTORUN)/dlls/ntdll/unix/horizon.c $(BUILD)/section-memory-test/dlls/ntdll/unix/
+	@for patch in $(sort $(wildcard $(CURDIR)/patches/autorun/*.patch)); do \
+		if grep -Eq '^[+][+][+] b/dlls/ntdll/unix/(horizon_memfile\.h|horizon\.c)([[:space:]]|$$)' "$$patch"; then \
+			patch --batch --forward -p1 -d $(BUILD)/section-memory-test -i "$$patch" || exit 1; \
+		fi; \
+	done
+	cc -std=c11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror -pthread \
+		-I$(BUILD)/section-memory-test/dlls/ntdll/unix \
+		-o $(BUILD)/section-memory-test/regression $(CURDIR)/tests/section_memory_test.c
+	$(BUILD)/section-memory-test/regression
+	cc -std=c11 -D_GNU_SOURCE -O2 -Wall -Wextra -Werror -pthread \
+		-I$(BUILD)/section-memory-test/dlls/ntdll/unix \
+		-include $(CURDIR)/tests/section_memory_compat.h \
+		-o $(BUILD)/section-memory-test/compatibility $(WINE)/tests/horizon_memfile.c
+	$(BUILD)/section-memory-test/compatibility
+	python3 $(CURDIR)/tests/anonymous_mapping_test.py \
+		$(BUILD)/section-memory-test/dlls/ntdll/unix/horizon.c $(BUILD)/section-memory-test
+	python3 $(CURDIR)/tests/section_mapping_test.py \
+		$(BUILD)/section-memory-test/dlls/ntdll/unix/horizon.c $(BUILD)/section-memory-test
+	mkdir -p $(BUILD)/section-memory-test/horizon-wine/source
+	cp $(WINE)/source/native_heap.c $(BUILD)/section-memory-test/horizon-wine/source/
+	@for patch in $(sort $(wildcard $(CURDIR)/patches/autorun/*.patch)); do \
+		if grep -q '^+++ b/horizon-wine/source/native_heap.c' "$$patch"; then \
+			patch --batch --forward -p1 -d $(BUILD)/section-memory-test -i "$$patch" || exit 1; \
+		fi; \
+	done
+	/opt/devkitpro/devkitA64/bin/aarch64-none-elf-gcc -std=gnu11 -O2 -ffunction-sections -fdata-sections \
+		-I/opt/devkitpro/libnx/include -I$(WINE)/source \
+		-I$(BUILD)/section-memory-test/dlls/ntdll/unix -nostdlib -static -Wl,--gc-sections -Wl,-e,_start \
+		-Wl,--wrap=_sbrk_r,--wrap=_free_r,--wrap=_malloc_usable_size_r,--wrap=_mallinfo_r \
+		-Wl,--wrap=_memalign_r,--wrap=_realloc_r,--wrap=_malloc_r,--wrap=_calloc_r \
+		-o $(BUILD)/section-memory-test/newlib $(CURDIR)/tests/section_memory_newlib.c \
+		$(BUILD)/section-memory-test/horizon-wine/source/native_heap.c -lc -lgcc
+	@if [ "$$(uname -m)" = aarch64 ]; then \
+		$(BUILD)/section-memory-test/newlib; \
+	elif command -v qemu-aarch64 >/dev/null 2>&1; then \
+		qemu-aarch64 $(BUILD)/section-memory-test/newlib; \
+	else \
+		echo "newlib section regression compiled; execution requires AArch64 Linux or qemu-aarch64"; \
+	fi
+
+wine: headers orchestrator-test section-memory-test $(MEDIA_SRC)/configure $(SWITCH)/build.ninja
 	grep -qx 'WINE_NX_FFMPEG_SOURCE:PATH=$(MEDIA_SRC)' $(SWITCH)/CMakeCache.txt || \
 		cmake -S $(WINE) -B $(SWITCH) -DWINE_NX_FFMPEG_SOURCE=$(MEDIA_SRC)
 	rm -rf $(OVERLAY_OBJECTS) $(ORCHESTRATOR_OBJECTS)
@@ -152,7 +196,7 @@ layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
 	python3 $(CURDIR)/mono/use-mono.py $(OUT)/mono $(MONO_ARCHIVE) $(WINE)
 	@echo "runtime: $$(find $(OUT)/romfs -type f | wc -l) files in romfs, $$(du -sh $(OUT) | cut -f1) in $(OUT)"
 
-quick: orchestrator-test
+quick: orchestrator-test section-memory-test
 	@test -f $(OUT)/romfs/switch/wine/build-manifest.json || { echo "no runtime laid out yet: run make first" >&2; exit 1; }
 	rm -rf $(OVERLAY_OBJECTS) $(ORCHESTRATOR_OBJECTS)
 	cmake --build $(SWITCH) --target wine-nx-runtime-nro -j $(JOBS)

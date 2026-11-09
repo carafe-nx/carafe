@@ -14,6 +14,7 @@ const MACHINE_AMD64: u16 = 0x8664;
 const RELOCS_STRIPPED: u16 = 0x0001;
 const DYNAMIC_BASE: u16 = 0x0040;
 const LIMIT_4G: u64 = 1 << 32;
+const ADDRESS_SPACE_39_MIN: u64 = 0x0800_0000;
 const IMPORT_DIRECTORY: usize = 1;
 const RESOURCE_DIRECTORY: usize = 2;
 const DELAY_IMPORT_DIRECTORY: usize = 13;
@@ -86,7 +87,8 @@ pub fn read_info(read: &mut ReadAt<'_>) -> Result<PeInfo, PeError> {
 ///
 /// [`AddressSpace::Bits32NoAlias`] for a 32-bit x86 image that cannot be loaded at a different
 /// address: it has no relocation table (or has `IMAGE_FILE_RELOCS_STRIPPED` set), no
-/// `IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE`, and the whole image lies below 4 GB. For all others,
+/// `IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE`, its base is below 128 MiB, and the whole image lies
+/// below 4 GiB. For all others,
 /// [`AddressSpace::Bits39`].
 ///
 /// # Errors
@@ -100,7 +102,11 @@ pub fn required_address_space(read: &mut ReadAt<'_>) -> Result<AddressSpace, PeE
         .image_base
         .checked_add(u64::from(image.image_size))
         .is_some_and(|end| end <= LIMIT_4G);
-    let fixed_low = image.magic == PE32 && image.machine == MACHINE_I386 && !movable && below_4g;
+    let fixed_low = image.magic == PE32
+        && image.machine == MACHINE_I386
+        && !movable
+        && image.image_base < ADDRESS_SPACE_39_MIN
+        && below_4g;
     Ok(if fixed_low {
         AddressSpace::Bits32NoAlias
     } else {
@@ -752,6 +758,23 @@ mod tests {
     #[test]
     fn fixed_base_x86_image_needs_a_32_bit_space() {
         assert_eq!(space(&NFSU), Ok(AddressSpace::Bits32NoAlias));
+    }
+
+    #[test]
+    fn fixed_x86_images_at_mappable_addresses_keep_the_39_bit_space() {
+        for image_base in [0x0800_0000, 0x1090_0000] {
+            let header = Header { image_base, ..NFSU };
+            assert_eq!(space(&header), Ok(AddressSpace::Bits39));
+        }
+    }
+
+    #[test]
+    fn fixed_x86_images_starting_below_the_host_limit_need_the_32_bit_space() {
+        let header = Header {
+            image_base: 0x07FF_0000,
+            ..NFSU
+        };
+        assert_eq!(space(&header), Ok(AddressSpace::Bits32NoAlias));
     }
 
     #[test]

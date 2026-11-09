@@ -31,10 +31,10 @@ pub enum NpdmError {
 /// The address space the Switch kernel gives the application process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AddressSpace {
-    /// 39 bits — for all programs that can be loaded at any address.
+    /// 39 bits — for programs whose required images can be mapped at or above 128 MiB.
     Bits39,
     /// 32 bits without the alias region — for a 32-bit program that only works at its own
-    /// address below 4 GB: in a 39-bit process memory below `0x8000000` is unavailable.
+    /// address below 128 MiB: in a 39-bit process memory below `0x8000000` is unavailable.
     Bits32NoAlias,
 }
 

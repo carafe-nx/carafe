@@ -2,6 +2,11 @@
 
 Date: 2026-10-07
 
+The automatic address-space choice is narrowed by
+[decision 68](0068-section-placement-and-host-address-space.md): only fixed
+x86 images starting below 128 MiB require the 32-bit host layout. The other
+mechanisms in this decision remain in use.
+
 ## Context
 
 Some 32-bit games have no relocations and must load at their base, such as 0x400000 for Need for Speed Underground. In
