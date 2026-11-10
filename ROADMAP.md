@@ -10,6 +10,8 @@ What's planned and what's done, without dates. Open items are in priority order;
 ## Planned
 
 - [ ] **`feature` The runtime's Direct3D is the system Direct3D: DXVK and dxwrapper in the system folders, no folder in front of system32**
+- [ ] `research` 64-bit DirectDraw: establish which games need it and whether replacing Wine's renderer with a Vulkan-backed implementation is necessary and feasible
+- [ ] `research` D3DX10 and Direct3D 10: trace their use of wined3d, verify which operations reach DXVK and assess whether another implementation is needed
 - [ ] `bug` Wine's d3dx9 disassembles the address register as `a` instead of `a0`, so d3d8to9 cannot rebuild skinned shaders (#64)
 - [ ] **`game` OpenTTD: start-up stall of 20–110 s while threads wait for a lock**
 - [ ] `bug` The + of the menu combination reaches the game: NFSU skips its intro
@@ -42,7 +44,7 @@ What's planned and what's done, without dates. Open items are in priority order;
 - [ ] `feature` Back up and restore game saves over USB
 - [ ] `research` Smaller save data on the console: measure what games really write
 - [ ] `feature` Move saves from the PC version of a game to the Switch
-- [ ] `research` 64-bit games that draw with OpenGL hang
+- [ ] `research` OpenGL on Switch: investigate 64-bit game hangs and compare the current implementation with alternatives, including OpenGL over Vulkan, against Horizon driver capabilities and game requirements
 - [ ] `research` Frame log with stutter causes: shaders, JIT, file reads, sync
 - [ ] `research` Faster game start-up
 - [ ] `bug` The logo shifts slightly between the boot splash and the loading screen

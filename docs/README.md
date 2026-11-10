@@ -18,6 +18,10 @@ For contributors and the curious. Players need only the [README](../README.md).
 - [research/build-task/REPORT.md](research/build-task/REPORT.md) — a build as a cancellable task.
 - [research/audio-source-rate/REPORT.md](research/audio-source-rate/REPORT.md) — no sound in games below 48 kHz.
 - [research/threads/REPORT.md](research/threads/REPORT.md) — the 96-thread limit and what the runtime spends of it.
+- [research/memory/REPORT.md](research/memory/REPORT.md) — memory on the Switch: what a game has, why it needs more
+  here than on Windows, and the order of work.
+- [research/wmp9-compatibility/REPORT.md](research/wmp9-compatibility/REPORT.md) — existing Windows Media Player
+  compatibility implementations and their integration boundaries on Horizon.
 - [research/game-speed/REPORT.md](research/game-speed/REPORT.md) — where CPU time goes in a translated game and how to win
   it back.
 - [research/orchestrator/REPORT.md](research/orchestrator/REPORT.md) — the orchestrator, a part of the
