@@ -199,7 +199,8 @@
   "device": {
     "connected": "Switch接続中 · {{via}}",
     "disconnected": "Switch未接続",
-    "hint": "DBIをMTPモードで起動し、ケーブルでSwitchを接続してください"
+    "hint": "DBIをMTPモードで起動し、ケーブルでSwitchを接続してください",
+    "unsupported": "USB経由のインストールはWindowsのみ対応です。NSPをSDカードにコピーするか、DBIを使用してください。"
   },
   "library": {
     "title": "ライブラリ",

@@ -9,7 +9,7 @@
 
 [![Release](https://img.shields.io/github/v/release/carafe-nx/carafe?include_prereleases&label=release)](https://github.com/carafe-nx/carafe/releases)
 [![License](https://img.shields.io/github/license/carafe-nx/carafe)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D4)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078D4)](#requirements)
 
 [![Rust](https://img.shields.io/badge/Rust-1.99-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?logo=tauri&logoColor=white)](https://tauri.app)
@@ -43,14 +43,18 @@ with Carafe's builds of FEX to run x86 code and DXVK for Direct3D, and Mesa for 
 
 - A Nintendo Switch with Atmosphère and sigpatches.
 - [DBI](https://github.com/rashevskyv/dbi) on the console for installing over USB.
-- Windows 10 or 11, x64 or ARM64.
+- Windows 10 or 11, x64 or ARM64, or Linux x64 with WebKitGTK 4.1.
 
 ## Download
 
-Get the installer from the [latest release](https://github.com/carafe-nx/carafe/releases/latest):
+Get the packages from the [latest release](https://github.com/carafe-nx/carafe/releases/latest):
 
 - `x64-setup.exe` — most Windows PCs;
-- `arm64-setup.exe` — Windows on Arm, such as laptops with Snapdragon chips.
+- `arm64-setup.exe` — Windows on Arm, such as laptops with Snapdragon chips;
+- `Carafe_<version>_amd64.deb` and `Carafe_<version>_amd64.AppImage` — Linux.
+
+The Linux packages build the same NSPs, but they cannot install them over USB yet: copy the NSP to the SD card,
+or send it from a Windows PC with Carafe.
 
 The installer speaks English, Russian, Simplified and Traditional Chinese, Japanese, Korean, French, German,
 Italian, Spanish, Dutch, Portuguese and Brazilian Portuguese. It installs Carafe for your Windows account, without
@@ -76,6 +80,14 @@ git clone https://github.com/carafe-nx/carafe
 cd carafe/app
 npm ci
 npm run dev
+```
+
+On Linux, install the WebKitGTK development packages and use `npm run dev:linux` instead:
+
+```
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+  libayatana-appindicator3-dev libssl-dev build-essential
+npm run dev:linux
 ```
 
 The first run builds the Windows runtime in a container and takes a while. Details are in

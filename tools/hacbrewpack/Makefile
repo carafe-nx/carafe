@@ -6,8 +6,10 @@ OUT ?= $(ROOT)/app/crates/carafe-desktop/binaries
 ARCHES := aarch64 x86_64
 EXES := $(foreach arch,$(ARCHES),$(OUT)/hacbrewpack-$(arch)-pc-windows-msvc.exe)
 PATCHES := $(sort $(wildcard $(CURDIR)/patches/*.patch))
+HOST ?= $(shell rustc -vV | sed -n 's/^host: //p')
+NATIVE := $(OUT)/hacbrewpack-$(HOST)
 
-.PHONY: all fetch clean
+.PHONY: all fetch native clean
 
 all: $(EXES)
 
@@ -29,5 +31,20 @@ $(OUT)/hacbrewpack-%-pc-windows-msvc.exe: hacbrewpack.manifest manifest.rc $(PAT
 	$(MAKE) -C $(BUILD)/$* hacbrewpack CC=$*-w64-mingw32-clang
 	cp $(BUILD)/$*/hacbrewpack.exe $@
 
+native: $(NATIVE)
+
+$(NATIVE): hacbrewpack.manifest manifest.rc $(PATCHES) | fetch
+	rm -rf $(BUILD)/native
+	mkdir -p $(BUILD)/native $(OUT)
+	cp -r $(SRC)/. $(BUILD)/native/
+	rm -f $(BUILD)/native/.git
+	for patch in $(PATCHES); do git -C $(BUILD)/native apply $$patch || exit 1; done
+	cp hacbrewpack.manifest manifest.rc $(BUILD)/native/
+	printf 'CC = %s\nCFLAGS = -O2 -Wall -Wextra -std=gnu11 -fPIC\nLDFLAGS = -lmbedtls -lmbedx509 -lmbedcrypto\n' \
+		"$${CC:-cc}" > $(BUILD)/native/config.mk
+	$(MAKE) -C $(BUILD)/native/mbedtls lib CC="$${CC:-cc}" AR="$${AR:-ar}"
+	$(MAKE) -C $(BUILD)/native hacbrewpack CC="$${CC:-cc}"
+	cp $(BUILD)/native/hacbrewpack $@
+
 clean:
-	rm -rf $(BUILD) $(EXES)
+	rm -rf $(BUILD) $(EXES) $(NATIVE)

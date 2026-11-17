@@ -199,7 +199,8 @@
   "device": {
     "connected": "Switch 연결됨 · {{via}}",
     "disconnected": "Switch 연결 안 됨",
-    "hint": "DBI를 MTP 모드로 실행하고 Switch를 케이블로 연결하세요"
+    "hint": "DBI를 MTP 모드로 실행하고 Switch를 케이블로 연결하세요",
+    "unsupported": "USB 설치를 지원하는 것은 Windows뿐입니다. NSP를 SD 카드에 복사하거나 DBI를 사용하세요."
   },
   "library": {
     "title": "라이브러리",
