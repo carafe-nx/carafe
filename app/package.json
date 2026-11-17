@@ -10,10 +10,13 @@
   "scripts": {
     "runtime": "docker compose -f ../compose.yaml run --rm dxwrapper && docker compose -f ../compose.yaml run --rm runtime",
     "hacbrewpack": "docker compose -f ../compose.yaml run --rm hacbrewpack",
+    "hacbrewpack:native": "make -C ../tools/hacbrewpack native",
     "pack": "cargo run --release -p carafe-pack --example pack_runtime -- crates/carafe-desktop/resources/runtime crates/carafe-desktop/resources/carafe-runtime.bin",
     "dev": "npm run runtime && npm run hacbrewpack && npm run dev:app",
+    "dev:linux": "npm run runtime && npm run hacbrewpack:native && npm run dev:app",
     "dev:app": "npm run pack && tauri dev --config crates/carafe-desktop/tauri.dev.conf.json",
     "build": "npm run runtime && npm run hacbrewpack && npm run build:app",
+    "build:linux": "npm run runtime && npm run hacbrewpack:native && npm run pack && tauri build --config crates/carafe-desktop/tauri.release.conf.json --config crates/carafe-desktop/tauri.linux.conf.json",
     "build:app": "npm run pack && tauri build --config crates/carafe-desktop/tauri.release.conf.json",
     "cdp": "node scripts/cdp.mjs",
     "tauri": "tauri",

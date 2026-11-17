@@ -199,7 +199,8 @@
   "device": {
     "connected": "Switch 已连接 · {{via}}",
     "disconnected": "Switch 未连接",
-    "hint": "将 DBI 切换到 MTP 模式，并用数据线连接 Switch"
+    "hint": "将 DBI 切换到 MTP 模式，并用数据线连接 Switch",
+    "unsupported": "通过 USB 安装仅在 Windows 上可用。请将 NSP 复制到 SD 卡，或使用 DBI。"
   },
   "library": {
     "title": "游戏库",

@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "targets": ["deb", "appimage"],
+    "category": "Utility",
+    "shortDescription": "Turn a Windows game folder into a Nintendo Switch app",
+    "longDescription": "Carafe packs a Windows game folder, the Windows runtime and its settings into an NSP to install on a Nintendo Switch with Atmosphère."
+  }
+}

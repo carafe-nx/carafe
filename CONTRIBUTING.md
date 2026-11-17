@@ -18,6 +18,18 @@ Carafe is built on Windows 10 or 11, x64 or ARM64:
 - [Rust](https://rustup.rs) 1.99 with the Visual Studio C++ build tools that rustup asks for;
 - WebView2, which Windows 11 already has.
 
+On Linux x64 the containers build the Switch runtime the same way; the desktop app needs:
+
+- an X11 or Wayland session with the WebKitGTK development packages:
+  `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev pkg-config`
+  (plus `build-essential` for hacBrewPack);
+- `npm run dev:linux` instead of `npm run dev`: it builds hacBrewPack with the host compiler
+  (`make -C ../tools/hacbrewpack native`), because the sidecar next to the app must be a native program;
+- `npm run build:linux` for the `.deb` and `.AppImage` packages in `app/target/release/bundle/`.
+
+The USB install and the logs fetch go through Windows Portable Devices and stay Windows-only for now; on
+Linux the library builds the NSP and the window points at copying it to the SD card.
+
 ## First build
 
 ```
@@ -40,11 +52,14 @@ rebuilt.
 Run them from `app/`:
 
 - `npm run dev` — builds the runtime and hacBrewPack, then opens the app in development mode;
+- `npm run dev:linux` — the same on Linux, with hacBrewPack built for the host;
 - `npm run dev:app` — opens the app with the runtime already built;
 - `npm run build` — builds everything and the installer, `app/target/release/bundle/nsis/`;
+- `npm run build:linux` — builds the `.deb` and `.AppImage` packages, `app/target/release/bundle/`;
 - `npm run build:app` — the installer with the runtime already built;
 - `npm run runtime` — only the runtime, into `app/crates/carafe-desktop/resources/runtime/`;
 - `npm run hacbrewpack` — only hacBrewPack, into `app/crates/carafe-desktop/binaries/`;
+- `npm run hacbrewpack:native` — the same with the host compiler, for Linux;
 - `npm run check` — formatting, clippy, Rust tests and the TypeScript check;
 - `npm run bindings` — regenerates the TypeScript types the UI gets from Rust.
 

@@ -299,6 +299,8 @@ pub trait Packer: Send + Sync {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct DeviceStatus {
+    /// This build can see the console over MTP: the USB install is available on this system.
+    pub supported: bool,
     /// The Switch is visible over MTP.
     pub connected: bool,
     /// What it is visible through, for example "MTP".

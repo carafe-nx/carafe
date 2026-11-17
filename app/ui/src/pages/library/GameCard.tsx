@@ -24,12 +24,13 @@ function failureOf(error: unknown): Failure {
 
 type GameCardProps = {
   game: GameSummary;
+  supported: boolean;
   connected: boolean;
   busyReason: string | null;
   onDeleted: () => void;
 };
 
-export function GameCard({ game, connected, busyReason, onDeleted }: GameCardProps) {
+export function GameCard({ game, supported, connected, busyReason, onDeleted }: GameCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [install, setInstall] = useState<Install>({ kind: "idle" });
@@ -127,7 +128,9 @@ export function GameCard({ game, connected, busyReason, onDeleted }: GameCardPro
           {t("card.logs")}
         </Button>
       </div>
-      {!connected ? <p className={styles.muted}>{t("card.needDevice")}</p> : null}
+      {!connected ? (
+        <p className={styles.muted}>{t(supported ? "card.needDevice" : "device.unsupported")}</p>
+      ) : null}
       {busyReason ? <p className={styles.muted}>{busyReason}</p> : null}
 
       {install.kind === "running" ? (
