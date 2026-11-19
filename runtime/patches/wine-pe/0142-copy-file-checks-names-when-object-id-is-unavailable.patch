@@ -1,0 +1,63 @@
+--- a/dlls/kernelbase/file.c
++++ b/dlls/kernelbase/file.c
+@@ -482,14 +482,26 @@
+  *           is_same_file
+  */
+-static BOOL is_same_file( HANDLE h1, HANDLE h2 )
++static NTSTATUS compare_file_identity( HANDLE h1, HANDLE h2, BOOL *same )
+ {
+     FILE_OBJECTID_BUFFER id1, id2;
+     IO_STATUS_BLOCK io;
++    NTSTATUS s1, s2;
+ 
+-    return (!NtFsControlFile( h1, 0, NULL, NULL, &io, FSCTL_GET_OBJECT_ID, NULL, 0, &id1, sizeof(id1) ) &&
+-            !NtFsControlFile( h2, 0, NULL, NULL, &io, FSCTL_GET_OBJECT_ID, NULL, 0, &id2, sizeof(id2) ) &&
+-            !memcmp( &id1.ObjectId, &id2.ObjectId, sizeof(id1.ObjectId) ));
++    s1 = NtFsControlFile( h1, 0, NULL, NULL, &io, FSCTL_GET_OBJECT_ID, NULL, 0, &id1, sizeof(id1) );
++    s2 = NtFsControlFile( h2, 0, NULL, NULL, &io, FSCTL_GET_OBJECT_ID, NULL, 0, &id2, sizeof(id2) );
++    if (s1 && s1 != STATUS_NOT_SUPPORTED) return s1;
++    if (s2 && s2 != STATUS_NOT_SUPPORTED) return s2;
++    if (!s1 && !s2)
++    {
++        *same = !memcmp( id1.ObjectId, id2.ObjectId, sizeof(id1.ObjectId) );
++        return STATUS_SUCCESS;
++    }
++    ULONG other = HandleToULong( h2 ), result = 2;
++    s1 = NtFsControlFile( h1, 0, NULL, NULL, &io, 0x00092004, &other, sizeof(other), &result, sizeof(result) );
++    if (!s1 && result > 1) return STATUS_UNSUCCESSFUL;
++    if (!s1) *same = result;
++    return s1;
+ }
+ 
+ 
+ /******************************************************************************
+@@ -561,17 +573,26 @@
+     if (!(flags & COPY_FILE_FAIL_IF_EXISTS))
+     {
+         BOOL same_file = FALSE;
++        NTSTATUS identity = STATUS_SUCCESS;
+         h2 = CreateFileW( dest, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, 0 );
+         if (h2 != INVALID_HANDLE_VALUE)
+         {
+-            same_file = is_same_file( h1, h2 );
++            identity = compare_file_identity( h1, h2, &same_file );
+             CloseHandle( h2 );
+         }
++        else if (GetLastError() != ERROR_FILE_NOT_FOUND && GetLastError() != ERROR_PATH_NOT_FOUND)
++        {
++            DWORD error = GetLastError();
++            HeapFree( GetProcessHeap(), 0, buffer );
++            CloseHandle( h1 );
++            SetLastError( error );
++            return FALSE;
++        }
+-        if (same_file)
++        if (identity || same_file)
+         {
+             HeapFree( GetProcessHeap(), 0, buffer );
+             CloseHandle( h1 );
+-            SetLastError( ERROR_SHARING_VIOLATION );
++            SetLastError( identity ? RtlNtStatusToDosError( identity ) : ERROR_SHARING_VIOLATION );
+             return FALSE;
+         }
+     }

@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -933,6 +934,100 @@ static int overlayStat(struct _reent* r, const char* path, struct stat* st) {
         giveFileTimes(st, in_rw ? p.rw : NULL);
     }
     return ret;
+}
+
+static int identityTarget(struct _reent* r, const char* path, Resolved* target, const char** name) {
+    bool sd = startsWith(path, "sdmc:/");
+    bool usb = startsWith(path, "ums") && path[3] >= '0' && path[3] <= '4' && startsWith(path+4, ":/");
+    if ((!sd && !usb) || strstr(path, "//") || strstr(path, "/./") || strstr(path, "/../") ||
+        strchr(path+5, ':') || strlen(path) < 7 || path[strlen(path)-1] == '.' || path[strlen(path)-1] == '/') return EINVAL;
+    if (usb) {
+        struct stat st;
+        *name = path;
+        return stat(path, &st) ? errno : 0;
+    }
+    if (!resolve(r, path, target)) return ENAMETOOLONG;
+    struct stat st;
+    if (target->route != RouteUnion) {
+        *name = target->base;
+        return devStat(r, g_base, *name, &st) ? r->_errno : 0;
+    }
+    *name = target->rw;
+    if (!devStat(r, g_rw, *name, &st)) return 0;
+    if (r->_errno != ENOENT) return r->_errno;
+    *name = target->ro;
+    return devStat(r, g_ro, *name, &st) ? r->_errno : 0;
+}
+
+static bool identityComponentEqual(const char* entry, const char* leaf, size_t length, bool fold) {
+    if (strlen(entry) != length) return false;
+    for (size_t i = 0; i < length; i++) {
+        unsigned char a = entry[i], b = leaf[i];
+        if (fold && a >= 'A' && a <= 'Z') a += 'a' - 'A';
+        if (fold && b >= 'A' && b <= 'Z') b += 'a' - 'A';
+        if (a != b) return false;
+    }
+    return true;
+}
+
+static int identityListed(const char* path, char* parent) {
+    const char* leaf = strchr(path, '/') + 1;
+    size_t prefix = leaf - path;
+    bool fold = !startsWith(path, RO_DEVICE ":");
+    if (strlen(path) >= PATH_SIZE) return ENAMETOOLONG;
+    memcpy(parent, path, prefix);
+    for (;;) {
+        const char* slash = strchr(leaf, '/');
+        size_t length = slash ? (size_t)(slash-leaf) : strlen(leaf);
+        parent[prefix] = 0;
+        DIR* dir = opendir(parent);
+        if (!dir) return errno;
+        bool found = false;
+        struct dirent* entry;
+        errno = 0;
+        while ((entry = readdir(dir))) {
+            if (identityComponentEqual(entry->d_name, leaf, length, fold)) {
+                if (found) {
+                    closedir(dir);
+                    return ENOTSUP;
+                }
+                memcpy(parent + prefix, entry->d_name, length);
+                found = true;
+            }
+        }
+        int error = errno;
+        closedir(dir);
+        if (error || !found) return error ? error : ENOTSUP;
+        prefix += length;
+        parent[prefix] = 0;
+        if (!slash) return 0;
+        parent[prefix++] = '/';
+        leaf = slash+1;
+    }
+}
+
+int carafeOverlayCompareFiles(const char* first, const char* second, int* same) {
+    struct _reent* r = _REENT;
+    if (!g_installed) return ENOSYS;
+    Resolved a, b;
+    const char *left, *right;
+    int saved = r->_errno, saved_errno = errno;
+    int error = identityTarget(r, first, &a, &left);
+    if (!error) error = identityTarget(r, second, &b, &right);
+    if (!error) {
+        size_t volume = strchr(left, ':')-left;
+        if (volume != (size_t)(strchr(right, ':')-right) || memcmp(left,right,volume)) *same = 0;
+        else if (!strcmp(left,right)) *same = 1;
+        else {
+            char left_name[PATH_SIZE], right_name[PATH_SIZE];
+            error = identityListed(left, left_name);
+            if (!error) error = identityListed(right, right_name);
+            if (!error) *same = !strcmp(left_name, right_name);
+        }
+    }
+    r->_errno = saved;
+    errno = saved_errno;
+    return error;
 }
 
 static int overlayMkdir(struct _reent* r, const char* path, int mode) {

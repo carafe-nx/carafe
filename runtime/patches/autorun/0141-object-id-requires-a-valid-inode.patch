@@ -1,0 +1,59 @@
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -7321,9 +7321,11 @@
+         {
+             status = server_get_unix_fd( handle, 0, &fd, &needs_close, NULL, NULL );
+             if (status) break;
+-            fstat( fd, &st );
++            if (fstat( fd, &st ) == -1) status = errno_to_status( errno );
++            else if (!st.st_ino) status = STATUS_NOT_SUPPORTED;
+             if (needs_close) close( fd );
++            if (status) break;
+             memset( info, 0, sizeof(*info) );
+             memcpy( info->ObjectId, &st.st_dev, sizeof(st.st_dev) );
+             memcpy( info->ObjectId + 8, &st.st_ino, sizeof(st.st_ino) );
+             size = sizeof(*info);
+@@ -7332,6 +7334,43 @@
+         break;
+     }
+ 
++#ifdef __SWITCH__
++    case 0x00092004:
++    {
++        extern int carafeOverlayCompareFiles( const char *, const char *, int * ) __attribute__((weak));
++        ULONG other;
++        HANDLE handles[2];
++        char *paths[2] = { NULL, NULL };
++        unsigned int i;
++        int same;
++        if (in_size != sizeof(other) || out_size < sizeof(ULONG) || !in_buffer || !out_buffer)
++        {
++            status = STATUS_INVALID_PARAMETER;
++            break;
++        }
++        memcpy( &other, in_buffer, sizeof(other) );
++        handles[0] = handle;
++        handles[1] = ULongToHandle( other );
++        for (i = 0; i < 2; ++i)
++            if ((status = server_get_unix_name( handles[i], &paths[i] ))) break;
++        if (!status && !carafeOverlayCompareFiles) status = STATUS_NOT_SUPPORTED;
++        if (!status)
++        {
++            int error = carafeOverlayCompareFiles( paths[0], paths[1], &same );
++            if (error) status = errno_to_status( error );
++            else
++            {
++                ULONG result = same;
++                memcpy( out_buffer, &result, sizeof(result) );
++                size = sizeof(result);
++            }
++        }
++        free( paths[0] );
++        free( paths[1] );
++        break;
++    }
++#endif
++
+     case FSCTL_SET_SPARSE:
+         TRACE("FSCTL_SET_SPARSE: Ignoring request\n");
+         status = STATUS_SUCCESS;

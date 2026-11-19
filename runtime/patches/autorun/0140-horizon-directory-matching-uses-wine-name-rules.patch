@@ -1,0 +1,61 @@
+Carafe: share Wine's Unicode, DOS wildcard and short-name rules with the Horizon server.
+Return generated short names through the existing directory information formatter.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -3024,6 +3024,35 @@
+ 
+ #ifdef __SWITCH__
+ 
++static unsigned int horizon_directory_short_name( const WCHAR *name, unsigned int length, WCHAR *short_name )
++{
++    unsigned int short_length = 0;
++
++    if (length && !is_legal_8dot3_name( name, length ))
++        short_length = hash_short_file_name( name, length, short_name );
++    short_name[short_length] = 0;
++    wcsupr( short_name );
++    return short_length;
++}
++
++int horizon_directory_name_matches( const WCHAR *name, unsigned int length,
++                                    const WCHAR *mask, unsigned int mask_bytes );
++
++int horizon_directory_name_matches( const WCHAR *name, unsigned int length,
++                                    const WCHAR *mask, unsigned int mask_bytes )
++{
++    UNICODE_STRING pattern;
++    WCHAR short_name[13];
++    unsigned int short_length;
++
++    if (!mask || !mask_bytes) return TRUE;
++    pattern.Buffer = (WCHAR *)mask;
++    pattern.Length = pattern.MaximumLength = mask_bytes;
++    if (match_filename( name, length, &pattern )) return TRUE;
++    short_length = horizon_directory_short_name( name, length, short_name );
++    return short_length && match_filename( short_name, short_length, &pattern );
++}
++
+ static char *horizon_dir_entry_unix_name( const char *dir, const WCHAR *name, unsigned int name_chars )
+ {
+     char *utf8, *path;
+@@ -3044,7 +3073,7 @@
+                                               FILE_INFORMATION_CLASS info_class, BOOLEAN restart_scan,
+                                               const UNICODE_STRING *mask )
+ {
+-    static const WCHAR empty_name[1];
++    WCHAR short_name[13];
+     const ULONG entry_size = sizeof(struct directory_file_entry) + (MAX_DIR_ENTRY_LEN + 1) * sizeof(WCHAR);
+     union file_directory_info *last_info = NULL;
+     struct directory_file_entry *entry;
+@@ -3094,7 +3123,8 @@
+ 
+         memset( &data, 0, sizeof(data) );
+         names.long_name = long_name;
+-        names.short_name = empty_name;
++        horizon_directory_short_name( long_name, name_chars, short_name );
++        names.short_name = short_name;
+         names.unix_name = unix_name;
+         data.names = &names;
+         data.size = data.count = 1;

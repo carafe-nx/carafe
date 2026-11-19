@@ -11,5 +11,6 @@ bool carafeOverlayReadRomfsText(const char* path, char* out, size_t size);
 void* carafeOverlayReadRomfsFile(const char* path, size_t limit, size_t* size);
 void carafeOverlayLog(const char* line);
 void carafeOverlayCommit(const char* reason);
+int carafeOverlayCompareFiles(const char* first, const char* second, int* same);
 
 #endif

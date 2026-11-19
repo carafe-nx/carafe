@@ -7,6 +7,7 @@ out=$3
 shift 3
 
 dlls="dlls/wow64/aarch64-windows/wow64.dll dlls/ntdll/aarch64-windows/ntdll.dll dlls/ntdll/i386-windows/ntdll.dll
+ dlls/kernelbase/aarch64-windows/kernelbase.dll dlls/kernelbase/i386-windows/kernelbase.dll
 dlls/dinput/aarch64-windows/dinput.dll dlls/dinput/i386-windows/dinput.dll
 dlls/dinput8/aarch64-windows/dinput8.dll dlls/dinput8/i386-windows/dinput8.dll"
 src=$out/src

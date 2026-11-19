@@ -1,0 +1,191 @@
+Carafe: preserve UTF-16 directory masks and convert UTF-8 names with Wine's converter.
+Keep the mask across continuation and restart without a replacement mask.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -3371,7 +3371,8 @@
+     unsigned int pipe_flags;
+     unsigned int dir_enum_index;
+     int dir_queried;                /* a directory query has run on this handle */
+-    char *dir_mask;
++    WCHAR *dir_mask;
++    unsigned int dir_mask_len;
+     int sock_nonblocking;
+     int sock_bound;                 /* bind() succeeded; Windows fails a second bind */
+     int sock_family;                /* what the program asked for: WS AF_INET, or AF_INET6 on IPv4 */
+@@ -5925,15 +5926,18 @@
+ 
+ static unsigned int horizon_server_utf16_name_len( const char *name )
+ {
+-    return name ? strlen( name ) * sizeof(unsigned short) : 0;
++    DWORD bytes = 0;
++
++    if (name) RtlUTF8ToUnicodeN( NULL, 0, &bytes, name, strlen( name ) );
++    return bytes;
+ }
+ 
+ static void horizon_server_write_utf16_name( unsigned char *dst, const char *name )
+ {
+-    unsigned short *wide = (unsigned short *)dst;
+-
+-    for (; name && *name; name++, wide++)
+-        *wide = (unsigned char)*name;
++    DWORD bytes;
++
++    if (name) RtlUTF8ToUnicodeN( (WCHAR *)dst, horizon_server_utf16_name_len( name ),
++                               &bytes, name, strlen( name ) );
+ }
+ 
+ static unsigned int horizon_server_file_open_flags( const struct horizon_create_file_request *request,
+@@ -12349,61 +12353,15 @@
+     return horizon_server_sync_reply( connection, &reply, sizeof(reply), NULL, 0 );
+ }
+ 
+-static char horizon_server_ascii_lower( char ch )
+-{
+-    return (ch >= 'A' && ch <= 'Z') ? ch + 'a' - 'A' : ch;
+-}
+-
+-static int horizon_server_wildcard_match_tail( const char *mask, const char *name )
+-{
+-    while (*mask)
+-    {
+-        if (*mask == '*' || *mask == '<')
+-        {
+-            while (*mask == '*' || *mask == '<') mask++;
+-            if (!*mask) return 1;
+-            while (*name)
+-            {
+-                if (horizon_server_wildcard_match_tail( mask, name )) return 1;
+-                name++;
+-            }
+-            return horizon_server_wildcard_match_tail( mask, name );
+-        }
+-        if (*mask == '?' || *mask == '>' || *mask == '"')
+-        {
+-            if (!*name) return 0;
+-            mask++;
+-            name++;
+-            continue;
+-        }
+-        if (horizon_server_ascii_lower( *mask ) != horizon_server_ascii_lower( *name )) return 0;
+-        mask++;
+-        name++;
+-    }
+-    return !*name;
+-}
+-
+-static int horizon_server_wildcard_match( const char *mask, const char *name )
+-{
+-    if (!mask || !mask[0]) return 1;
+-    if (!strcmp( mask, "*" ) || !strcmp( mask, "*.*" )) return 1;
+-    return horizon_server_wildcard_match_tail( mask, name );
+-}
+-
+-static char *horizon_server_dir_mask_from_utf16( const unsigned char *data, unsigned int data_size )
+-{
+-    unsigned int i, len = data_size / sizeof(unsigned short);
+-    char *mask;
+-
+-    if (!data_size) return NULL;
+-    if (data_size & 1) return NULL;
+-    if (!(mask = malloc( len + 1 ))) return NULL;
+-    for (i = 0; i < len; i++)
+-    {
+-        unsigned int ch = data[i * 2] | (data[i * 2 + 1] << 8);
+-        mask[i] = ch < 0x80 ? ch : '?';
+-    }
+-    mask[len] = 0;
++extern int horizon_directory_name_matches( const WCHAR *name, unsigned int length,
++                                           const WCHAR *mask, unsigned int mask_bytes );
++
++static WCHAR *horizon_server_dir_mask_from_utf16( const unsigned char *data, unsigned int data_size )
++{
++    WCHAR *mask;
++
++    if (!(mask = malloc( data_size ))) return NULL;
++    memcpy( mask, data, data_size );
+     return mask;
+ }
+ 
+@@ -12456,7 +12414,7 @@
+     char trace_name[256] = "<none>";
+     char trace_mask[128] = "<all>";
+     unsigned int trace_index = 0;
+-    char *new_mask = NULL;
++    WCHAR *new_mask = NULL;
+     DIR *dir = NULL;
+     unsigned int raw_index = 0;
+     int mask_changed = 0;
+@@ -12466,12 +12424,12 @@
+ 
+     if (data_size)
+     {
+-        if (data_size & 1) reply.header.error = HORIZON_STATUS_INVALID_PARAMETER;
++        if ((data_size & 1) || data_size > USHRT_MAX)
++            reply.header.error = HORIZON_STATUS_INVALID_PARAMETER;
+         else if (!(new_mask = horizon_server_dir_mask_from_utf16( data, data_size )))
+             reply.header.error = HORIZON_STATUS_NO_MEMORY;
+         else mask_changed = 1;
+     }
+-    else if (request->restart_scan) mask_changed = 1;
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+     if (!reply.header.error)
+@@ -12487,10 +12445,11 @@
+     if (!reply.header.error)
+     {
+         if (request->restart_scan) object->dir_enum_index = 0;
+-        if (mask_changed)
++        if (mask_changed && (!object->dir_queried || request->restart_scan))
+         {
+             free( object->dir_mask );
+             object->dir_mask = new_mask;
++            object->dir_mask_len = data_size;
+             new_mask = NULL;
+         }
+ 
+@@ -12525,9 +12484,24 @@
+         }
+ 
+         if (raw_index++ < object->dir_enum_index) continue;
+-        if (!horizon_server_wildcard_match( object->dir_mask, name )) continue;
+-
+         name_len = horizon_server_utf16_name_len( name );
++        if (object->dir_mask)
++        {
++            WCHAR *wide_name;
++            int matches;
++
++            if (!(wide_name = malloc( name_len + sizeof(WCHAR) )))
++            {
++                reply.header.error = HORIZON_STATUS_NO_MEMORY;
++                break;
++            }
++            horizon_server_write_utf16_name( (unsigned char *)wide_name, name );
++            wide_name[name_len / sizeof(WCHAR)] = 0;
++            matches = horizon_directory_name_matches( wide_name, name_len / sizeof(WCHAR),
++                                                       object->dir_mask, object->dir_mask_len );
++            free( wide_name );
++            if (!matches) continue;
++        }
+         entry_size = (sizeof(dir_entry) + name_len + 3) & ~3;
+         reply.total_len = name_len;
+         if (entry_size > request->header.reply_size)
+@@ -12555,7 +12529,14 @@
+     {
+         object->dir_queried = 1;
+         trace_index = object->dir_enum_index;
+-        if (object->dir_mask) snprintf( trace_mask, sizeof(trace_mask), "%s", object->dir_mask );
++        if (object->dir_mask)
++        {
++            DWORD bytes = 0;
++
++            RtlUnicodeToUTF8N( trace_mask, sizeof(trace_mask) - 1, &bytes,
++                               object->dir_mask, object->dir_mask_len );
++            trace_mask[bytes] = 0;
++        }
+     }
+     if (dir) closedir( dir );
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
