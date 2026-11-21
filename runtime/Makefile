@@ -175,7 +175,7 @@ layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
 		$(PE_MODULES)/aarch64-windows/ntdll.dll
 	python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 ntdll.dll \
 		$(PE_MODULES)/i386-windows/ntdll.dll
-	for dll in dinput.dll dinput8.dll kernelbase.dll; do \
+	for dll in dinput.dll dinput8.dll kernelbase.dll kernel32.dll; do \
 		python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/system32 $$dll \
 			$(PE_MODULES)/aarch64-windows/$$dll && \
 		python3 $(CURDIR)/fex/use-dll.py $(OUT)/romfs drive_c/windows/syswow64 $$dll \
