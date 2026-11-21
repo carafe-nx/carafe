@@ -1,0 +1,191 @@
+Carafe: keep built-in winprocs only for live guest processes.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/win32u/class.c
++++ b/dlls/win32u/class.c
+@@ -180,65 +180,75 @@
+ struct process_builtin_winprocs
+ {
++    struct process_builtin_winprocs *next;
+     DWORD pid;
+     HINSTANCE user32_module;
+     WINDOWPROC procs[NTUSER_NB_PROCS];
+ };
+ 
+-static struct process_builtin_winprocs child_builtin_winprocs[64];
+-static unsigned int child_builtin_winprocs_next;
+-static DWORD root_winproc_pid;
++static struct process_builtin_winprocs *child_builtin_winprocs;
++extern unsigned int horizon_guest_root_pid( void );
+ 
+ static DWORD current_winproc_pid( void )
+ {
+     TEB *teb = NtCurrentTeb();
+     return teb ? (DWORD)(ULONG_PTR)teb->ClientId.UniqueProcess : 0;
+ }
+ 
+-static struct process_builtin_winprocs *find_child_winprocs_locked( DWORD pid, BOOL create )
++int wine_nx_create_guest_winprocs( unsigned int pid );
++void wine_nx_destroy_guest_winprocs( unsigned int pid );
++
++int wine_nx_create_guest_winprocs( unsigned int pid )
+ {
+-    unsigned int i;
++    struct process_builtin_winprocs *slot = calloc( 1, sizeof(*slot) );
+ 
+-    for (i = 0; i < ARRAY_SIZE(child_builtin_winprocs); i++)
+-        if (child_builtin_winprocs[i].pid == pid) return &child_builtin_winprocs[i];
+-    if (!create) return NULL;
+-    for (i = 0; i < ARRAY_SIZE(child_builtin_winprocs); i++)
++    if (!slot) return 0;
++    slot->pid = pid;
++    pthread_mutex_lock( &winproc_lock );
++    slot->next = child_builtin_winprocs;
++    child_builtin_winprocs = slot;
++    pthread_mutex_unlock( &winproc_lock );
++    return 1;
++}
++
++void wine_nx_destroy_guest_winprocs( unsigned int pid )
++{
++    struct process_builtin_winprocs **link, *slot;
++
++    pthread_mutex_lock( &winproc_lock );
++    for (link = &child_builtin_winprocs; (slot = *link); link = &slot->next)
+     {
+-        if (!child_builtin_winprocs[i].pid)
++        if (slot->pid == pid)
+         {
+-            memset( &child_builtin_winprocs[i], 0, sizeof(child_builtin_winprocs[i]) );
+-            child_builtin_winprocs[i].pid = pid;
+-            return &child_builtin_winprocs[i];
++            *link = slot->next;
++            break;
+         }
+     }
+-    i = child_builtin_winprocs_next++ % ARRAY_SIZE(child_builtin_winprocs);
+-    memset( &child_builtin_winprocs[i], 0, sizeof(child_builtin_winprocs[i]) );
+-    child_builtin_winprocs[i].pid = pid;
+-    return &child_builtin_winprocs[i];
++    pthread_mutex_unlock( &winproc_lock );
++    free( slot );
+ }
+ 
+-static WINDOWPROC *get_builtin_winprocs_locked( DWORD pid, BOOL create )
++static struct process_builtin_winprocs *find_child_winprocs_locked( DWORD pid )
+ {
+     struct process_builtin_winprocs *slot;
+ 
+-    if (!pid || !root_winproc_pid || pid == root_winproc_pid)
+-        return winproc_array;
+-    slot = find_child_winprocs_locked( pid, create );
+-    return slot ? slot->procs : winproc_array;
++    for (slot = child_builtin_winprocs; slot; slot = slot->next)
++        if (slot->pid == pid) return slot;
++    return NULL;
+ }
+ 
+ static HINSTANCE current_user32_module( void )
+ {
+     DWORD pid = current_winproc_pid();
+     HINSTANCE module;
+     struct process_builtin_winprocs *slot;
+ 
+     pthread_mutex_lock( &winproc_lock );
+-    if (!pid || !root_winproc_pid || pid == root_winproc_pid)
++    if (pid && pid == horizon_guest_root_pid())
+         module = user32_module;
+     else
+     {
+-        slot = find_child_winprocs_locked( pid, FALSE );
+-        module = (slot && slot->user32_module) ? slot->user32_module : user32_module;
++        slot = find_child_winprocs_locked( pid );
++        module = slot ? slot->user32_module : NULL;
+     }
+     pthread_mutex_unlock( &winproc_lock );
+     return module;
+@@ -253,18 +263,24 @@
+ static int find_winproc_index( WNDPROC func, BOOL ansi )
+ {
+     unsigned int i;
++    WINDOWPROC *builtins = winproc_array;
+ #ifdef __SWITCH__
+-    WINDOWPROC *builtins = get_builtin_winprocs_locked( current_winproc_pid(), FALSE );
+-#else
+-    WINDOWPROC *builtins = winproc_array;
++    DWORD pid = current_winproc_pid();
++
++    if (!pid || pid != horizon_guest_root_pid())
++    {
++        struct process_builtin_winprocs *slot = find_child_winprocs_locked( pid );
++        builtins = slot ? slot->procs : NULL;
++    }
+ #endif
+ 
+     for (i = 0; i < NTUSER_NB_PROCS; i++)
+     {
++        if (!builtins) break;
+         if (builtins[i].procA != func && builtins[i].procW != func) continue;
+         return (int)i;
+     }
+-    for ( ; i < winproc_used; i++)
++    for (i = NTUSER_NB_PROCS; i < winproc_used; i++)
+     {
+         if (ansi && winproc_array[i].procA != func) continue;
+         if (!ansi && winproc_array[i].procW != func) continue;
+@@ -287,12 +303,16 @@
+-    if (index >= winproc_used) return FALSE;
+ #ifdef __SWITCH__
+     if (index < NTUSER_NB_PROCS)
+     {
+         DWORD pid = current_winproc_pid();
++        struct process_builtin_winprocs *slot;
++
+         pthread_mutex_lock( &winproc_lock );
+-        *out = get_builtin_winprocs_locked( pid, FALSE )[index];
++        if (pid && pid == horizon_guest_root_pid()) *out = winproc_array[index];
++        else if ((slot = find_child_winprocs_locked( pid ))) *out = slot->procs[index];
++        else *out = (WINDOWPROC){0};
+         pthread_mutex_unlock( &winproc_lock );
+         return TRUE;
+     }
+ #endif
++    if (index >= winproc_used) return FALSE;
+     *out = winproc_array[index];
+@@ -360,6 +380,13 @@
+     }
+     else
+     {
++#ifdef __SWITCH__
++        if (LOWORD(params->func) < NTUSER_NB_PROCS && !entry.procA && !entry.procW)
++        {
++            params->procA = params->procW = NULL;
++            return;
++        }
++#endif
+         params->procA = entry.procA;
+         params->procW = entry.procW;
+ 
+@@ -421,15 +448,19 @@
+         WINDOWPROC *target;
+ 
+         pthread_mutex_lock( &winproc_lock );
+-        if (!root_winproc_pid && pid) root_winproc_pid = pid;
+-        if (!pid || !root_winproc_pid || pid == root_winproc_pid)
++        if (pid && pid == horizon_guest_root_pid())
+         {
+             target = winproc_array;
+             user32_module = user_module;
+         }
+         else
+         {
+-            struct process_builtin_winprocs *slot = find_child_winprocs_locked( pid, TRUE );
++            struct process_builtin_winprocs *slot = find_child_winprocs_locked( pid );
++            if (!slot)
++            {
++                pthread_mutex_unlock( &winproc_lock );
++                return STATUS_PROCESS_IS_TERMINATING;
++            }
+             target = slot->procs;
+             slot->user32_module = user_module;
+         }

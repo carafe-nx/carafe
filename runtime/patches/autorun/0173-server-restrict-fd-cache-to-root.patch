@@ -1,0 +1,81 @@
+Carafe: keep the handle-only descriptor cache private to the root process.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/server.c
++++ b/dlls/ntdll/unix/server.c
+@@ -1319,6 +1319,17 @@
+ }
+ #endif
+ 
++static BOOL use_fd_cache( void )
++{
++#ifdef __SWITCH__
++    extern unsigned int horizon_guest_root_pid( void );
++    const TEB *teb = NtCurrentTeb();
++    return teb && teb->ClientId.UniqueProcess &&
++           HandleToULong( teb->ClientId.UniqueProcess ) == horizon_guest_root_pid();
++#else
++    return TRUE;
++#endif
++}
+ 
+ /***********************************************************************
+  *           server_get_unix_fd
+@@ -1331,20 +1342,21 @@
+     sigset_t sigset;
+     obj_handle_t fd_handle;
+     int ret, fd = -1;
+     unsigned int access = 0;
++    BOOL cache = use_fd_cache();
+ 
+     *unix_fd = -1;
+     *needs_close = 0;
+     wanted_access &= FILE_READ_DATA | FILE_WRITE_DATA | FILE_APPEND_DATA;
+ 
+-    ret = get_cached_fd( handle, &fd, type, &access, options );
++    ret = cache ? get_cached_fd( handle, &fd, type, &access, options ) : STATUS_INVALID_HANDLE;
+     if (ret != STATUS_INVALID_HANDLE) goto done;
+ 
+     server_enter_uninterrupted_section( &fd_cache_mutex, &sigset );
+-    ret = get_cached_fd( handle, &fd, type, &access, options );
++    if (cache) ret = get_cached_fd( handle, &fd, type, &access, options );
+     if (ret == STATUS_INVALID_HANDLE)
+     {
+         SERVER_START_REQ( get_handle_fd )
+         {
+             req->handle = wine_server_obj_handle( handle );
+             if (!(ret = wine_server_call( req )))
+@@ -1354,13 +1367,13 @@
+                 if ((fd = wine_server_receive_fd( &fd_handle )) != -1)
+                 {
+                     assert( wine_server_ptr_handle(fd_handle) == handle );
+-                    *needs_close = (!reply->cacheable ||
++                    *needs_close = (!cache || !reply->cacheable ||
+                                     !add_fd_to_cache( handle, fd, reply->type,
+                                                       reply->access, reply->options ));
+                 }
+                 else ret = STATUS_TOO_MANY_OPENED_FILES;
+             }
+-            else if (reply->cacheable)
++            else if (cache && reply->cacheable)
+             {
+                 add_fd_to_cache( handle, ret, FD_TYPE_INVALID, 0, 0 );
+             }
+@@ -2097,7 +2110,7 @@
+      * retrieve it again */
+     if (options & DUPLICATE_CLOSE_SOURCE)
+     {
+-        fd = remove_fd_from_cache( source );
++        if (use_fd_cache()) fd = remove_fd_from_cache( source );
+         close_inproc_sync( source );
+     }
+ 
+@@ -2171,7 +2184,7 @@
+ 
+     /* always remove the cached fd; if the server request fails we'll just
+      * retrieve it again */
+-    fd = remove_fd_from_cache( handle );
++    fd = use_fd_cache() ? remove_fd_from_cache( handle ) : -1;
+     close_inproc_sync( handle );
+ 
+     SERVER_START_REQ( close_handle )

@@ -1,0 +1,48 @@
+Carafe: keep ARM64X DLLs native ARM64 on WoW64 threads and route WoW64 exceptions/continues without ARM64EC parent dispatch.
+LGPL-2.1-or-later, as the files it changes.
+
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -1938,16 +1938,20 @@ NTSTATUS wine_nx_prepare_arm64ec_child_ntdll( HMODULE module, void *ec_code_bitm
+     return STATUS_SUCCESS;
+ }
+ 
++void *wine_nx_wow64_exception_dispatcher = NULL;
++
+ NTSTATUS wine_nx_prepare_wow64_native_ntdll_local( HMODULE native, HMODULE guest )
+ {
+-    static const char *native_names[] = { "LdrInitializeThunk", "LdrSystemDllInitBlock",
+-        "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher", "__wine_unixlib_handle" };
++    static const char *native_names[] = { "KiUserExceptionDispatcher", "LdrInitializeThunk",
++        "LdrSystemDllInitBlock", "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher",
++        "__wine_unixlib_handle" };
+     static const char *guest_names[] = { "LdrInitializeThunk", "LdrSystemDllInitBlock",
+         "RtlUserThreadStart", "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher",
+         "__wine_unixlib_handle" };
+     const IMAGE_EXPORT_DIRECTORY *native_exports, *guest_exports;
+     SYSTEM_DLL_INIT_BLOCK *native_block, *guest_block;
+     void **native_sys, **native_unix;
++    void *native_exc;
+     unixlib_handle_t *native_unixlib;
+     ULONG *usd;
+     unsigned int i;
+@@ -1961,15 +1965,18 @@ NTSTATUS wine_nx_prepare_wow64_native_ntdll_local( HMODULE native, HMODULE guest
+     for (i = 0; i < ARRAY_SIZE(guest_names); i++)
+         if (!find_named_export( guest, guest_exports, guest_names[i] )) return STATUS_PROCEDURE_NOT_FOUND;
+ 
++    native_exc = (void *)find_named_export( native, native_exports, "KiUserExceptionDispatcher" );
+     native_sys = (void **)find_named_export( native, native_exports, "__wine_syscall_dispatcher" );
+     native_unix = (void **)find_named_export( native, native_exports, "__wine_unix_call_dispatcher" );
+     native_unixlib = (unixlib_handle_t *)find_named_export( native, native_exports, "__wine_unixlib_handle" );
+     native_block = (SYSTEM_DLL_INIT_BLOCK *)find_named_export( native, native_exports, "LdrSystemDllInitBlock" );
+-    if (!native_sys || !native_unix || !native_unixlib || !native_block) return STATUS_PROCEDURE_NOT_FOUND;
++    if (!native_exc || !native_sys || !native_unix || !native_unixlib || !native_block)
++        return STATUS_PROCEDURE_NOT_FOUND;
+ 
+     *native_sys = __wine_syscall_dispatcher;
+     *native_unix = __wine_unix_call_dispatcher;
+     *native_unixlib = (UINT_PTR)unix_call_funcs;
++    __atomic_store_n( &wine_nx_wow64_exception_dispatcher, native_exc, __ATOMIC_RELEASE );
+ 
+     native_block->ntdll_handle = (ULONG_PTR)guest;
+     native_block->pKiUserApcDispatcher = find_named_export( guest, guest_exports, "KiUserApcDispatcher" );

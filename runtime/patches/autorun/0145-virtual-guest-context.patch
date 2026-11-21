@@ -1,0 +1,606 @@
+Carafe: tag views_tree entries with guest_ctx_id, track per-child guest contexts and allocate child PEB/TEB blocks without mutating parent process state.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -179,6 +179,9 @@
+     void         *base;          /* base address */
+     size_t        size;          /* size in bytes */
+     unsigned int  protect;       /* protection for all pages at allocation time and SEC_* flags */
++#ifdef __SWITCH__
++    unsigned int  guest_ctx_id;
++#endif
+ };
+ 
+ /* per-page protection flags */
+@@ -223,6 +226,34 @@
+ };
+ 
+ static struct wine_rb_tree views_tree;
++#ifdef __SWITCH__
++struct wine_nx_guest_va_peb
++{
++    unsigned int ctx_id;
++    DWORD        child_pid;
++    USHORT       machine;
++    USHORT       image_characteristics;
++    void        *main_module;
++    SIZE_T       main_module_size;
++    void        *entry_point;
++    void        *teb_block;
++    size_t       teb_block_size;
++    void        *initial_teb;
++    PEB         *peb;
++    WOW_PEB     *wow_peb;
++    ULONG_PTR    user_space_wow_limit;
++    void        *user_space_limit;
++    void        *working_set_limit;
++    void        *ntdll_module;
++    void        *child_ldr_init;
++    void        *child_rtl_user_thread_start;
++};
++
++static __thread unsigned int current_view_guest_ctx_id;
++static __thread DWORD current_guest_child_pid;
++static struct wine_nx_guest_va_peb root_guest_va_peb;
++static struct wine_nx_guest_va_peb guest_va_contexts[64];
++#endif
+ static pthread_mutex_t virtual_mutex;
+ pthread_key_t thread_data_key = 0;
+ 
+@@ -837,6 +868,11 @@
+ static ULONG_PTR get_wow_user_space_limit(void)
+ {
+ #ifdef _WIN64
++#ifdef __SWITCH__
++    extern ULONG_PTR wine_nx_virtual_get_teb_wow_limit( const TEB *teb );
++    ULONG_PTR limit = wine_nx_virtual_get_teb_wow_limit( NtCurrentTeb() );
++    if (limit) return limit & ~granularity_mask;
++#endif
+     return user_space_wow_limit & ~granularity_mask;
+ #endif
+     return (ULONG_PTR)user_space_limit;
+@@ -2373,6 +2409,9 @@
+     view->size    = size;
+     view->protect = vprot;
+ #ifdef __SWITCH__
++    view->guest_ctx_id = current_view_guest_ctx_id;
++#endif
++#ifdef __SWITCH__
+     vprot = get_horizon_page_vprot( vprot );
+ #endif
+     if (use_kernel_writewatch) vprot &= ~VPROT_WRITEWATCH;
+@@ -3073,6 +3112,9 @@
+         new_view->base    = base + size;
+         new_view->size    = (char *)view->base + view->size - (char *)new_view->base;
+         new_view->protect = view->protect;
++#ifdef __SWITCH__
++        new_view->guest_ctx_id = view->guest_ctx_id;
++#endif
+ 
+         unregister_view( view );
+         view->size = base - (char *)view->base;
+@@ -5152,9 +5194,389 @@
+ 
+     if (arm64ec_view) peb->EcCodeBitMap = arm64ec_view->base;
+     init_teb( data, ptr );
++#ifdef __SWITCH__
++    root_guest_va_peb.ctx_id                = 0;
++    root_guest_va_peb.child_pid             = pid;
++    root_guest_va_peb.machine               = main_image_info.Machine;
++    root_guest_va_peb.image_characteristics = main_image_info.ImageCharacteristics;
++    root_guest_va_peb.main_module           = main_module;
++    root_guest_va_peb.main_module_size      = main_image_info.ImageFileSize;
++    root_guest_va_peb.entry_point           = main_image_info.TransferAddress;
++    root_guest_va_peb.teb_block             = teb_block;
++    root_guest_va_peb.teb_block_size        = teb_block_size;
++    root_guest_va_peb.initial_teb           = ptr;
++    root_guest_va_peb.peb                   = peb;
++    root_guest_va_peb.wow_peb               = wow_peb;
++    root_guest_va_peb.user_space_wow_limit  = user_space_wow_limit;
++    root_guest_va_peb.user_space_limit      = user_space_limit;
++    root_guest_va_peb.working_set_limit     = working_set_limit;
++#endif
+     VIRTUAL_DEBUG_DUMP_VIEW( view );
+ }
+ 
++#ifdef __SWITCH__
++unsigned int wine_nx_virtual_set_guest_ctx( unsigned int ctx_id )
++{
++    unsigned int prev = current_view_guest_ctx_id;
++    current_view_guest_ctx_id = ctx_id;
++    return prev;
++}
++
++unsigned int wine_nx_virtual_get_guest_ctx( void )
++{
++    return current_view_guest_ctx_id;
++}
++
++DWORD wine_nx_set_current_guest_child_pid( DWORD child_pid )
++{
++    DWORD prev = current_guest_child_pid;
++    current_guest_child_pid = child_pid;
++    return prev;
++}
++
++DWORD wine_nx_current_guest_child_pid( void )
++{
++    return current_guest_child_pid;
++}
++
++const struct wine_nx_guest_va_peb *wine_nx_virtual_root_guest_ctx( void )
++{
++    return &root_guest_va_peb;
++}
++
++NTSTATUS wine_nx_virtual_alloc_guest_peb_block( struct wine_nx_guest_va_peb *ctx )
++{
++    sigset_t sigset;
++    struct file_view *view = NULL;
++    void *ptr;
++    PEB *child_peb;
++    WOW_PEB *child_wow_peb = NULL;
++    BOOL child_wow64;
++    size_t block_size;
++    ULONG_PTR child_wow_limit = 0, limit_low = 0, limit_high = 0;
++    unsigned int prev_ctx;
++    NTSTATUS status;
++
++    if (!ctx || !ctx->ctx_id) return STATUS_INVALID_PARAMETER;
++    if (ctx->machine != IMAGE_FILE_MACHINE_I386 &&
++        ctx->machine != IMAGE_FILE_MACHINE_AMD64 &&
++        ctx->machine != IMAGE_FILE_MACHINE_ARM64)
++        return STATUS_INVALID_IMAGE_FORMAT;
++
++    child_wow64 = is_win64 && !is_machine_64bit( ctx->machine );
++    block_size = ROUND_SIZE( 0, sizeof(TEB), page_mask );
++    if (child_wow64) block_size += ROUND_SIZE( 0, sizeof(WOW_TEB), page_mask );
++    block_size += page_size;
++
++    if (child_wow64)
++    {
++        child_wow_limit = (ctx->image_characteristics & IMAGE_FILE_LARGE_ADDRESS_AWARE)
++            ? (limit_4g - 1) : (limit_2g - 1);
++        limit_high = child_wow_limit & ~granularity_mask;
++    }
++    else if (use_aslr())
++    {
++        limit_low = limit_4g;
++    }
++
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    if (ctx->machine == IMAGE_FILE_MACHINE_AMD64 && !arm64ec_view)
++    {
++        prev_ctx = current_view_guest_ctx_id;
++        current_view_guest_ctx_id = 0;
++        alloc_arm64ec_map();
++        current_view_guest_ctx_id = prev_ctx;
++    }
++
++    prev_ctx = current_view_guest_ctx_id;
++    current_view_guest_ctx_id = ctx->ctx_id;
++    status = map_view( &view, NULL, 16 * block_size, 0,
++                       VPROT_READ | VPROT_WRITE, limit_low, limit_high, 0 );
++    current_view_guest_ctx_id = prev_ctx;
++    if (!status)
++    {
++        ptr = (char *)view->base + 14 * block_size;
++        child_peb = (PEB *)((char *)ptr + block_size);
++        if (child_wow64) child_wow_peb = (WOW_PEB *)((char *)child_peb + page_size);
++        status = set_protection( view, ptr, 2 * block_size, PAGE_READWRITE );
++        if (status)
++        {
++            delete_view( view );
++        }
++        else
++        {
++#ifdef WINE_NX_SWAP_POC
++            horizon_swap_exclude( view->base, 16 * block_size );
++#endif
++            memset( ptr, 0, 2 * block_size );
++            if (arm64ec_view && ctx->machine == IMAGE_FILE_MACHINE_AMD64)
++                child_peb->EcCodeBitMap = arm64ec_view->base;
++            if (peb)
++            {
++                child_peb->ApiSetMap = peb->ApiSetMap;
++                child_peb->SessionId = peb->SessionId;
++                child_peb->CriticalSectionTimeout = peb->CriticalSectionTimeout;
++                child_peb->HeapSegmentReserve = peb->HeapSegmentReserve;
++                child_peb->HeapSegmentCommit = peb->HeapSegmentCommit;
++                child_peb->HeapDeCommitTotalFreeThreshold = peb->HeapDeCommitTotalFreeThreshold;
++                child_peb->HeapDeCommitFreeBlockThreshold = peb->HeapDeCommitFreeBlockThreshold;
++            }
++            child_peb->ImageBaseAddress = ctx->main_module;
++            if (child_wow_peb)
++            {
++                void *wow_apiset = child_peb->ApiSetMap;
++                if (wow_apiset && (ULONG_PTR)wow_apiset > 0xffffffff)
++                {
++                    const API_SET_NAMESPACE *ns = (const API_SET_NAMESPACE *)wow_apiset;
++                    if (ns->Version == 6 && ns->Size && ns->Size <= 16 * 1024 * 1024)
++                    {
++                        struct file_view *apiset_view = NULL;
++                        size_t apiset_size = ROUND_SIZE( 0, ns->Size, page_mask );
++                        prev_ctx = current_view_guest_ctx_id;
++                        current_view_guest_ctx_id = ctx->ctx_id;
++                        if (!map_view( &apiset_view, NULL, apiset_size, 0,
++                                       VPROT_READ | VPROT_WRITE | VPROT_COMMITTED,
++                                       0, limit_high, 0 ))
++                        {
++                            memcpy( apiset_view->base, ns, ns->Size );
++                            wow_apiset = apiset_view->base;
++                        }
++                        current_view_guest_ctx_id = prev_ctx;
++                    }
++                }
++                child_wow_peb->ImageBaseAddress = PtrToUlong( ctx->main_module );
++                child_wow_peb->ApiSetMap = PtrToUlong( wow_apiset );
++                child_wow_peb->SessionId = child_peb->SessionId;
++                child_wow_peb->CriticalSectionTimeout.QuadPart = child_peb->CriticalSectionTimeout.QuadPart;
++                child_wow_peb->HeapSegmentReserve = child_peb->HeapSegmentReserve;
++                child_wow_peb->HeapSegmentCommit = child_peb->HeapSegmentCommit;
++                child_wow_peb->HeapDeCommitTotalFreeThreshold = child_peb->HeapDeCommitTotalFreeThreshold;
++                child_wow_peb->HeapDeCommitFreeBlockThreshold = child_peb->HeapDeCommitFreeBlockThreshold;
++            }
++            ctx->teb_block            = view->base;
++            ctx->teb_block_size       = block_size;
++            ctx->initial_teb          = ptr;
++            ctx->peb                  = child_peb;
++            ctx->wow_peb              = child_wow_peb;
++            ctx->user_space_wow_limit = child_wow_limit;
++            ctx->user_space_limit     = min( address_space_limit, host_addr_space_limit );
++            ctx->working_set_limit    = ctx->user_space_limit;
++        }
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return status;
++}
++
++NTSTATUS wine_nx_virtual_init_guest_teb( struct thread_data *data, const struct wine_nx_guest_va_peb *ctx,
++                                         DWORD child_pid )
++{
++    sigset_t sigset;
++    TEB *teb;
++    NTSTATUS status;
++
++    if (!data || !ctx || !ctx->initial_teb || !ctx->peb) return STATUS_INVALID_PARAMETER;
++    teb = ctx->initial_teb;
++
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    memset( teb, 0, ctx->teb_block_size );
++#ifdef _WIN64
++    if (ctx->wow_peb)
++    {
++        TEB32 *teb32 = (TEB32 *)((char *)teb + teb_offset);
++
++        teb32->Peb = PtrToUlong( ctx->wow_peb );
++        teb32->Tib.Self = PtrToUlong( teb32 );
++        teb32->Tib.ExceptionList = ~0u;
++        teb32->Tib.FiberData = 0x1e00;
++        teb32->ClientId.UniqueProcess = child_pid;
++        teb32->ClientId.UniqueThread  = data->tid;
++        teb32->ActivationContextStackPointer = PtrToUlong( &teb32->ActivationContextStack );
++        teb32->ActivationContextStack.FrameListCache.Flink =
++            teb32->ActivationContextStack.FrameListCache.Blink =
++                PtrToUlong( &teb32->ActivationContextStack.FrameListCache );
++        teb32->StaticUnicodeString.Buffer = PtrToUlong( teb32->StaticUnicodeBuffer );
++        teb32->StaticUnicodeString.MaximumLength = sizeof( teb32->StaticUnicodeBuffer );
++        teb32->RealClientId  = teb32->ClientId;
++        teb32->GdiBatchCount = PtrToUlong( teb );
++        teb32->WowTebOffset  = -teb_offset;
++        teb->Tib.ExceptionList = (void *)teb32;
++        teb->WowTebOffset = teb_offset;
++    }
++#endif
++    teb->Peb = ctx->peb;
++    teb->Tib.Self = &teb->Tib;
++    teb->Tib.StackBase = (void *)~0ul;
++    teb->Tib.FiberData = (void *)0x1e00;
++    teb->ClientId = make_client_id( child_pid, data->tid );
++    teb->ActivationContextStackPointer = &teb->ActivationContextStack;
++    InitializeListHead( &teb->ActivationContextStack.FrameListCache );
++    teb->StaticUnicodeString.Buffer = teb->StaticUnicodeBuffer;
++    teb->StaticUnicodeString.MaximumLength = sizeof(teb->StaticUnicodeBuffer);
++    teb->RealClientId = teb->ClientId;
++    data->teb = teb;
++    get_teb_data( data )->thread = data;
++    list_add_head( &teb_list, &data->entry );
++    status = signal_alloc_thread( data->teb );
++    if (status)
++    {
++        list_remove( &data->entry );
++        data->teb = NULL;
++    }
++    else
++    {
++        __atomic_add_fetch( &horizon_lifecycle.tebs, 1, __ATOMIC_RELAXED );
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return status;
++}
++
++NTSTATUS wine_nx_virtual_register_guest_context( const struct wine_nx_guest_va_peb *ctx )
++{
++    sigset_t sigset;
++    unsigned int i;
++    NTSTATUS status = STATUS_NO_MEMORY;
++
++    if (!ctx || !ctx->ctx_id || !ctx->peb) return STATUS_INVALID_PARAMETER;
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++    {
++        if (guest_va_contexts[i].ctx_id == ctx->ctx_id)
++        {
++            guest_va_contexts[i] = *ctx;
++            status = STATUS_SUCCESS;
++            break;
++        }
++    }
++    if (status)
++    {
++        for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++        {
++            if (!guest_va_contexts[i].ctx_id)
++            {
++                guest_va_contexts[i] = *ctx;
++                status = STATUS_SUCCESS;
++                break;
++            }
++        }
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return status;
++}
++
++USHORT wine_nx_virtual_get_teb_machine( const TEB *teb )
++{
++    sigset_t sigset;
++    unsigned int i;
++    USHORT machine = main_image_info.Machine;
++
++    if (!teb || !teb->Peb || teb->Peb == peb) return machine;
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++    {
++        if (guest_va_contexts[i].ctx_id && guest_va_contexts[i].peb == teb->Peb)
++        {
++            machine = guest_va_contexts[i].machine;
++            break;
++        }
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return machine;
++}
++
++ULONG_PTR wine_nx_virtual_get_teb_wow_limit( const TEB *teb )
++{
++    sigset_t sigset;
++    unsigned int i;
++    ULONG_PTR limit = user_space_wow_limit;
++
++    if (!teb || !teb->Peb || teb->Peb == peb) return limit;
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++    {
++        if (guest_va_contexts[i].ctx_id && guest_va_contexts[i].peb == teb->Peb)
++        {
++            limit = guest_va_contexts[i].user_space_wow_limit;
++            break;
++        }
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return limit;
++}
++
++USHORT wine_nx_virtual_current_machine( void )
++{
++    return wine_nx_virtual_get_teb_machine( NtCurrentTeb() );
++}
++
++unsigned int wine_nx_virtual_get_teb_guest_ctx( const TEB *teb, DWORD *child_pid_out,
++                                                USHORT *machine_out, void **ldr_init_out,
++                                                void **rtl_start_out, void **ntdll_out )
++{
++    sigset_t sigset;
++    unsigned int i, ctx_id = 0;
++
++    if (!teb || !teb->Peb || teb->Peb == peb) return 0;
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++    {
++        if (guest_va_contexts[i].ctx_id && guest_va_contexts[i].peb == teb->Peb)
++        {
++            ctx_id = guest_va_contexts[i].ctx_id;
++            if (child_pid_out) *child_pid_out = guest_va_contexts[i].child_pid;
++            if (machine_out) *machine_out = guest_va_contexts[i].machine;
++            if (ldr_init_out) *ldr_init_out = guest_va_contexts[i].child_ldr_init;
++            if (rtl_start_out) *rtl_start_out = guest_va_contexts[i].child_rtl_user_thread_start;
++            if (ntdll_out) *ntdll_out = guest_va_contexts[i].ntdll_module;
++            break;
++        }
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return ctx_id;
++}
++
++void wine_nx_virtual_free_guest_thread_data( struct thread_data *data )
++{
++    if (!data) return;
++    virtual_free_thread_data( data );
++    __atomic_sub_fetch( &horizon_lifecycle.worker_pthreads, 1, __ATOMIC_RELAXED );
++}
++
++unsigned int wine_nx_virtual_release_guest_context( unsigned int ctx_id )
++{
++    sigset_t sigset;
++    unsigned int i, released = 0;
++
++    if (!ctx_id) return 0;
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++    {
++        if (guest_va_contexts[i].ctx_id == ctx_id)
++        {
++            memset( &guest_va_contexts[i], 0, sizeof(guest_va_contexts[i]) );
++            break;
++        }
++    }
++    for (;;)
++    {
++        struct file_view *victim = NULL;
++        struct file_view *view;
++        WINE_RB_FOR_EACH_ENTRY( view, &views_tree, struct file_view, entry )
++        {
++            if (view->guest_ctx_id == ctx_id)
++            {
++                victim = view;
++                break;
++            }
++        }
++        if (!victim) break;
++        delete_view( victim );
++        released++;
++    }
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return released;
++}
++#endif
++
+ 
+ /***********************************************************************
+  *           virtual_alloc_teb
+@@ -5167,6 +5589,97 @@
+     NTSTATUS status = STATUS_SUCCESS;
+ 
+     server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++#ifdef __SWITCH__
++    if (current_view_guest_ctx_id)
++    {
++        unsigned int i;
++        struct wine_nx_guest_va_peb *guest = NULL;
++
++        for (i = 0; i < ARRAY_SIZE(guest_va_contexts); i++)
++        {
++            if (guest_va_contexts[i].ctx_id == current_view_guest_ctx_id)
++            {
++                guest = &guest_va_contexts[i];
++                break;
++            }
++        }
++        if (guest && guest->peb)
++        {
++            struct file_view *view = NULL;
++            ULONG_PTR limit_low = 0, limit_high = 0;
++            size_t child_block_size = guest->teb_block_size;
++            TEB *teb;
++
++            if (guest->user_space_wow_limit)
++                limit_high = guest->user_space_wow_limit & ~granularity_mask;
++            else if (use_aslr())
++                limit_low = limit_4g;
++
++            status = map_view( &view, NULL, child_block_size, 0,
++                               VPROT_READ | VPROT_WRITE | VPROT_COMMITTED, limit_low, limit_high, 0 );
++            if (status)
++            {
++                server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++                return status;
++            }
++#ifdef WINE_NX_SWAP_POC
++            horizon_swap_exclude( view->base, child_block_size );
++#endif
++            teb = view->base;
++            memset( teb, 0, child_block_size );
++#ifdef _WIN64
++            if (guest->wow_peb)
++            {
++                TEB32 *teb32 = (TEB32 *)((char *)teb + teb_offset);
++
++                teb32->Peb = PtrToUlong( guest->wow_peb );
++                teb32->Tib.Self = PtrToUlong( teb32 );
++                teb32->Tib.ExceptionList = ~0u;
++                teb32->Tib.FiberData = 0x1e00;
++                teb32->ClientId.UniqueProcess = guest->child_pid;
++                teb32->ClientId.UniqueThread = data->tid;
++                teb32->ActivationContextStackPointer = PtrToUlong( &teb32->ActivationContextStack );
++                teb32->ActivationContextStack.FrameListCache.Flink =
++                    teb32->ActivationContextStack.FrameListCache.Blink =
++                        PtrToUlong( &teb32->ActivationContextStack.FrameListCache );
++                teb32->StaticUnicodeString.Buffer = PtrToUlong( teb32->StaticUnicodeBuffer );
++                teb32->StaticUnicodeString.MaximumLength = sizeof( teb32->StaticUnicodeBuffer );
++                teb32->RealClientId = teb32->ClientId;
++                teb32->GdiBatchCount = PtrToUlong( teb );
++                teb32->WowTebOffset = -teb_offset;
++                teb->Tib.ExceptionList = (void *)teb32;
++                teb->WowTebOffset = teb_offset;
++            }
++#endif
++            teb->Peb = guest->peb;
++            teb->Tib.Self = &teb->Tib;
++            teb->Tib.StackBase = (void *)~0ul;
++            teb->Tib.FiberData = (void *)0x1e00;
++            teb->ClientId = make_client_id( guest->child_pid, data->tid );
++            teb->ActivationContextStackPointer = &teb->ActivationContextStack;
++            InitializeListHead( &teb->ActivationContextStack.FrameListCache );
++            teb->StaticUnicodeString.Buffer = teb->StaticUnicodeBuffer;
++            teb->StaticUnicodeString.MaximumLength = sizeof(teb->StaticUnicodeBuffer);
++            teb->RealClientId = teb->ClientId;
++            data->teb = teb;
++            get_teb_data( data )->thread = data;
++            list_add_head( &teb_list, &data->entry );
++            status = signal_alloc_thread( data->teb );
++            if (status)
++            {
++                list_remove( &data->entry );
++                data->teb = NULL;
++                delete_view( view );
++            }
++            else
++            {
++                __atomic_add_fetch( &horizon_lifecycle.tebs, 1, __ATOMIC_RELAXED );
++            }
++            server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++            return status;
++        }
++    }
++#endif
+     if (next_free_teb)
+     {
+         ptr = next_free_teb;
+@@ -5287,10 +5800,16 @@
+     list_remove( &data->entry );
+     ptr = teb;
+     if (is_old_wow64()) ptr = (char *)ptr - teb_offset;
+-    *(void **)ptr = next_free_teb;
+-    next_free_teb = ptr;
+ #ifdef __SWITCH__
++    if (teb->Peb == peb)
++    {
++        *(void **)ptr = next_free_teb;
++        next_free_teb = ptr;
++    }
+     __atomic_sub_fetch( &horizon_lifecycle.tebs, 1, __ATOMIC_RELAXED );
++#else
++    *(void **)ptr = next_free_teb;
++    next_free_teb = ptr;
+ #endif
+     server_leave_uninterrupted_section( &virtual_mutex, &sigset );
+ 
+@@ -6608,8 +7127,16 @@
+     if (!*ret)
+     {
+         limit = get_zero_bits_limit( zero_bits );
++#ifdef __SWITCH__
++        {
++            ULONG_PTR wow_limit = wine_nx_virtual_get_teb_wow_limit( NtCurrentTeb() );
++            if (wow_limit && limit && limit <= limit_4g)
++                limit = min( limit, get_wow_user_space_limit() - 1 );
++        }
++#else
+         if (user_space_wow_limit && limit && limit <= limit_4g)
+             limit = min( limit, get_wow_user_space_limit() - 1 );
++#endif
+     }
+     else
+         limit = 0;

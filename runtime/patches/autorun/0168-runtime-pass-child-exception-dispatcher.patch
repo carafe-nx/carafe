@@ -1,0 +1,73 @@
+Carafe: pass the guest ARM64EC exception entry to each guest thread.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -2788,5 +2788,6 @@
+     void        *child_ldr_init;
+     void        *child_rtl_user_thread_start;
++    void        *child_exception_dispatcher;
+ };
+ 
+ struct runtime_guest_child_launch
+@@ -2798,6 +2799,7 @@
+     void        *ntdll_module;
+     void        *child_ldr_init;
+     void        *child_rtl_user_thread_start;
++    void        *child_exception_dispatcher;
+ };
+ 
+ extern unsigned int wine_nx_virtual_set_guest_ctx( unsigned int ctx_id );
+@@ -2807,9 +2809,11 @@
+ extern unsigned int wine_nx_virtual_get_teb_guest_ctx( const TEB *teb, DWORD *child_pid_out,
+                                                        USHORT *machine_out, void **ldr_init_out,
+-                                                       void **rtl_start_out, void **ntdll_out );
++                                                       void **rtl_start_out, void **ntdll_out,
++                                                       void **exception_dispatcher_out );
+ extern unsigned int wine_nx_virtual_release_guest_context( unsigned int ctx_id );
+ extern NTSTATUS wine_nx_prepare_arm64ec_child_ntdll( HMODULE module, void *ec_code_bitmap,
+-                                                     void **ldr_init_out, void **rtl_user_thread_start_out );
++                                                     void **ldr_init_out, void **rtl_user_thread_start_out,
++                                                     void **exception_dispatcher_out );
+ extern NTSTATUS wine_nx_prepare_wow64_native_ntdll_local( HMODULE native, HMODULE guest );
+ extern NTSTATUS wine_nx_prepare_wow64_child_ntdll( HMODULE native_ntdll, HMODULE guest, ULONG *ldr_init_out,
+                                                    ULONG *rtl_user_thread_start_out );
+@@ -2816,4 +2820,5 @@
+ extern void DECLSPEC_NORETURN wine_nx_start_arm64ec_child_thread( PRTL_THREAD_START_ROUTINE entry, void *arg,
+                                                                   BOOL suspend, TEB *teb,
+-                                                                  void *ldr_init, void *rtl_user_thread_start );
++                                                                  void *ldr_init, void *rtl_user_thread_start,
++                                                                  void *exception_dispatcher );
+ extern BOOL (*wine_nx_child_thread_start)( PRTL_THREAD_START_ROUTINE, void *, BOOL, TEB * );
+@@ -3295,6 +3300,7 @@
+         launch.ctx_id = wine_nx_virtual_get_teb_guest_ctx( teb, &launch.child_pid, &launch.machine,
+                                                            &launch.child_ldr_init,
+                                                            &launch.child_rtl_user_thread_start,
+-                                                           &launch.ntdll_module );
++                                                           &launch.ntdll_module,
++                                                           &launch.child_exception_dispatcher );
+         if (!launch.ctx_id) return FALSE;
+         launch.teb = teb;
+@@ -3320,5 +3326,6 @@
+     {
+         wine_nx_start_arm64ec_child_thread( entry, arg, suspend, teb,
+-                                            launch.child_ldr_init, launch.child_rtl_user_thread_start );
++                                            launch.child_ldr_init, launch.child_rtl_user_thread_start,
++                                            launch.child_exception_dispatcher );
+     }
+ #endif
+@@ -3472,5 +3479,6 @@
+             status = wine_nx_prepare_arm64ec_child_ntdll( (HMODULE)child_ntdll, out_ctx->peb->EcCodeBitMap,
+                                                           &out_ctx->child_ldr_init,
+-                                                          &out_ctx->child_rtl_user_thread_start );
++                                                          &out_ctx->child_rtl_user_thread_start,
++                                                          &out_ctx->child_exception_dispatcher );
+     }
+     else
+@@ -3590,5 +3598,6 @@
+     launch.ntdll_module = child_ctx.ntdll_module;
+     launch.child_ldr_init = child_ctx.child_ldr_init;
+     launch.child_rtl_user_thread_start = child_ctx.child_rtl_user_thread_start;
++    launch.child_exception_dispatcher = child_ctx.child_exception_dispatcher;
+ 
+     wine_nx_child_thread_start = runtime_guest_child_thread_start;

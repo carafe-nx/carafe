@@ -1,0 +1,44 @@
+Carafe: release the failed guest's views before publishing process exit.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -3570,8 +3570,8 @@
+     if (status)
+     {
++        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         horizon_guest_process_destroy_failed( child_pid, status );
+         NtClose( proc_handle );
+-        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         return status;
+     }
+ 
+@@ -3579,8 +3579,8 @@
+     if (status)
+     {
++        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         horizon_guest_process_destroy_failed( child_pid, status );
+         NtClose( proc_handle );
+-        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         return status;
+     }
+ 
+@@ -3598,8 +3598,8 @@
+     if (!runtime_register_guest_launch( &launch ))
+     {
++        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         horizon_guest_process_destroy_failed( child_pid, STATUS_NO_MEMORY );
+         NtClose( proc_handle );
+-        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         return STATUS_NO_MEMORY;
+     }
+ 
+@@ -3615,7 +3615,7 @@
+     {
+         runtime_remove_guest_launch( (TEB *)child_ctx.initial_teb );
++        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         horizon_guest_process_destroy_failed( child_pid, status );
+         NtClose( proc_handle );
+-        wine_nx_virtual_release_guest_context( child_ctx.ctx_id );
+         return status;
+     }

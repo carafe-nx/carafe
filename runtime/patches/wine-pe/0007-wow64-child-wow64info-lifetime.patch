@@ -1,0 +1,47 @@
+Carafe: keep wow64info template in static storage and mirror it to each guest child's PEB32.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/wow64/syscall.c
++++ b/dlls/wow64/syscall.c
+@@ -1018,6 +1018,7 @@
+ static DWORD WINAPI process_init( RTL_RUN_ONCE *once, void *param, void **context )
+ {
+     PEB32 *peb32;
++    static WOW64INFO wow64info_storage;
+     HMODULE module;
+     UNICODE_STRING str = RTL_CONSTANT_STRING( L"ntdll.dll" );
+     SYSTEM_BASIC_INFORMATION info;
+@@ -1031,7 +1032,7 @@
+     highest_user_address = (ULONG_PTR)info.HighestUserAddress;
+     default_zero_bits = (ULONG_PTR)info.HighestUserAddress | 0x7fffffff;
+     NtQueryInformationProcess( GetCurrentProcess(), ProcessWow64Information, &peb32, sizeof(peb32), NULL );
+-    wow64info = (WOW64INFO *)(peb32 + 1);
++    wow64info = &wow64info_storage;
+     wow64info->NativeSystemPageSize = 0x1000;
+     wow64info->NativeMachineType    = native_machine;
+     wow64info->EmulatedMachineType  = current_machine;
+@@ -1083,6 +1084,7 @@
+     *p__wine_unix_call_dispatcher = PtrToUlong( p__wine_get_unix_opcode() );
+ 
+     if (wow64info->CpuFlags & WOW64_CPUFLAGS_SOFTWARE) create_cross_process_work_list( wow64info );
++    if (peb32) *(WOW64INFO *)(peb32 + 1) = *wow64info;
+ 
+     if (current_machine == IMAGE_FILE_MACHINE_I386)
+     {
+@@ -1106,7 +1108,15 @@
+     NTSTATUS status;
+ 
+     NtCurrentTeb32()->WOW32Reserved = PtrToUlong( pBTCpuGetBopCode() );
+-    NtCurrentTeb()->TlsSlots[WOW64_TLS_WOW64INFO] = wow64info;
++    if (NtCurrentTeb32()->Peb)
++    {
++        PEB32 *peb32 = ULongToPtr( NtCurrentTeb32()->Peb );
++        WOW64INFO *child_info = (WOW64INFO *)(peb32 + 1);
++        *child_info = *wow64info;
++        NtCurrentTeb()->TlsSlots[WOW64_TLS_WOW64INFO] = child_info;
++    }
++    else
++        NtCurrentTeb()->TlsSlots[WOW64_TLS_WOW64INFO] = wow64info;
+     if (pBTCpuThreadInit) pBTCpuThreadInit();
+ 
+     /* update initial context to jump to 32-bit LdrInitializeThunk (cf. 32-bit call_init_thunk) */

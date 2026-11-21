@@ -1,0 +1,142 @@
+Carafe: allocate durable below-4GB TEB+TEB32+PEB+WOW_PEB for on-demand WoW64 bootstrap, keep EcCodeBitMap NULL, and inherit ChpeV2CpuAreaInfo only during bootstrap.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -3096,6 +3096,8 @@
+     dst->TlsExpansionBitmap = src->TlsExpansionBitmap;
+     dst->LoaderLock         = src->LoaderLock;
+     dst->ProcessHeap        = src->ProcessHeap;
++    if (src->KernelCallbackTable)
++        dst->KernelCallbackTable = src->KernelCallbackTable;
+ }
+ 
+ static NTSTATUS runtime_ensure_wow64_initialized( struct wine_nx_guest_va_peb *ctx,
+@@ -3108,11 +3110,19 @@
+     HMODULE native = NULL, shared_guest = NULL;
+     void *initialize = NULL;
+     SIZE_T guest_size = 0;
+-    static PEB wow64_bootstrap_peb;
+-    static TEB wow64_bootstrap_teb;
++    static void *wow64_bootstrap_block;
+     static RTL_USER_PROCESS_PARAMETERS wow64_bootstrap_params;
+     static WCHAR wow64_bootstrap_dll_path[1024];
+     RTL_USER_PROCESS_PARAMETERS *src_params;
++    const SIZE_T teb_offset = (sizeof(TEB) + 0xfff) & ~(SIZE_T)0xfff;
++    const SIZE_T teb32_size = (sizeof(WOW_TEB) + 0xfff) & ~(SIZE_T)0xfff;
++    const SIZE_T peb_size = (sizeof(PEB) + 0xfff) & ~(SIZE_T)0xfff;
++    const SIZE_T wow_peb_size = (sizeof(WOW_PEB) + 0xfff) & ~(SIZE_T)0xfff;
++    SIZE_T block_size = teb_offset + teb32_size + peb_size + wow_peb_size;
++    TEB *bootstrap_teb;
++    WOW_TEB *bootstrap_teb32;
++    PEB *bootstrap_peb;
++    WOW_PEB *bootstrap_wow_peb;
+ 
+     if (!ctx || !ctx->peb || !ctx->initial_teb || !image_name) return STATUS_INVALID_PARAMETER;
+ 
+@@ -3129,12 +3139,30 @@
+ 
+     data = get_thread_data();
+     saved_teb = data->teb;
+-    memset( &wow64_bootstrap_peb, 0, sizeof(wow64_bootstrap_peb) );
+-    memset( &wow64_bootstrap_teb, 0, sizeof(wow64_bootstrap_teb) );
++    prev_ctx = wine_nx_virtual_set_guest_ctx( 0 );
++    if (!wow64_bootstrap_block)
++    {
++        SIZE_T alloc_size = block_size;
++        status = NtAllocateVirtualMemory( NtCurrentProcess(), &wow64_bootstrap_block, 0x7fffffff,
++                                          &alloc_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE );
++        if (status || !wow64_bootstrap_block)
++        {
++            wine_nx_virtual_set_guest_ctx( prev_ctx );
++            log_line( "[WOW64] on-demand bootstrap block alloc failed status=%08x", (unsigned)status );
++            pthread_mutex_unlock( &runtime_wow64_init_mutex );
++            return status ? status : STATUS_NO_MEMORY;
++        }
++    }
++
++    memset( wow64_bootstrap_block, 0, block_size );
+     memset( &wow64_bootstrap_params, 0, sizeof(wow64_bootstrap_params) );
+-    wow64_bootstrap_peb = *ctx->peb;
+-    if (saved_teb && saved_teb->Peb && !wow64_bootstrap_peb.EcCodeBitMap)
+-        wow64_bootstrap_peb.EcCodeBitMap = saved_teb->Peb->EcCodeBitMap;
++    bootstrap_teb = (TEB *)wow64_bootstrap_block;
++    bootstrap_teb32 = (WOW_TEB *)((char *)bootstrap_teb + teb_offset);
++    bootstrap_peb = (PEB *)((char *)bootstrap_teb32 + teb32_size);
++    bootstrap_wow_peb = (WOW_PEB *)((char *)bootstrap_peb + peb_size);
++    *bootstrap_peb = *ctx->peb;
++    bootstrap_peb->EcCodeBitMap = NULL;
++    if (ctx->wow_peb) *bootstrap_wow_peb = *ctx->wow_peb;
+     src_params = ctx->peb->ProcessParameters;
+     if (src_params)
+         wow64_bootstrap_params = *src_params;
+@@ -3172,24 +3200,51 @@
+         wow64_bootstrap_params.DllPath.Buffer = wow64_bootstrap_dll_path;
+         wow64_bootstrap_params.DllPath.Length = (USHORT)copy_bytes;
+         wow64_bootstrap_params.DllPath.MaximumLength = (USHORT)(copy_bytes + sizeof(WCHAR));
+-        wow64_bootstrap_peb.ProcessParameters = &wow64_bootstrap_params;
++        bootstrap_peb->ProcessParameters = &wow64_bootstrap_params;
+     }
+-    wow64_bootstrap_teb.Peb = &wow64_bootstrap_peb;
+-    wow64_bootstrap_teb.Tib.Self = &wow64_bootstrap_teb.Tib;
++
++    bootstrap_teb32->Peb = PtrToUlong( bootstrap_wow_peb );
++    bootstrap_teb32->Tib.Self = PtrToUlong( bootstrap_teb32 );
++    bootstrap_teb32->Tib.ExceptionList = ~0u;
++    bootstrap_teb32->Tib.FiberData = 0x1e00;
++    bootstrap_teb32->ClientId.UniqueProcess = saved_teb ? HandleToULong( saved_teb->ClientId.UniqueProcess ) : 0;
++    bootstrap_teb32->ClientId.UniqueThread = saved_teb ? HandleToULong( saved_teb->ClientId.UniqueThread ) : 0;
++    bootstrap_teb32->ActivationContextStackPointer = PtrToUlong( &bootstrap_teb32->ActivationContextStack );
++    bootstrap_teb32->ActivationContextStack.FrameListCache.Flink =
++        bootstrap_teb32->ActivationContextStack.FrameListCache.Blink =
++            PtrToUlong( &bootstrap_teb32->ActivationContextStack.FrameListCache );
++    bootstrap_teb32->StaticUnicodeString.Buffer = PtrToUlong( bootstrap_teb32->StaticUnicodeBuffer );
++    bootstrap_teb32->StaticUnicodeString.MaximumLength = sizeof(bootstrap_teb32->StaticUnicodeBuffer);
++    bootstrap_teb32->RealClientId = bootstrap_teb32->ClientId;
++    bootstrap_teb32->GdiBatchCount = PtrToUlong( bootstrap_teb );
++    bootstrap_teb32->WowTebOffset = -(LONG)teb_offset;
++
++    bootstrap_teb->Peb = bootstrap_peb;
++    bootstrap_teb->Tib.Self = &bootstrap_teb->Tib;
++    bootstrap_teb->Tib.ExceptionList = (void *)bootstrap_teb32;
++    bootstrap_teb->Tib.FiberData = (void *)0x1e00;
+     if (saved_teb)
+     {
+-        wow64_bootstrap_teb.Tib.StackBase = saved_teb->Tib.StackBase;
+-        wow64_bootstrap_teb.Tib.StackLimit = saved_teb->Tib.StackLimit;
++        bootstrap_teb->Tib.StackBase = saved_teb->Tib.StackBase;
++        bootstrap_teb->Tib.StackLimit = saved_teb->Tib.StackLimit;
++        bootstrap_teb->ChpeV2CpuAreaInfo = saved_teb->ChpeV2CpuAreaInfo;
+     }
+-    wow64_bootstrap_teb.WowTebOffset = (LONG)((sizeof(TEB) + 0xfff) & ~(SIZE_T)0xfff);
+-    wow64_bootstrap_teb.ClientId = saved_teb ? saved_teb->ClientId : make_client_id( 0, 0 );
++    bootstrap_teb->WowTebOffset = (LONG)teb_offset;
++    bootstrap_teb->ClientId = saved_teb ? saved_teb->ClientId : make_client_id( 0, 0 );
++    bootstrap_teb->RealClientId = bootstrap_teb->ClientId;
++    bootstrap_teb->ActivationContextStackPointer = &bootstrap_teb->ActivationContextStack;
++    bootstrap_teb->ActivationContextStack.FrameListCache.Flink =
++        bootstrap_teb->ActivationContextStack.FrameListCache.Blink =
++            &bootstrap_teb->ActivationContextStack.FrameListCache;
++    bootstrap_teb->StaticUnicodeString.Buffer = bootstrap_teb->StaticUnicodeBuffer;
++    bootstrap_teb->StaticUnicodeString.MaximumLength = sizeof(bootstrap_teb->StaticUnicodeBuffer);
+ 
+-    prev_ctx = wine_nx_virtual_set_guest_ctx( 0 );
+-    data->teb = &wow64_bootstrap_teb;
++    data->teb = bootstrap_teb;
+     status = wine_nx_loader_bootstrap( image_name );
+     if (!status)
+         status = wine_nx_loader_prepare_wow64( &native, &initialize, runtime_fex );
+     data->teb = saved_teb;
++    bootstrap_teb->ChpeV2CpuAreaInfo = NULL;
+ 
+     if (!status)
+     {
+@@ -3206,7 +3261,7 @@
+ 
+     if (!status)
+     {
+-        runtime_wow64_ldr_peb = &wow64_bootstrap_peb;
++        runtime_wow64_ldr_peb = bootstrap_peb;
+         runtime_copy_wow64_loader_peb( ctx->peb, runtime_wow64_ldr_peb );
+         runtime_wow64_native_ntdll = native;
+         runtime_wow64_initialize = initialize;

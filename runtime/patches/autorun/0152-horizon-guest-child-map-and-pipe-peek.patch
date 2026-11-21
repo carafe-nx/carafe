@@ -1,0 +1,131 @@
+Carafe: check per-process machine in map_image_view, implement FSCTL_PIPE_PEEK and disable client fd caching for named pipes.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -679,6 +679,9 @@
+ #define HORIZON_STATUS_INSTANCE_NOT_AVAILABLE 0xc00000abu
+ #define HORIZON_STATUS_PIPE_NOT_AVAILABLE 0xc00000acu
+ #define HORIZON_STATUS_PIPE_DISCONNECTED 0xc00000b0u
++#define HORIZON_STATUS_INVALID_PIPE_STATE 0xc00000adu
++#define HORIZON_STATUS_PIPE_BROKEN 0xc000014bu
++#define HORIZON_FSCTL_PIPE_PEEK 0x0011400cu
+ #define HORIZON_STATUS_NOT_IMPLEMENTED 0xc0000002u
+ #define HORIZON_STATUS_INVALID_HANDLE 0xc0000008u
+ #define HORIZON_STATUS_NOT_MAPPED_VIEW 0xc0000019u
+@@ -4864,6 +4867,53 @@
+     return -1;
+ }
+ 
++static unsigned int horizon_pipe_peek_fd( int fd, unsigned char *out, unsigned int out_max,
++                                          unsigned int *out_size )
++{
++    struct horizon_pipe_file *file;
++    struct horizon_pipe *pipe;
++    __handle *handle;
++    unsigned int header[4];
++    unsigned int avail, copy_max, to_copy, first;
++
++    *out_size = 0;
++    if (out_max < sizeof(header)) return HORIZON_STATUS_INFO_LENGTH_MISMATCH;
++    if (fd < 0 || horizon_pipe_device == -1 || !(handle = __get_handle( fd )))
++        return HORIZON_STATUS_INVALID_HANDLE;
++    if (handle->device != (unsigned int)horizon_pipe_device || !handle->fileStruct)
++        return HORIZON_STATUS_OBJECT_TYPE_MISMATCH;
++    file = *(struct horizon_pipe_file **)handle->fileStruct;
++    if (!file || file->write_end) return HORIZON_STATUS_ACCESS_DENIED;
++    pipe = file->pipe;
++
++    pthread_mutex_lock( &pipe->mutex );
++    if (!pipe->write_open && !pipe->used)
++    {
++        pthread_mutex_unlock( &pipe->mutex );
++        return HORIZON_STATUS_PIPE_BROKEN;
++    }
++    avail = (unsigned int)pipe->used;
++    copy_max = out_max - (unsigned int)sizeof(header);
++    to_copy = avail < copy_max ? avail : copy_max;
++    header[0] = pipe->write_open ? 3u : 4u;
++    header[1] = avail;
++    header[2] = 0u;
++    header[3] = 0u;
++    memcpy( out, header, sizeof(header) );
++    if (to_copy)
++    {
++        first = HORIZON_PIPE_BUFFER_SIZE - (unsigned int)pipe->head;
++        if (first > to_copy) first = to_copy;
++        memcpy( out + sizeof(header), pipe->buffer + pipe->head, first );
++        if (to_copy > first)
++            memcpy( out + sizeof(header) + first, pipe->buffer, to_copy - first );
++    }
++    pthread_mutex_unlock( &pipe->mutex );
++
++    *out_size = (unsigned int)sizeof(header) + to_copy;
++    return HORIZON_STATUS_SUCCESS;
++}
++
+ static const struct horizon_pipe *horizon_fd_client_owner(void)
+ {
+     return horizon_pipe_from_fd( get_thread_data()->request_fd );
+@@ -12915,7 +12965,7 @@
+     else if (entry->object->type == HORIZON_SERVER_OBJECT_NAMED_PIPE)
+     {
+         reply.type = HORIZON_FD_TYPE_CHAR;
+-        reply.cacheable = 1;
++        reply.cacheable = 0;
+         reply.access = entry->object->file_access;
+         reply.options = entry->object->file_options;
+         horizon_server_queue_fd( entry->object->file_fd, request->handle );
+@@ -15876,6 +15926,36 @@
+         break;
+     }
+ 
++    case HORIZON_FSCTL_PIPE_PEEK:
++    {
++        struct horizon_server_handle_entry *entry;
++        int fd = -1;
++
++        if (out_max < 16u)
++        {
++            status = HORIZON_STATUS_INFO_LENGTH_MISMATCH;
++            break;
++        }
++        pthread_mutex_lock( &horizon_server_objects_mutex );
++        entry = horizon_server_find_handle_locked( handle );
++        if (!entry) status = HORIZON_STATUS_INVALID_HANDLE;
++        else if (entry->object->type != HORIZON_SERVER_OBJECT_NAMED_PIPE || entry->object->file_fd == -1)
++            status = HORIZON_STATUS_OBJECT_TYPE_MISMATCH;
++        else if (entry->object->file_peer_fd != -1)
++            status = HORIZON_STATUS_INVALID_PIPE_STATE;
++        else if ((fd = dup( entry->object->file_fd )) == -1)
++            status = horizon_server_errno_status( errno );
++        else
++            status = HORIZON_STATUS_SUCCESS;
++        pthread_mutex_unlock( &horizon_server_objects_mutex );
++        if (fd != -1)
++        {
++            status = horizon_pipe_peek_fd( fd, out, out_max, &out_size );
++            close( fd );
++        }
++        break;
++    }
++
+     default:
+         horizon_trace( "[server] unimplemented ioctl code=%#x handle=%08x in=%u out=%u\n",
+                        request->code, handle, data_size, request->header.reply_size );
+@@ -16656,8 +16736,13 @@
+         entry->object->mapping_image.map_size = request->size;
+         entry->object->mapping_image.entry_point = request->entry;
+         entry->object->mapping_image.machine = request->machine;
+-        if (request->machine != horizon_process_machine && request->machine != HORIZON_IMAGE_FILE_MACHINE_ARM64)
+-            status = HORIZON_STATUS_IMAGE_MACHINE_TYPE_MISMATCH;
++        {
++            struct horizon_server_object *proc = horizon_guest_process_find_locked( connection->pid );
++            unsigned short expected_machine = (proc && proc->process.is_child)
++                ? proc->process.machine : horizon_process_machine;
++            if (request->machine != expected_machine && request->machine != HORIZON_IMAGE_FILE_MACHINE_ARM64)
++                status = HORIZON_STATUS_IMAGE_MACHINE_TYPE_MISMATCH;
++        }
+     }
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+ 

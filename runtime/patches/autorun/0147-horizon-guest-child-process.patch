@@ -1,0 +1,1025 @@
+Carafe: isolate per-process handle tables, inherit child handles, stop child threads on termination and defer child process signaling and cleanup off child stack.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -1162,6 +1162,14 @@
+     unsigned int handle;
+ };
+ 
++struct horizon_set_handle_info_request
++{
++    struct horizon_server_request_header header;
++    unsigned int handle;
++    int flags;
++    int mask;
++};
++
+ struct horizon_set_handle_info_reply
+ {
+     struct horizon_server_reply_header header;
+@@ -3337,6 +3345,22 @@
+     unsigned int max;
+     struct horizon_mutex_state mutex;
+     struct horizon_thread_state thread;
++    struct
++    {
++        unsigned int pid;
++        unsigned int ppid;
++        unsigned int exit_code;
++        unsigned int guest_ctx_id;
++        unsigned int live_threads;
++        unsigned short machine;
++        int is_child;
++        int armed;
++        int exiting;
++        int terminated;
++        unsigned long long peb;
++        struct horizon_guest_exited_thread *exited_threads;
++        struct horizon_server_object *next;
++    } process;
+     union
+     {
+         struct horizon_server_object *thread_next;
+@@ -3414,10 +3438,18 @@
+     void *device_file;
+ };
+ 
++struct horizon_guest_exited_thread
++{
++    void *thread_data;
++    struct horizon_guest_exited_thread *next;
++};
++
+ struct horizon_server_handle_entry
+ {
+     unsigned int handle;
++    unsigned int owner_pid;
+     unsigned int access;
++    unsigned int inherit;
+     struct horizon_server_object *object;
+     struct horizon_server_handle_entry *next;
+     struct horizon_server_handle_entry **pprev;     /* what points at it in horizon_server_handles */
+@@ -3427,6 +3459,9 @@
+ static struct horizon_reg horizon_registry;
+ 
+ static LONG horizon_server_next_handle = 0x100;
++static LONG horizon_server_next_pid = 0x100;
++static unsigned int horizon_server_root_pid;
++static struct horizon_server_object *horizon_server_processes;
+ static pthread_mutex_t horizon_server_objects_mutex = PTHREAD_MUTEX_INITIALIZER;
+ /* Pending selects and thread start gates sleep here, releasing the object lock;
+  * each change that can signal an object wakes them. */
+@@ -5017,31 +5052,48 @@
+     return 0;
+ }
+ 
++static unsigned int horizon_server_current_pid(void)
++{
++    if (horizon_server_current && horizon_server_current->pid)
++        return horizon_server_current->pid;
++    return horizon_server_root_pid;
++}
++
+ static unsigned int horizon_server_alloc_handle(void)
+ {
+     return __sync_add_and_fetch( &horizon_server_next_handle, 4 );
+ }
+ 
+-static struct horizon_server_handle_entry **horizon_server_handle_bucket( unsigned int handle )
++static struct horizon_server_handle_entry **horizon_server_handle_bucket( unsigned int pid, unsigned int handle )
+ {
+-    return &horizon_server_handle_hash[(handle >> 2) & (HORIZON_SERVER_HANDLE_HASH_SIZE - 1)];
++    unsigned int key = (handle >> 2) ^ (pid * 2654435761u);
++    return &horizon_server_handle_hash[key & (HORIZON_SERVER_HANDLE_HASH_SIZE - 1)];
+ }
+ 
+-static struct horizon_server_handle_entry *horizon_server_find_handle_locked( unsigned int handle )
++static struct horizon_server_handle_entry *horizon_server_find_handle_for_pid_locked( unsigned int pid,
++                                                                                     unsigned int handle )
+ {
+     struct horizon_server_handle_entry *entry;
+ 
+-    for (entry = *horizon_server_handle_bucket( handle ); entry; entry = entry->hash_next)
+-        if (entry->handle == handle) return entry;
++    if (!pid) pid = horizon_server_root_pid;
++    for (entry = *horizon_server_handle_bucket( pid, handle ); entry; entry = entry->hash_next)
++        if (entry->handle == handle && entry->owner_pid == pid) return entry;
+ 
+     return NULL;
+ }
+ 
++static struct horizon_server_handle_entry *horizon_server_find_handle_locked( unsigned int handle )
++{
++    return horizon_server_find_handle_for_pid_locked( horizon_server_current_pid(), handle );
++}
++
+ /* Adds an entry, its handle already set, to the list and the hash. */
+ static void horizon_server_link_handle_locked( struct horizon_server_handle_entry *entry )
+ {
+-    struct horizon_server_handle_entry **bucket = horizon_server_handle_bucket( entry->handle );
++    struct horizon_server_handle_entry **bucket;
+ 
++    if (!entry->owner_pid) entry->owner_pid = horizon_server_current_pid();
++    bucket = horizon_server_handle_bucket( entry->owner_pid, entry->handle );
+     if ((entry->next = horizon_server_handles)) entry->next->pprev = &entry->next;
+     entry->pprev = &horizon_server_handles;
+     horizon_server_handles = entry;
+@@ -5051,14 +5103,15 @@
+ 
+ static void horizon_server_unlink_handle_locked( struct horizon_server_handle_entry *entry )
+ {
+-    struct horizon_server_handle_entry **ptr = horizon_server_handle_bucket( entry->handle );
++    struct horizon_server_handle_entry **ptr = horizon_server_handle_bucket( entry->owner_pid, entry->handle );
+ 
+     if ((*entry->pprev = entry->next)) entry->next->pprev = entry->pprev;
+     while (*ptr != entry) ptr = &(*ptr)->hash_next;
+     *ptr = entry->hash_next;
+ }
+ 
+-static struct horizon_server_handle_entry *horizon_server_create_handle_locked( int type )
++static struct horizon_server_handle_entry *horizon_server_create_handle_for_pid_locked( unsigned int owner_pid,
++                                                                                       int type )
+ {
+     struct horizon_server_object *object = calloc( 1, sizeof(*object) );
+     struct horizon_server_handle_entry *entry = calloc( 1, sizeof(*entry) );
+@@ -5071,6 +5124,7 @@
+     }
+ 
+     entry->handle = horizon_server_alloc_handle();
++    entry->owner_pid = owner_pid ? owner_pid : horizon_server_current_pid();
+     entry->object = object;
+     horizon_server_link_handle_locked( entry );
+ 
+@@ -5082,13 +5136,19 @@
+     return entry;
+ }
+ 
+-static struct horizon_server_handle_entry *horizon_server_create_handle_for_object_locked(
+-    struct horizon_server_object *object )
++static struct horizon_server_handle_entry *horizon_server_create_handle_locked( int type )
++{
++    return horizon_server_create_handle_for_pid_locked( horizon_server_current_pid(), type );
++}
++
++static struct horizon_server_handle_entry *horizon_server_create_handle_for_object_pid_locked(
++    unsigned int owner_pid, struct horizon_server_object *object )
+ {
+     struct horizon_server_handle_entry *entry = calloc( 1, sizeof(*entry) );
+ 
+     if (!entry) return NULL;
+     entry->handle = horizon_server_alloc_handle();
++    entry->owner_pid = owner_pid ? owner_pid : horizon_server_current_pid();
+     entry->object = object;
+     object->refs++;
+     if (object->type == HORIZON_SERVER_OBJECT_COMPLETION) object->completion_closed = 0;
+@@ -5096,6 +5156,12 @@
+     return entry;
+ }
+ 
++static struct horizon_server_handle_entry *horizon_server_create_handle_for_object_locked(
++    struct horizon_server_object *object )
++{
++    return horizon_server_create_handle_for_object_pid_locked( horizon_server_current_pid(), object );
++}
++
+ static void horizon_server_unlink_timer_locked( struct horizon_server_object *timer )
+ {
+     struct horizon_server_object **ptr;
+@@ -5115,6 +5181,24 @@
+     if (!object) return;
+     if (object->type == HORIZON_SERVER_OBJECT_TIMER) horizon_server_unlink_timer_locked( object );
+     if (object->type == HORIZON_SERVER_OBJECT_DEVICE && carafeHidClose) carafeHidClose( object->device_file );
++    if (object->type == HORIZON_SERVER_OBJECT_PROCESS && object->process.is_child)
++    {
++        struct horizon_server_object **ptr;
++
++        while (object->process.exited_threads)
++        {
++            struct horizon_guest_exited_thread *next = object->process.exited_threads->next;
++            free( object->process.exited_threads );
++            object->process.exited_threads = next;
++        }
++        for (ptr = &horizon_server_processes; *ptr; ptr = &(*ptr)->process.next)
++        {
++            if (*ptr != object) continue;
++            *ptr = object->process.next;
++            object->process.next = NULL;
++            break;
++        }
++    }
+     if (object->type == HORIZON_SERVER_OBJECT_THREAD)
+     {
+         struct horizon_server_object **ptr;
+@@ -5206,65 +5290,83 @@
+     return 0;
+ }
+ 
+-static unsigned int horizon_server_close_object_handle( unsigned int handle )
++static unsigned int horizon_server_close_handle_entry_locked( struct horizon_server_handle_entry *entry )
+ {
+-    struct horizon_server_handle_entry *entry;
+-    struct horizon_server_object *object;
++    struct horizon_server_object *object = entry->object;
++    unsigned int handle = entry->handle;
+     unsigned int status = HORIZON_STATUS_SUCCESS;
+ 
+-    if (!handle) return HORIZON_STATUS_INVALID_HANDLE;
+-
+-    pthread_mutex_lock( &horizon_server_objects_mutex );
+-    if ((entry = horizon_server_find_handle_locked( handle )))
++    horizon_server_unlink_handle_locked( entry );
++    if (object) horizon_sync_notify_object_locked( object, 0 );
++    if (object && object->type == HORIZON_SERVER_OBJECT_SOCK && horizon_asyncs.head &&
++        horizon_async_cancel( &horizon_asyncs, handle, 0, 0, horizon_async_now(), 1 ))
++        horizon_sync_notify_async_locked();
++    if (object && object->type == HORIZON_SERVER_OBJECT_COMPLETION &&
++        !horizon_server_object_has_handles_locked( object ))
+     {
+-        object = entry->object;
+-        horizon_server_unlink_handle_locked( entry );
+-        if (object) horizon_sync_notify_object_locked( object, 0 );
+-        /* What waits on a socket that is closed ends, as wineserver ends it. */
+-        if (object && object->type == HORIZON_SERVER_OBJECT_SOCK && horizon_asyncs.head &&
+-            horizon_async_cancel( &horizon_asyncs, handle, 0, 0, horizon_async_now(), 1 ))
+-            horizon_sync_notify_async_locked();
+-        /* server/completion.c's close_handle: closing a port's last handle
+-         * abandons the waits on it. */
+-        if (object && object->type == HORIZON_SERVER_OBJECT_COMPLETION &&
+-            !horizon_server_object_has_handles_locked( object ))
++        object->completion_closed = 1;
++        horizon_sync_notify_object_locked( object, 1 );
++    }
++    if (object && object->reg_key)
++        horizon_reg_handle_closed( &horizon_registry, object->reg_key, handle );
++    if (object && object->refs && !--object->refs)
++    {
++        if (object->type == HORIZON_SERVER_OBJECT_FILE &&
++            ((object->file_options & 0x00001000u) || object->file_delete) && object->file_name)
+         {
+-            object->completion_closed = 1;
+-            horizon_sync_notify_object_locked( object, 1 );
++            int ret, error;
++            if (object->file_fd != -1)
++            {
++                ret = close( object->file_fd );
++                object->file_fd = -1;
++                if (ret == -1) status = horizon_server_errno_status( errno );
++            }
++            ret = object->file_is_dir ? rmdir( object->file_name ) : unlink( object->file_name );
++            error = ret == -1 ? errno : 0;
++            if (error && error != ENOENT) status = horizon_server_errno_status( error );
++            horizon_trace( "[HZFILE] delete result=%d errno=%d", ret, error );
++            horizon_trace( "[HZFILE] delete-on-close path=%s status=%08x",
++                           object->file_name, status );
+         }
+-        if (object && object->reg_key)
+-            horizon_reg_handle_closed( &horizon_registry, object->reg_key, handle );
+-        if (object && object->refs && !--object->refs)
+-        {
+-            /* DeleteFileW opens with DELETE_ON_CLOSE, then closes. Defer until
+-             * the last duplicate handle releases this file object. */
+-            if (object->type == HORIZON_SERVER_OBJECT_FILE &&
+-                ((object->file_options & 0x00001000u) || object->file_delete) && object->file_name)
++        horizon_server_free_object( object );
++    }
++    free( entry );
++    return status;
++}
++
++static void horizon_server_close_all_handles_for_pid_locked( unsigned int pid )
++{
++    if (!pid || pid == horizon_server_root_pid) return;
++    for (;;)
++    {
++        struct horizon_server_handle_entry *entry;
++        struct horizon_server_handle_entry *victim = NULL;
++
++        for (entry = horizon_server_handles; entry; entry = entry->next)
++        {
++            if (entry->owner_pid == pid)
+             {
+-                int ret, error;
+-                /* Horizon's filesystem cannot delete an open file. Release
+-                 * this object's descriptor before removing its path. */
+-                if (object->file_fd != -1)
+-                {
+-                    ret = close( object->file_fd );
+-                    object->file_fd = -1;
+-                    if (ret == -1) status = horizon_server_errno_status( errno );
+-                }
+-                ret = object->file_is_dir ? rmdir( object->file_name ) : unlink( object->file_name );
+-                error = ret == -1 ? errno : 0;
+-                if (error && error != ENOENT) status = horizon_server_errno_status( error );
+-                horizon_trace( "[HZFILE] delete result=%d errno=%d", ret, error );
+-                horizon_trace( "[HZFILE] delete-on-close path=%s status=%08x",
+-                               object->file_name, status );
++                victim = entry;
++                break;
+             }
+-            horizon_server_free_object( object );
+         }
+-        free( entry );
+-        pthread_mutex_unlock( &horizon_server_objects_mutex );
+-        return status;
++        if (!victim) break;
++        horizon_server_close_handle_entry_locked( victim );
+     }
++}
++
++static unsigned int horizon_server_close_object_handle( unsigned int handle )
++{
++    struct horizon_server_handle_entry *entry;
++    unsigned int status = HORIZON_STATUS_INVALID_HANDLE;
++
++    if (!handle) return HORIZON_STATUS_INVALID_HANDLE;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    if ((entry = horizon_server_find_handle_locked( handle )))
++        status = horizon_server_close_handle_entry_locked( entry );
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+-    return HORIZON_STATUS_INVALID_HANDLE;
++    return status;
+ }
+ 
+ /* Generic mapping and implied rights from server/process.c. */
+@@ -5299,12 +5401,31 @@
+     return status;
+ }
+ 
+-static unsigned int horizon_server_duplicate_object_handle( unsigned int handle, unsigned int access,
+-                                                             unsigned int options, unsigned int *new_handle )
++static unsigned int horizon_server_resolve_process_pid_locked( unsigned int caller_pid, unsigned int process_handle )
+ {
+     struct horizon_server_handle_entry *entry;
++
++    if (!process_handle || process_handle == HORIZON_CURRENT_PROCESS_HANDLE)
++        return caller_pid ? caller_pid : horizon_server_root_pid;
++    entry = horizon_server_find_handle_for_pid_locked( caller_pid, process_handle );
++    if (!entry || !entry->object || entry->object->type != HORIZON_SERVER_OBJECT_PROCESS)
++        return 0;
++    if (entry->object->process.is_child)
++        return entry->object->process.pid;
++    return horizon_server_root_pid;
++}
++
++static unsigned int horizon_server_duplicate_object_handle_ex( unsigned int caller_pid,
++                                                               unsigned int src_process,
++                                                               unsigned int dst_process,
++                                                               unsigned int handle, unsigned int access,
++                                                               unsigned int attributes,
++                                                               unsigned int options, unsigned int *new_handle )
++{
++    struct horizon_server_handle_entry *entry = NULL;
+     struct horizon_server_handle_entry *duplicate;
+     unsigned int source_access = HORIZON_THREAD_ALL_ACCESS;
++    unsigned int src_pid, dst_pid;
+ 
+     *new_handle = 0;
+     if (!handle) return HORIZON_STATUS_INVALID_HANDLE;
+@@ -5313,12 +5434,31 @@
+     if (!duplicate) return HORIZON_STATUS_NO_MEMORY;
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
++    src_pid = horizon_server_resolve_process_pid_locked( caller_pid, src_process );
++    dst_pid = horizon_server_resolve_process_pid_locked( caller_pid, dst_process );
++    if (!src_pid || !dst_pid)
++    {
++        pthread_mutex_unlock( &horizon_server_objects_mutex );
++        free( duplicate );
++        return HORIZON_STATUS_INVALID_HANDLE;
++    }
+     if (handle == HORIZON_CURRENT_PROCESS_HANDLE)
+     {
+-        /* Process objects carry no state yet; a fresh one is equivalent. */
+-        if ((entry = horizon_server_create_handle_locked( HORIZON_SERVER_OBJECT_PROCESS )))
++        struct horizon_server_object *child = NULL;
++
++        if (src_pid != horizon_server_root_pid)
++        {
++            for (child = horizon_server_processes; child; child = child->process.next)
++                if (child->process.pid == src_pid) break;
++        }
++        if (child)
++            entry = horizon_server_create_handle_for_object_pid_locked( dst_pid, child );
++        else
++            entry = horizon_server_create_handle_for_pid_locked( dst_pid, HORIZON_SERVER_OBJECT_PROCESS );
++        if (entry)
+         {
+             entry->access = options & 2 ? HORIZON_PROCESS_ALL_ACCESS : horizon_process_map_access( access );
++            entry->inherit = !!(attributes & 2);
+             *new_handle = entry->handle;
+         }
+         pthread_mutex_unlock( &horizon_server_objects_mutex );
+@@ -5330,7 +5470,7 @@
+     {
+         duplicate->object = horizon_server_current->thread;
+     }
+-    else if (!(entry = horizon_server_find_handle_locked( handle )))
++    else if (!(entry = horizon_server_find_handle_for_pid_locked( src_pid, handle )))
+     {
+         pthread_mutex_unlock( &horizon_server_objects_mutex );
+         free( duplicate );
+@@ -5343,13 +5483,18 @@
+     }
+ 
+     if (duplicate->object->type == HORIZON_SERVER_OBJECT_THREAD)
+-        duplicate->access = options & 2 /* DUPLICATE_SAME_ACCESS */ ? source_access :
+-                                   horizon_thread_map_access( access );
++        duplicate->access = options & 2 ? source_access : horizon_thread_map_access( access );
+     else if (duplicate->object->type == HORIZON_SERVER_OBJECT_PROCESS)
+         duplicate->access = options & 2 ? source_access : horizon_process_map_access( access );
++    else
++        duplicate->access = options & 2 ? source_access : access;
+     duplicate->handle = horizon_server_alloc_handle();
++    duplicate->owner_pid = dst_pid;
++    duplicate->inherit = !!(attributes & 2);
+     duplicate->object->refs++;
+     horizon_server_link_handle_locked( duplicate );
++    if ((options & 1) && entry)
++        horizon_server_close_handle_entry_locked( entry );
+     *new_handle = duplicate->handle;
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return HORIZON_STATUS_SUCCESS;
+@@ -7368,6 +7513,7 @@
+         return horizon_completion_wait_signaled( object->wait_port ? &object->wait_port->completion : NULL,
+                                                  object->wait_port && object->wait_port->completion_closed );
+     case HORIZON_SERVER_OBJECT_PROCESS:
++        return object->process.is_child ? object->process.terminated : 1;
+     case HORIZON_SERVER_OBJECT_RESERVE:
+     case HORIZON_SERVER_OBJECT_KEYED_EVENT:
+         return 1;
+@@ -7463,16 +7609,72 @@
+     if (!--wait->refs) horizon_server_free_object( wait );
+ }
+ 
++static void horizon_guest_process_finalize_locked( struct horizon_server_object *proc )
++{
++    struct horizon_guest_exited_thread *exited;
++    unsigned int ctx_id, child_pid;
++
++    if (!proc || !proc->process.is_child || proc->process.terminated) return;
++    child_pid = proc->process.pid;
++    ctx_id = proc->process.guest_ctx_id;
++    proc->process.guest_ctx_id = 0;
++    exited = proc->process.exited_threads;
++    proc->process.exited_threads = NULL;
++    proc->refs++;
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++
++#ifndef HORIZON_STANDALONE_SYNTAX
++    {
++        extern void wine_nx_thread_join_and_free_guest_data( void *thread_data ) __attribute__((weak));
++        extern unsigned int wine_nx_virtual_release_guest_context( unsigned int ctx_id ) __attribute__((weak));
++
++        while (exited)
++        {
++            struct horizon_guest_exited_thread *next = exited->next;
++            if (&wine_nx_thread_join_and_free_guest_data && exited->thread_data)
++                wine_nx_thread_join_and_free_guest_data( exited->thread_data );
++            free( exited );
++            exited = next;
++        }
++        if (ctx_id && &wine_nx_virtual_release_guest_context)
++            wine_nx_virtual_release_guest_context( ctx_id );
++    }
++#else
++    while (exited)
++    {
++        struct horizon_guest_exited_thread *next = exited->next;
++        free( exited );
++        exited = next;
++    }
++#endif
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    horizon_server_close_all_handles_for_pid_locked( child_pid );
++    if (!proc->process.terminated)
++    {
++        proc->process.terminated = 1;
++        horizon_sync_notify_object_locked( proc, 0 );
++        horizon_server_signal_changed_locked();
++        if (proc->refs) proc->refs--;
++    }
++    if (!--proc->refs) horizon_server_free_object( proc );
++}
++
+ /* The client's request pipe closed: it can no longer run Windows code. Mark it
+  * terminated (waiters wake), abandon its mutexes and drop the connection's
+  * reference. Callers hold horizon_server_objects_mutex. */
+ static void horizon_server_end_thread_locked( struct horizon_server_connection *connection )
+ {
+     struct horizon_server_object *thread = connection->thread;
++    struct horizon_server_object *proc = NULL;
+     struct horizon_server_handle_entry *entry;
++    unsigned int thread_pid;
++    unsigned int thread_exit_code;
+ 
+     horizon_server_end_completion_wait_locked( connection );
+     if (!thread) return;
++    thread_pid = thread->thread.pid;
++    thread_exit_code = thread->thread.exit_code;
+     connection->thread = NULL;
+     if (horizon_thread_mark_terminated( &thread->thread, horizon_server_now() ))
+         horizon_server_running_threads--;
+@@ -7487,6 +7689,25 @@
+     horizon_sync_notify_object_locked( thread, 1 );
+     horizon_server_signal_changed_locked();
+     if (!--thread->refs) horizon_server_free_object( thread );
++
++    if (thread_pid && thread_pid != horizon_server_root_pid)
++    {
++        for (proc = horizon_server_processes; proc; proc = proc->process.next)
++            if (proc->process.pid == thread_pid) break;
++        if (proc && proc->process.is_child)
++        {
++            if (proc->process.live_threads) proc->process.live_threads--;
++            if (proc->process.armed && !proc->process.live_threads && !proc->process.terminated)
++            {
++                if (!proc->process.exiting)
++                {
++                    proc->process.exiting = 1;
++                    proc->process.exit_code = thread_exit_code;
++                }
++                horizon_guest_process_finalize_locked( proc );
++            }
++        }
++    }
+ }
+ 
+ static unsigned int horizon_server_signal_object_locked( unsigned int handle )
+@@ -7578,6 +7799,7 @@
+     reply.session_id = 1;
+     connection->pid = reply.pid;
+     connection->tid = reply.tid;
++    horizon_server_root_pid = reply.pid;
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+     if (!connection->thread &&
+@@ -7668,12 +7890,27 @@
+     return horizon_server_write_status( connection->reply_fd, status );
+ }
+ 
+-static int horizon_server_handle_set_handle_info( struct horizon_server_connection *connection )
++static int horizon_server_handle_set_handle_info( struct horizon_server_connection *connection,
++                                                  const unsigned char *message )
+ {
++    const struct horizon_set_handle_info_request *request = (const void *)message;
+     struct horizon_set_handle_info_reply reply;
++    struct horizon_server_handle_entry *entry;
+ 
+     memset( &reply, 0, sizeof(reply) );
+-    reply.header.error = HORIZON_STATUS_SUCCESS;
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    entry = horizon_server_find_handle_for_pid_locked( connection->pid, request->handle );
++    if (!entry)
++    {
++        reply.header.error = HORIZON_STATUS_INVALID_HANDLE;
++    }
++    else
++    {
++        reply.old_flags = entry->inherit ? 1 : 0;
++        if (request->mask & 1) entry->inherit = !!(request->flags & 1);
++        reply.header.error = HORIZON_STATUS_SUCCESS;
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
+ }
+ 
+@@ -7684,8 +7921,10 @@
+     struct horizon_dup_handle_reply reply;
+ 
+     memset( &reply, 0, sizeof(reply) );
+-    reply.header.error = horizon_server_duplicate_object_handle( request->src_handle, request->access,
+-                                                                request->options, &reply.handle );
++    reply.header.error = horizon_server_duplicate_object_handle_ex(
++        connection->pid, request->src_process, request->dst_process,
++        request->src_handle, request->access, request->attributes,
++        request->options, &reply.handle );
+ 
+     TRACE( "Horizon server dup_handle src %08x -> %08x status %08x.\n",
+            request->src_handle, reply.handle, reply.header.error );
+@@ -7750,7 +7989,21 @@
+     struct horizon_server_handle_entry *entry;
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+-    if (request->pid != connection->pid) reply.header.error = HORIZON_STATUS_INVALID_CID;
++    if (request->pid != connection->pid)
++    {
++        struct horizon_server_object *child = NULL;
++
++        for (child = horizon_server_processes; child; child = child->process.next)
++            if (child->process.pid == request->pid) break;
++        if (!child) reply.header.error = HORIZON_STATUS_INVALID_CID;
++        else if (!(entry = horizon_server_create_handle_for_object_locked( child )))
++            reply.header.error = HORIZON_STATUS_NO_MEMORY;
++        else
++        {
++            entry->access = horizon_process_map_access( request->access );
++            reply.handle = entry->handle;
++        }
++    }
+     else if (!(entry = horizon_server_create_handle_locked( HORIZON_SERVER_OBJECT_PROCESS )))
+         reply.header.error = HORIZON_STATUS_NO_MEMORY;
+     else
+@@ -7762,6 +8015,331 @@
+     return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
+ }
+ 
++static void horizon_guest_process_stop_threads_locked( unsigned int child_pid, unsigned int exclude_tid,
++                                                       unsigned int exit_code );
++
++static struct horizon_server_object *horizon_guest_process_find_locked( unsigned int child_pid )
++{
++    struct horizon_server_object *object;
++
++    if (!child_pid) return NULL;
++    for (object = horizon_server_processes; object; object = object->process.next)
++        if (object->process.pid == child_pid) return object;
++    return NULL;
++}
++
++unsigned int horizon_guest_process_create( unsigned int parent_pid, unsigned int guest_ctx_id,
++                                           unsigned short machine, unsigned long long peb_addr,
++                                           unsigned int access, unsigned int *handle_out,
++                                           unsigned int *pid_out )
++{
++    struct horizon_server_handle_entry *entry;
++    struct horizon_server_object *object;
++    unsigned int child_pid;
++
++    if (!handle_out || !pid_out) return HORIZON_STATUS_INVALID_PARAMETER;
++    *handle_out = 0;
++    *pid_out = 0;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    if (!parent_pid) parent_pid = horizon_server_root_pid;
++    entry = horizon_server_create_handle_for_pid_locked( parent_pid, HORIZON_SERVER_OBJECT_PROCESS );
++    if (!entry)
++    {
++        pthread_mutex_unlock( &horizon_server_objects_mutex );
++        return HORIZON_STATUS_NO_MEMORY;
++    }
++    child_pid = (unsigned int)__sync_add_and_fetch( &horizon_server_next_pid, 4 );
++    if (child_pid == parent_pid || child_pid == horizon_server_root_pid || !child_pid)
++        child_pid = (unsigned int)__sync_add_and_fetch( &horizon_server_next_pid, 4 );
++
++    object = entry->object;
++    entry->access = horizon_process_map_access( access );
++    object->refs++;
++    object->process.pid = child_pid;
++    object->process.ppid = parent_pid;
++    object->process.exit_code = 0x00000103u;
++    object->process.guest_ctx_id = guest_ctx_id;
++    object->process.live_threads = 0;
++    object->process.machine = machine;
++    object->process.is_child = 1;
++    object->process.armed = 0;
++    object->process.exiting = 0;
++    object->process.terminated = 0;
++    object->process.peb = peb_addr;
++    object->process.exited_threads = NULL;
++    object->process.next = horizon_server_processes;
++    horizon_server_processes = object;
++
++    *handle_out = entry->handle;
++    *pid_out = child_pid;
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return HORIZON_STATUS_SUCCESS;
++}
++
++static unsigned int horizon_guest_process_inherit_one_locked( unsigned int parent_pid, unsigned int child_pid,
++                                                              unsigned int handle, int require_exists )
++{
++    struct horizon_server_handle_entry *src, *dst;
++
++    if (!handle || handle == HORIZON_CURRENT_PROCESS_HANDLE || handle == HORIZON_CURRENT_THREAD_HANDLE)
++        return HORIZON_STATUS_SUCCESS;
++    if (horizon_server_find_handle_for_pid_locked( child_pid, handle ))
++        return HORIZON_STATUS_SUCCESS;
++    src = horizon_server_find_handle_for_pid_locked( parent_pid, handle );
++    if (!src) return require_exists ? HORIZON_STATUS_INVALID_HANDLE : HORIZON_STATUS_SUCCESS;
++    dst = calloc( 1, sizeof(*dst) );
++    if (!dst) return HORIZON_STATUS_NO_MEMORY;
++    dst->handle = src->handle;
++    dst->owner_pid = child_pid;
++    dst->access = src->access;
++    dst->inherit = src->inherit;
++    dst->object = src->object;
++    dst->object->refs++;
++    if (dst->object->type == HORIZON_SERVER_OBJECT_COMPLETION) dst->object->completion_closed = 0;
++    horizon_server_link_handle_locked( dst );
++    return HORIZON_STATUS_SUCCESS;
++}
++
++unsigned int horizon_guest_process_inherit_handles( unsigned int parent_pid, unsigned int child_pid,
++                                                    unsigned int process_flags,
++                                                    const unsigned int *handles, unsigned int handle_count,
++                                                    const unsigned int *std_handles, unsigned int std_count )
++{
++    unsigned int status = HORIZON_STATUS_SUCCESS;
++    unsigned int i;
++
++    if (!child_pid || child_pid == horizon_server_root_pid) return HORIZON_STATUS_INVALID_PARAMETER;
++    if (!(process_flags & 0x00000004u)) return HORIZON_STATUS_SUCCESS;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    if (!parent_pid) parent_pid = horizon_server_root_pid;
++    if (handles && handle_count)
++    {
++        for (i = 0; i < handle_count; i++)
++        {
++            status = horizon_guest_process_inherit_one_locked( parent_pid, child_pid, handles[i], 1 );
++            if (status) break;
++        }
++    }
++    else
++    {
++        struct horizon_server_handle_entry *entry;
++        unsigned int count = 0, cap = 0;
++        unsigned int *list = NULL;
++
++        for (entry = horizon_server_handles; entry; entry = entry->next)
++        {
++            if (entry->owner_pid == parent_pid && entry->inherit)
++            {
++                if (count == cap)
++                {
++                    unsigned int next_cap = cap ? cap * 2 : 16;
++                    unsigned int *next_list = realloc( list, next_cap * sizeof(*next_list) );
++                    if (!next_list)
++                    {
++                        status = HORIZON_STATUS_NO_MEMORY;
++                        break;
++                    }
++                    list = next_list;
++                    cap = next_cap;
++                }
++                list[count++] = entry->handle;
++            }
++        }
++        for (i = 0; !status && i < count; i++)
++            status = horizon_guest_process_inherit_one_locked( parent_pid, child_pid, list[i], 0 );
++        free( list );
++        for (i = 0; !status && std_handles && i < std_count; i++)
++            status = horizon_guest_process_inherit_one_locked( parent_pid, child_pid, std_handles[i], 0 );
++    }
++
++    if (status)
++        horizon_server_close_all_handles_for_pid_locked( child_pid );
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return status;
++}
++
++void horizon_guest_process_arm( unsigned int child_pid )
++{
++    struct horizon_server_object *proc;
++
++    if (!child_pid) return;
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    proc = horizon_guest_process_find_locked( child_pid );
++    if (proc && proc->process.is_child)
++    {
++        proc->process.armed = 1;
++        if (!proc->process.live_threads && !proc->process.terminated)
++            horizon_guest_process_finalize_locked( proc );
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++}
++
++void horizon_guest_process_destroy_failed( unsigned int child_pid, unsigned int exit_code )
++{
++    struct horizon_server_object *proc;
++
++    if (!child_pid) return;
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    horizon_server_close_all_handles_for_pid_locked( child_pid );
++    proc = horizon_guest_process_find_locked( child_pid );
++    if (proc && proc->process.is_child)
++    {
++        proc->process.armed = 0;
++        proc->process.exiting = 1;
++        proc->process.guest_ctx_id = 0;
++        if (!proc->process.terminated)
++        {
++            proc->process.exit_code = exit_code;
++            proc->process.terminated = 1;
++            horizon_sync_notify_object_locked( proc, 0 );
++            horizon_server_signal_changed_locked();
++            if (!--proc->refs) horizon_server_free_object( proc );
++        }
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++}
++
++int horizon_guest_process_queue_exited_thread( unsigned int child_pid, void *thread_data )
++{
++    struct horizon_server_object *proc;
++    struct horizon_guest_exited_thread *node;
++
++    if (!child_pid || !thread_data) return 0;
++    node = malloc( sizeof(*node) );
++    if (!node) return 0;
++    node->thread_data = thread_data;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    proc = horizon_guest_process_find_locked( child_pid );
++    if (!proc || !proc->process.is_child)
++    {
++        pthread_mutex_unlock( &horizon_server_objects_mutex );
++        free( node );
++        return 0;
++    }
++    node->next = proc->process.exited_threads;
++    proc->process.exited_threads = node;
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return 1;
++}
++
++int horizon_guest_process_is_exiting( unsigned int child_pid, unsigned int *exit_code_out )
++{
++    struct horizon_server_object *proc;
++    int exiting = 0;
++
++    if (!child_pid) return 0;
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    proc = horizon_guest_process_find_locked( child_pid );
++    if (proc && proc->process.is_child && (proc->process.exiting || proc->process.terminated))
++    {
++        exiting = 1;
++        if (exit_code_out) *exit_code_out = proc->process.exit_code;
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return exiting;
++}
++
++int horizon_guest_process_terminate_others( unsigned int child_pid, unsigned int exclude_tid,
++                                            unsigned int exit_code )
++{
++    struct horizon_server_object *proc;
++    int found = 0;
++
++    if (!child_pid) return 0;
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    proc = horizon_guest_process_find_locked( child_pid );
++    if (proc && proc->process.is_child)
++    {
++        if (!proc->process.exiting)
++        {
++            proc->process.exiting = 1;
++            proc->process.exit_code = exit_code;
++        }
++        horizon_guest_process_stop_threads_locked( child_pid, exclude_tid, proc->process.exit_code );
++        found = 1;
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return found;
++}
++
++int horizon_guest_process_begin_exit( unsigned int child_pid, unsigned int exclude_tid,
++                                      unsigned int exit_code )
++{
++    struct horizon_server_object *proc;
++    int found = 0;
++
++    if (!child_pid) return 0;
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    proc = horizon_guest_process_find_locked( child_pid );
++    if (proc && proc->process.is_child)
++    {
++        proc->process.exiting = 1;
++        proc->process.exit_code = exit_code;
++        horizon_guest_process_stop_threads_locked( child_pid, exclude_tid, exit_code );
++        found = 1;
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return found;
++}
++
++unsigned int horizon_guest_process_query( unsigned int caller_pid, unsigned int handle, unsigned int *pid_out,
++                                          unsigned int *ppid_out, unsigned int *exit_code_out,
++                                          unsigned long long *peb_out, unsigned short *machine_out )
++{
++    struct horizon_server_handle_entry *entry;
++    struct horizon_server_object *object = NULL;
++    unsigned int status = HORIZON_STATUS_SUCCESS;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    if (!caller_pid) caller_pid = horizon_server_root_pid;
++    entry = horizon_server_find_handle_for_pid_locked( caller_pid, handle );
++    if (!entry) status = HORIZON_STATUS_INVALID_HANDLE;
++    else if (!entry->object || entry->object->type != HORIZON_SERVER_OBJECT_PROCESS ||
++             !entry->object->process.is_child)
++        status = HORIZON_STATUS_OBJECT_TYPE_MISMATCH;
++    else object = entry->object;
++    if (!status)
++    {
++        if (pid_out) *pid_out = object->process.pid;
++        if (ppid_out) *ppid_out = object->process.ppid;
++        if (exit_code_out) *exit_code_out = object->process.exit_code;
++        if (peb_out) *peb_out = object->process.peb;
++        if (machine_out) *machine_out = object->process.machine;
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return status;
++}
++
++int horizon_guest_process_terminate_handle( unsigned int caller_pid, unsigned int handle, unsigned int exit_code )
++{
++    struct horizon_server_handle_entry *entry;
++    struct horizon_server_object *object = NULL;
++    int terminated = 0;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    if (!caller_pid) caller_pid = horizon_server_root_pid;
++    entry = horizon_server_find_handle_for_pid_locked( caller_pid, handle );
++    if (entry && entry->object && entry->object->type == HORIZON_SERVER_OBJECT_PROCESS &&
++        entry->object->process.is_child)
++    {
++        object = entry->object;
++        if (!object->process.terminated)
++        {
++            object->process.exiting = 1;
++            object->process.exit_code = exit_code;
++            horizon_guest_process_stop_threads_locked( object->process.pid, 0, exit_code );
++            if (!object->process.live_threads)
++                horizon_guest_process_finalize_locked( object );
++        }
++        terminated = 1;
++    }
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++    return terminated;
++}
++
+ static int horizon_server_handle_open_named_object( struct horizon_server_connection *connection,
+                                                     const unsigned char *message,
+                                                     const unsigned char *data, unsigned int data_size,
+@@ -12809,9 +13387,20 @@
+     thread_connection->tid = __sync_add_and_fetch( &horizon_server_next_tid, 4 );
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+-    if ((object = horizon_server_alloc_thread_locked( thread_connection->tid, connection->pid )) &&
++    if (request->process && request->process != HORIZON_CURRENT_PROCESS_HANDLE)
++    {
++        struct horizon_server_object *proc_obj = NULL;
++
++        if (!horizon_server_find_typed_object_locked( request->process, HORIZON_SERVER_OBJECT_PROCESS, &proc_obj ) &&
++            proc_obj && proc_obj->process.is_child)
++            thread_connection->pid = proc_obj->process.pid;
++    }
++    if ((object = horizon_server_alloc_thread_locked( thread_connection->tid, thread_connection->pid )) &&
+         (entry = horizon_server_create_handle_for_object_locked( object )))
+     {
++        struct horizon_server_object *child_proc = horizon_guest_process_find_locked( thread_connection->pid );
++        if (child_proc && child_proc->process.is_child)
++            child_proc->process.live_threads++;
+         object->refs++; /* the connection's reference, dropped when its pipe closes */
+         object->thread.suspend = (request->flags & HORIZON_THREAD_CREATE_SUSPENDED) ? 1 : 0;
+         object->thread.is_system = request->is_system;
+@@ -13081,6 +13670,29 @@
+ }
+ #endif
+ 
++static void horizon_guest_process_stop_threads_locked( unsigned int child_pid, unsigned int exclude_tid,
++                                                       unsigned int exit_code )
++{
++    struct horizon_server_object *thread;
++
++    for (thread = horizon_server_threads; thread; thread = thread->thread_next)
++    {
++        if (thread->thread.pid != child_pid || thread->thread.terminated) continue;
++        if (exclude_tid && thread->thread.tid == exclude_tid) continue;
++        horizon_thread_set_exit_code( &thread->thread, exit_code );
++        __atomic_store_n( &thread->ending, 1, __ATOMIC_RELEASE );
++        thread->thread.suspend = 0;
++#ifndef HORIZON_STANDALONE_SYNTAX
++        horizon_server_stop_request_locked( thread, HORIZON_STOP_END, HORIZON_STOP_SUSPEND, exit_code, NULL );
++        horizon_server_set_suspend_doorbell_locked( thread, 0 );
++        horizon_server_thaw_locked( thread );
++        horizon_server_release_locked( thread );
++        NtAlertThreadByThreadId( ULongToHandle( thread->thread.tid ) );
++#endif
++    }
++    horizon_server_signal_changed_locked();
++}
++
+ static int horizon_server_handle_terminate_thread( struct horizon_server_connection *connection,
+                                                    const unsigned char *message )
+ {
+@@ -16980,6 +17592,7 @@
+         case HORIZON_SERVER_OBJECT_SEMAPHORE:
+         case HORIZON_SERVER_OBJECT_TIMER:
+         case HORIZON_SERVER_OBJECT_THREAD:
++        case HORIZON_SERVER_OBJECT_PROCESS:
+         case HORIZON_SERVER_OBJECT_MSG_QUEUE:
+         case HORIZON_SERVER_OBJECT_COMPLETION:
+             break;
+@@ -17754,7 +18367,7 @@
+             status = horizon_server_handle_close_handle( connection, message );
+             break;
+         case HORIZON_REQ_SET_HANDLE_INFO:
+-            status = horizon_server_handle_set_handle_info( connection );
++            status = horizon_server_handle_set_handle_info( connection, message );
+             break;
+         case HORIZON_REQ_DUP_HANDLE:
+             status = horizon_server_handle_dup_handle( connection, message );

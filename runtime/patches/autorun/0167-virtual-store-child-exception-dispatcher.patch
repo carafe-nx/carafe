@@ -1,0 +1,27 @@
+Carafe: store the child exception entry in the existing guest context.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -245,6 +245,7 @@
+     void        *ntdll_module;
+     void        *child_ldr_init;
+     void        *child_rtl_user_thread_start;
++    void        *child_exception_dispatcher;
+ };
+ 
+ static __thread unsigned int current_view_guest_ctx_id;
+@@ -5514,4 +5515,5 @@
+ unsigned int wine_nx_virtual_get_teb_guest_ctx( const TEB *teb, DWORD *child_pid_out,
+                                                 USHORT *machine_out, void **ldr_init_out,
+-                                                void **rtl_start_out, void **ntdll_out )
++                                                void **rtl_start_out, void **ntdll_out,
++                                                void **exception_dispatcher_out )
+ {
+@@ -5530,5 +5532,6 @@
+             if (ldr_init_out) *ldr_init_out = guest_va_contexts[i].child_ldr_init;
+             if (rtl_start_out) *rtl_start_out = guest_va_contexts[i].child_rtl_user_thread_start;
+             if (ntdll_out) *ntdll_out = guest_va_contexts[i].ntdll_module;
++            if (exception_dispatcher_out) *exception_dispatcher_out = guest_va_contexts[i].child_exception_dispatcher;
+             break;
+         }

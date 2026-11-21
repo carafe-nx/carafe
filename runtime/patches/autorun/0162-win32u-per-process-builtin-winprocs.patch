@@ -1,0 +1,331 @@
+Carafe: isolate win32u built-in winproc table and user32_module per guest process.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/win32u/class.c
++++ b/dlls/win32u/class.c
+@@ -176,120 +176,192 @@ static struct list class_list = LIST_INIT( class_list );
+ 
+ HINSTANCE user32_module = 0;
+ 
+-/* find an existing winproc for a given function and type */
+-/* FIXME: probably should do something more clever than a linear search */
+-static WINDOWPROC *find_winproc( WNDPROC func, BOOL ansi )
++#ifdef __SWITCH__
++struct process_builtin_winprocs
++{
++    DWORD pid;
++    HINSTANCE user32_module;
++    WINDOWPROC procs[NTUSER_NB_PROCS];
++};
++
++static struct process_builtin_winprocs child_builtin_winprocs[64];
++static unsigned int child_builtin_winprocs_next;
++static DWORD root_winproc_pid;
++
++static DWORD current_winproc_pid( void )
++{
++    TEB *teb = NtCurrentTeb();
++    return teb ? (DWORD)(ULONG_PTR)teb->ClientId.UniqueProcess : 0;
++}
++
++static struct process_builtin_winprocs *find_child_winprocs_locked( DWORD pid, BOOL create )
++{
++    unsigned int i;
++
++    for (i = 0; i < ARRAY_SIZE(child_builtin_winprocs); i++)
++        if (child_builtin_winprocs[i].pid == pid) return &child_builtin_winprocs[i];
++    if (!create) return NULL;
++    for (i = 0; i < ARRAY_SIZE(child_builtin_winprocs); i++)
++    {
++        if (!child_builtin_winprocs[i].pid)
++        {
++            memset( &child_builtin_winprocs[i], 0, sizeof(child_builtin_winprocs[i]) );
++            child_builtin_winprocs[i].pid = pid;
++            return &child_builtin_winprocs[i];
++        }
++    }
++    i = child_builtin_winprocs_next++ % ARRAY_SIZE(child_builtin_winprocs);
++    memset( &child_builtin_winprocs[i], 0, sizeof(child_builtin_winprocs[i]) );
++    child_builtin_winprocs[i].pid = pid;
++    return &child_builtin_winprocs[i];
++}
++
++static WINDOWPROC *get_builtin_winprocs_locked( DWORD pid, BOOL create )
++{
++    struct process_builtin_winprocs *slot;
++
++    if (!pid || !root_winproc_pid || pid == root_winproc_pid)
++        return winproc_array;
++    slot = find_child_winprocs_locked( pid, create );
++    return slot ? slot->procs : winproc_array;
++}
++
++static HINSTANCE current_user32_module( void )
++{
++    DWORD pid = current_winproc_pid();
++    HINSTANCE module;
++    struct process_builtin_winprocs *slot;
++
++    pthread_mutex_lock( &winproc_lock );
++    if (!pid || !root_winproc_pid || pid == root_winproc_pid)
++        module = user32_module;
++    else
++    {
++        slot = find_child_winprocs_locked( pid, FALSE );
++        module = (slot && slot->user32_module) ? slot->user32_module : user32_module;
++    }
++    pthread_mutex_unlock( &winproc_lock );
++    return module;
++}
++#else
++static HINSTANCE current_user32_module( void )
++{
++    return user32_module;
++}
++#endif
++
++static int find_winproc_index( WNDPROC func, BOOL ansi )
+ {
+     unsigned int i;
++#ifdef __SWITCH__
++    WINDOWPROC *builtins = get_builtin_winprocs_locked( current_winproc_pid(), FALSE );
++#else
++    WINDOWPROC *builtins = winproc_array;
++#endif
+ 
+     for (i = 0; i < NTUSER_NB_PROCS; i++)
+     {
+-        /* match either proc, some apps confuse A and W */
+-        if (winproc_array[i].procA != func && winproc_array[i].procW != func) continue;
+-        return &winproc_array[i];
++        if (builtins[i].procA != func && builtins[i].procW != func) continue;
++        return (int)i;
+     }
+     for ( ; i < winproc_used; i++)
+     {
+         if (ansi && winproc_array[i].procA != func) continue;
+         if (!ansi && winproc_array[i].procW != func) continue;
+-        return &winproc_array[i];
++        return (int)i;
+     }
+-    return NULL;
++    return -1;
+ }
+ 
+-/* return the window proc for a given handle, or NULL for an invalid handle,
+- * or WINPROC_PROC16 for a handle to a 16-bit proc. */
+-static WINDOWPROC *get_winproc_ptr( WNDPROC handle )
++static BOOL lookup_winproc( WNDPROC handle, WINDOWPROC *out, BOOL *is_proc16 )
+ {
+     UINT index = LOWORD(handle);
+-    if (handle != MAKE_WNDPROC(index)) return NULL;
+-    if (index >= MAX_WINPROCS) return WINPROC_PROC16;
+-    if (index >= winproc_used) return NULL;
+-    return &winproc_array[index];
++
++    *is_proc16 = FALSE;
++    if (handle != MAKE_WNDPROC(index)) return FALSE;
++    if (index >= MAX_WINPROCS)
++    {
++        *is_proc16 = TRUE;
++        return TRUE;
++    }
++    if (index >= winproc_used) return FALSE;
++#ifdef __SWITCH__
++    if (index < NTUSER_NB_PROCS)
++    {
++        DWORD pid = current_winproc_pid();
++        pthread_mutex_lock( &winproc_lock );
++        *out = get_builtin_winprocs_locked( pid, FALSE )[index];
++        pthread_mutex_unlock( &winproc_lock );
++        return TRUE;
++    }
++#endif
++    *out = winproc_array[index];
++    return TRUE;
+ }
+ 
+-/* allocate and initialize a new winproc */
+-static inline WINDOWPROC *alloc_winproc_ptr( WNDPROC func, BOOL ansi )
++WNDPROC alloc_winproc( WNDPROC func, BOOL ansi )
+ {
+-    WINDOWPROC *proc;
++    WINDOWPROC existing;
++    BOOL is_proc16;
++    int index;
+ 
+-    /* check if the function is already a win proc */
+     if (!func) return NULL;
+-    if ((proc = get_winproc_ptr( func ))) return proc;
++    if (lookup_winproc( func, &existing, &is_proc16 )) return func;
+ 
+     pthread_mutex_lock( &winproc_lock );
+-
+-    /* check if we already have a winproc for that function */
+-    if (!(proc = find_winproc( func, ansi )))
++    index = find_winproc_index( func, ansi );
++    if (index < 0)
+     {
+         if (winproc_used < MAX_WINPROCS)
+         {
+-            proc = &winproc_array[winproc_used++];
+-            if (ansi) proc->procA = func;
+-            else proc->procW = func;
+-            TRACE_(win)( "allocated %p for %c %p (%d/%d used)\n", MAKE_WNDPROC(proc - winproc_array),
++            index = winproc_used++;
++            if (ansi) winproc_array[index].procA = func;
++            else winproc_array[index].procW = func;
++            TRACE_(win)( "allocated %p for %c %p (%d/%d used)\n", MAKE_WNDPROC(index),
+                          ansi ? 'A' : 'W', func, winproc_used, MAX_WINPROCS );
+         }
+         else WARN_(win)( "too many winprocs, cannot allocate one for %p\n", func );
+     }
+-    else TRACE_(win)( "reusing %p for %p\n", MAKE_WNDPROC(proc - winproc_array), func );
+-
++    else TRACE_(win)( "reusing %p for %p\n", MAKE_WNDPROC(index), func );
+     pthread_mutex_unlock( &winproc_lock );
+-    return proc;
++    return index >= 0 ? MAKE_WNDPROC(index) : func;
+ }
+ 
+-/**********************************************************************
+- *	     alloc_winproc
+- *
+- * Allocate a window procedure for a window or class.
+- *
+- * Note that allocated winprocs are never freed; the idea is that even if an app creates a
+- * lot of windows, it will usually only have a limited number of window procedures, so the
+- * array won't grow too large, and this way we avoid the need to track allocations per window.
+- */
+-WNDPROC alloc_winproc( WNDPROC func, BOOL ansi )
+-{
+-    WINDOWPROC *proc;
+-
+-    if (!(proc = alloc_winproc_ptr( func, ansi ))) return func;
+-    if (proc == WINPROC_PROC16) return func;
+-    return MAKE_WNDPROC(proc - winproc_array);
+-}
+-
+-/* Get a window procedure pointer that can be passed to the Windows program. */
+ WNDPROC get_winproc( WNDPROC proc, BOOL ansi )
+ {
+-    WINDOWPROC *ptr = get_winproc_ptr( proc );
++    WINDOWPROC entry;
++    BOOL is_proc16;
+ 
+-    if (!ptr || ptr == WINPROC_PROC16) return proc;
++    if (!lookup_winproc( proc, &entry, &is_proc16 ) || is_proc16) return proc;
+     if (ansi)
+     {
+-        if (ptr->procA) return ptr->procA;
++        if (entry.procA) return entry.procA;
+         return proc;
+     }
+     else
+     {
+-        if (ptr->procW) return ptr->procW;
++        if (entry.procW) return entry.procW;
+         return proc;
+     }
+ }
+ 
+ void get_winproc_params( struct win_proc_params *params, BOOL fixup_ansi_dst )
+ {
+-    WINDOWPROC *proc = get_winproc_ptr( params->func );
++    WINDOWPROC entry;
++    BOOL is_proc16;
+ 
+-    if (!proc)
++    if (!lookup_winproc( params->func, &entry, &is_proc16 ))
+     {
+         params->procW = params->procA = NULL;
+     }
+-    else if (proc == WINPROC_PROC16)
++    else if (is_proc16)
+     {
+         params->procW = params->procA = WINPROC_PROC16;
+     }
+     else
+     {
+-        params->procA = proc->procA;
+-        params->procW = proc->procW;
++        params->procA = entry.procA;
++        params->procW = entry.procW;
+ 
+         if (fixup_ansi_dst)
+         {
+@@ -312,11 +384,12 @@ void get_winproc_params( struct win_proc_params *params, BOOL fixup_ansi_dst )
+ 
+ DLGPROC get_dialog_proc( DLGPROC ret, BOOL ansi )
+ {
+-    WINDOWPROC *proc;
++    WINDOWPROC entry;
++    BOOL is_proc16;
+ 
+-    if (!(proc = get_winproc_ptr( (WNDPROC)ret ))) return ret;
+-    if (proc == WINPROC_PROC16) return WINPROC_PROC16;
+-    return (DLGPROC)(ansi ? proc->procA : proc->procW);
++    if (!lookup_winproc( (WNDPROC)ret, &entry, &is_proc16 )) return ret;
++    if (is_proc16) return WINPROC_PROC16;
++    return (DLGPROC)(ansi ? entry.procA : entry.procW);
+ }
+ 
+ static void init_user(void)
+@@ -342,12 +415,39 @@ NTSTATUS WINAPI NtUserInitializeClientPfnArrays( const ntuser_client_func_ptr *c
+     static pthread_once_t init_once = PTHREAD_ONCE_INIT;
+     UINT i;
+ 
++#ifdef __SWITCH__
++    {
++        DWORD pid = current_winproc_pid();
++        WINDOWPROC *target;
++
++        pthread_mutex_lock( &winproc_lock );
++        if (!root_winproc_pid && pid) root_winproc_pid = pid;
++        if (!pid || !root_winproc_pid || pid == root_winproc_pid)
++        {
++            target = winproc_array;
++            user32_module = user_module;
++        }
++        else
++        {
++            struct process_builtin_winprocs *slot = find_child_winprocs_locked( pid, TRUE );
++            target = slot->procs;
++            slot->user32_module = user_module;
++        }
++        for (i = 0; i < NTUSER_NB_PROCS; i++)
++        {
++            target[i].procA = client_procsA[i][0];
++            target[i].procW = client_procsW[i][0];
++        }
++        pthread_mutex_unlock( &winproc_lock );
++    }
++#else
+     for (i = 0; i < NTUSER_NB_PROCS; i++)
+     {
+         winproc_array[i].procA = client_procsA[i][0];
+         winproc_array[i].procW = client_procsW[i][0];
+     }
+     user32_module = user_module;
++#endif
+ 
+     pthread_once( &init_once, init_user );
+     return STATUS_SUCCESS;
+@@ -599,7 +699,7 @@ ATOM WINAPI NtUserRegisterClassExWOW( const WNDCLASSEXW *wc, UNICODE_STRING *nam
+     if (!fnid) get_desktop_window();
+ 
+     if (wc->cbSize != sizeof(*wc) || wc->cbClsExtra < 0 || wc->cbWndExtra < 0 ||
+-        (!fnid && wc->hInstance == user32_module))  /* we can't register a class for user32 */
++        (!fnid && wc->hInstance == current_user32_module()))  /* we can't register a class for user32 */
+     {
+          RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
+          return 0;
+@@ -755,7 +855,7 @@ ATOM WINAPI NtUserGetClassInfoEx( HINSTANCE instance, UNICODE_STRING *name, WNDC
+             wc->lpfnWndProc   = get_winproc( wine_server_get_ptr( class_shm->info.wndproc ), ansi );
+             wc->cbClsExtra    = class_shm->info.cls_extra;
+             wc->cbWndExtra    = class_shm->info.win_extra;
+-            wc->hInstance     = (instance == user32_module) ? 0 : instance;
++            wc->hInstance     = (instance == current_user32_module()) ? 0 : instance;
+             wc->hIcon         = wine_server_ptr_handle( class_shm->info.icon );
+             wc->hIconSm       = wine_server_ptr_handle( class_shm->info.icon_small );
+             wc->hCursor       = wine_server_ptr_handle( class_shm->info.cursor );

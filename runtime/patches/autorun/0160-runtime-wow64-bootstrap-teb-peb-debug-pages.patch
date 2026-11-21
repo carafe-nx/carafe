@@ -1,0 +1,28 @@
+Carafe: give the on-demand WoW64 bootstrap TEB/PEB block Wine's debug_info and debug_options pages.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -3116,9 +3116,8 @@
+     RTL_USER_PROCESS_PARAMETERS *src_params;
+     const SIZE_T teb_offset = (sizeof(TEB) + 0xfff) & ~(SIZE_T)0xfff;
+     const SIZE_T teb32_size = (sizeof(WOW_TEB) + 0xfff) & ~(SIZE_T)0xfff;
+-    const SIZE_T peb_size = (sizeof(PEB) + 0xfff) & ~(SIZE_T)0xfff;
+-    const SIZE_T wow_peb_size = (sizeof(WOW_PEB) + 0xfff) & ~(SIZE_T)0xfff;
+-    SIZE_T block_size = teb_offset + teb32_size + peb_size + wow_peb_size;
++    const SIZE_T teb_block_size = teb_offset + teb32_size + page_size;
++    SIZE_T block_size = 2 * teb_block_size;
+     TEB *bootstrap_teb;
+     WOW_TEB *bootstrap_teb32;
+     PEB *bootstrap_peb;
+@@ -3158,8 +3157,8 @@
+     memset( &wow64_bootstrap_params, 0, sizeof(wow64_bootstrap_params) );
+     bootstrap_teb = (TEB *)wow64_bootstrap_block;
+     bootstrap_teb32 = (WOW_TEB *)((char *)bootstrap_teb + teb_offset);
+-    bootstrap_peb = (PEB *)((char *)bootstrap_teb32 + teb32_size);
+-    bootstrap_wow_peb = (WOW_PEB *)((char *)bootstrap_peb + peb_size);
++    bootstrap_peb = (PEB *)((char *)bootstrap_teb + teb_block_size);
++    bootstrap_wow_peb = (WOW_PEB *)((char *)bootstrap_peb + page_size);
+     *bootstrap_peb = *ctx->peb;
+     bootstrap_peb->EcCodeBitMap = NULL;
+     if (ctx->wow_peb) *bootstrap_wow_peb = *ctx->wow_peb;

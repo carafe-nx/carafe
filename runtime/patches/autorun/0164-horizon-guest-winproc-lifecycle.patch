@@ -1,0 +1,97 @@
+Carafe: attach built-in winproc storage to the Horizon guest lifecycle.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -3464,6 +3464,15 @@
+ static LONG horizon_server_next_handle = 0x100;
+ static LONG horizon_server_next_pid = 0x100;
+ static unsigned int horizon_server_root_pid;
++unsigned int horizon_guest_root_pid( void );
++
++unsigned int horizon_guest_root_pid( void )
++{
++    return __atomic_load_n( &horizon_server_root_pid, __ATOMIC_RELAXED );
++}
++
++extern int wine_nx_create_guest_winprocs( unsigned int pid ) __attribute__((weak));
++extern void wine_nx_destroy_guest_winprocs( unsigned int pid ) __attribute__((weak));
+ static struct horizon_server_object *horizon_server_processes;
+ static pthread_mutex_t horizon_server_objects_mutex = PTHREAD_MUTEX_INITIALIZER;
+ /* Pending selects and thread start gates sleep here, releasing the object lock;
+@@ -7667,6 +7676,7 @@
+     if (!proc || !proc->process.is_child || proc->process.terminated) return;
+     child_pid = proc->process.pid;
+     ctx_id = proc->process.guest_ctx_id;
++    if (!ctx_id) return;
+     proc->process.guest_ctx_id = 0;
+     exited = proc->process.exited_threads;
+     proc->process.exited_threads = NULL;
+@@ -7699,6 +7709,7 @@
+ #endif
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
++    if (wine_nx_destroy_guest_winprocs) wine_nx_destroy_guest_winprocs( child_pid );
+     horizon_server_close_all_handles_for_pid_locked( child_pid );
+     if (!proc->process.terminated)
+     {
+@@ -7849,7 +7860,7 @@
+     reply.session_id = 1;
+     connection->pid = reply.pid;
+     connection->tid = reply.tid;
+-    horizon_server_root_pid = reply.pid;
++    __atomic_store_n( &horizon_server_root_pid, reply.pid, __ATOMIC_RELAXED );
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+     if (!connection->thread &&
+@@ -8093,15 +8104,21 @@
+ 
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+     if (!parent_pid) parent_pid = horizon_server_root_pid;
++    child_pid = (unsigned int)__sync_add_and_fetch( &horizon_server_next_pid, 4 );
++    if (child_pid == parent_pid || child_pid == horizon_server_root_pid || !child_pid)
++        child_pid = (unsigned int)__sync_add_and_fetch( &horizon_server_next_pid, 4 );
++    if (wine_nx_create_guest_winprocs && !wine_nx_create_guest_winprocs( child_pid ))
++    {
++        pthread_mutex_unlock( &horizon_server_objects_mutex );
++        return HORIZON_STATUS_NO_MEMORY;
++    }
+     entry = horizon_server_create_handle_for_pid_locked( parent_pid, HORIZON_SERVER_OBJECT_PROCESS );
+     if (!entry)
+     {
++        if (wine_nx_destroy_guest_winprocs) wine_nx_destroy_guest_winprocs( child_pid );
+         pthread_mutex_unlock( &horizon_server_objects_mutex );
+         return HORIZON_STATUS_NO_MEMORY;
+     }
+-    child_pid = (unsigned int)__sync_add_and_fetch( &horizon_server_next_pid, 4 );
+-    if (child_pid == parent_pid || child_pid == horizon_server_root_pid || !child_pid)
+-        child_pid = (unsigned int)__sync_add_and_fetch( &horizon_server_next_pid, 4 );
+ 
+     object = entry->object;
+     entry->access = horizon_process_map_access( access );
+@@ -8236,6 +8253,7 @@
+     proc = horizon_guest_process_find_locked( child_pid );
+     if (proc && proc->process.is_child)
+     {
++        if (wine_nx_destroy_guest_winprocs) wine_nx_destroy_guest_winprocs( child_pid );
+         proc->process.armed = 0;
+         proc->process.exiting = 1;
+         proc->process.guest_ctx_id = 0;
+@@ -13446,6 +13464,17 @@
+             thread_connection->pid = proc_obj->process.pid;
+     }
++    {
++        struct horizon_server_object *proc = horizon_guest_process_find_locked( thread_connection->pid );
++        if (proc && proc->process.is_child && (proc->process.exiting || proc->process.terminated))
++        {
++            pthread_mutex_unlock( &horizon_server_objects_mutex );
++            close( request_fd );
++            free( thread_connection );
++            reply.header.error = HORIZON_STATUS_ACCESS_DENIED;
++            return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
++        }
++    }
+     if ((object = horizon_server_alloc_thread_locked( thread_connection->tid, thread_connection->pid )) &&
+         (entry = horizon_server_create_handle_for_object_locked( object )))
+     {
+         struct horizon_server_object *child_proc = horizon_guest_process_find_locked( thread_connection->pid );

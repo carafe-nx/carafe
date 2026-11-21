@@ -1,0 +1,39 @@
+Carafe: keep ARM64X DLLs native ARM64 on WoW64 threads and route WoW64 exceptions/continues without ARM64EC parent dispatch.
+LGPL-2.1-or-later, as the files it changes.
+
+--- a/dlls/ntdll/unix/signal_arm64.c
++++ b/dlls/ntdll/unix/signal_arm64.c
+@@ -165,7 +165,7 @@ NTSTATUS signal_set_full_context( CONTEXT *context )
+         wait_suspend( &resume );
+         context = &resume;
+     }
+-    if (is_arm64ec())
++    if (is_arm64ec() && (!NtCurrentTeb() || !NtCurrentTeb()->WowTebOffset))
+     {
+         void *start, *end;
+ 
+@@ -383,10 +383,14 @@ NTSTATUS call_user_exception_dispatcher( struct thread_data *data, EXCEPTION_REC
+     ULONG_PTR stack;
+     SIZE_T written;
+     NTSTATUS status;
++    extern void *wine_nx_wow64_exception_dispatcher;
++    void *dispatcher = pKiUserExceptionDispatcher;
+ 
+     C_ASSERT( offsetof(typeof(frame), rec) == 0x3b0 );
+     C_ASSERT( sizeof(frame) == 0x470 );
+-    if (!data || !data->teb || !rec || !context || !pKiUserExceptionDispatcher ||
++    if (data && data->teb && data->teb->WowTebOffset && is_arm64ec())
++        dispatcher = __atomic_load_n( &wine_nx_wow64_exception_dispatcher, __ATOMIC_ACQUIRE );
++    if (!data || !data->teb || !rec || !context || !dispatcher ||
+         (context->ContextFlags & CONTEXT_ARM64_FULL) != CONTEXT_ARM64_FULL)
+         return STATUS_INVALID_PARAMETER;
+     if (context->Sp < sizeof(frame) + 16) return STATUS_INVALID_ADDRESS;
+@@ -413,7 +417,7 @@ NTSTATUS call_user_exception_dispatcher( struct thread_data *data, EXCEPTION_REC
+         if (written != sizeof(frame)) return STATUS_PARTIAL_COPY;
+     }
+     resume.Sp = stack;
+-    resume.Pc = (ULONG_PTR)pKiUserExceptionDispatcher;
++    resume.Pc = (ULONG_PTR)dispatcher;
+     resume.X18 = (ULONG_PTR)data->teb;
+     return signal_set_full_context( &resume );
+ }

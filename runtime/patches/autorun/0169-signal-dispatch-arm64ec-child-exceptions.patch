@@ -1,0 +1,36 @@
+Carafe: dispatch ARM64EC guest exceptions through the current child's ntdll.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/signal_arm64.c
++++ b/dlls/ntdll/unix/signal_arm64.c
+@@ -370,4 +370,7 @@
++static __thread const TEB *child_exception_teb;
++static __thread void *child_exception_dispatcher;
++
+ NTSTATUS call_user_exception_dispatcher( struct thread_data *data, EXCEPTION_RECORD *rec, CONTEXT *context )
+ {
+     struct
+     {
+@@ -394,7 +397,9 @@
+     C_ASSERT( sizeof(frame) == 0x470 );
+     if (data && data->teb && data->teb->WowTebOffset && is_arm64ec())
+         dispatcher = __atomic_load_n( &wine_nx_wow64_exception_dispatcher, __ATOMIC_ACQUIRE );
++    else if (data && child_exception_teb && data->teb == child_exception_teb)
++        dispatcher = child_exception_dispatcher;
+     if (!data || !data->teb || !rec || !context || !dispatcher ||
+         (context->ContextFlags & CONTEXT_ARM64_FULL) != CONTEXT_ARM64_FULL)
+         return STATUS_INVALID_PARAMETER;
+     if (context->Sp < sizeof(frame) + 16) return STATUS_INVALID_ADDRESS;
+@@ -618,8 +623,11 @@
+ void DECLSPEC_NORETURN wine_nx_start_arm64ec_child_thread( PRTL_THREAD_START_ROUTINE entry, void *arg,
+                                                            BOOL suspend, TEB *teb,
+-                                                           void *ldr_init, void *rtl_user_thread_start )
++                                                           void *ldr_init, void *rtl_user_thread_start,
++                                                           void *exception_dispatcher )
+ {
+     extern void horizon_continue_context( const CONTEXT *context );
+     CONTEXT initial = {0}, *saved;
+ 
++    child_exception_dispatcher = exception_dispatcher;
++    child_exception_teb = teb;
+     wine_nx_set_active_pe_teb( teb );

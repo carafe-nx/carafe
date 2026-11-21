@@ -1,0 +1,208 @@
+Carafe: add ARM64EC and WoW64 child ntdll preparation helpers that preserve parent process globals.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -1876,6 +1876,202 @@
+         return STATUS_INVALID_IMAGE_FORMAT;
+     return STATUS_SUCCESS;
+ }
++
++NTSTATUS wine_nx_prepare_arm64ec_child_ntdll( HMODULE module, void *ec_code_bitmap,
++                                              void **ldr_init_out, void **rtl_user_thread_start_out )
++{
++    static const char *names[] =
++    {
++        "DbgUiRemoteBreakin", "KiRaiseUserExceptionDispatcher", "KiUserExceptionDispatcher",
++        "KiUserApcDispatcher", "KiUserCallbackDispatcher", "KiUserEmulationDispatcher",
++        "LdrInitializeThunk", "LdrSystemDllInitBlock", "RtlUserThreadStart", "__wine_ctrl_routine",
++        "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher",
++        "__wine_unix_call_dispatcher_arm64ec", "__wine_unixlib_handle", "wine_nx_user_shared_data"
++    };
++    const IMAGE_LOAD_CONFIG_DIRECTORY *cfg;
++    const IMAGE_ARM64EC_METADATA *metadata;
++    const IMAGE_EXPORT_DIRECTORY *exports;
++    struct _KUSER_SHARED_DATA **shared;
++    void **syscall_disp, **unix_disp, **unix_ec_disp;
++    unixlib_handle_t *unixlib_handle;
++    void *ldr_init, *rtl_start, *emul_disp;
++    ULONG size;
++    unsigned int i;
++
++    if (!module || !ec_code_bitmap || !ldr_init_out || !rtl_user_thread_start_out)
++        return STATUS_INVALID_PARAMETER;
++    cfg = get_module_data_dir( module, IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG, &size );
++    if (!cfg || min( size, cfg->Size ) < offsetof( IMAGE_LOAD_CONFIG_DIRECTORY, CHPEMetadataPointer ) +
++                                       sizeof(cfg->CHPEMetadataPointer) || !cfg->CHPEMetadataPointer)
++        return STATUS_INVALID_IMAGE_FORMAT;
++    metadata = (const IMAGE_ARM64EC_METADATA *)cfg->CHPEMetadataPointer;
++    exports = get_module_data_dir( module, IMAGE_DIRECTORY_ENTRY_EXPORT, NULL );
++    if (!exports) return STATUS_INVALID_IMAGE_FORMAT;
++    for (i = 0; i < ARRAY_SIZE(names); i++)
++        if (!find_named_export( module, exports, names[i] )) return STATUS_PROCEDURE_NOT_FOUND;
++
++    syscall_disp = (void *)find_named_export( module, exports, "__wine_syscall_dispatcher" );
++    unix_disp = (void *)find_named_export( module, exports, "__wine_unix_call_dispatcher" );
++    unix_ec_disp = (void *)find_named_export( module, exports, "__wine_unix_call_dispatcher_arm64ec" );
++    unixlib_handle = (void *)find_named_export( module, exports, "__wine_unixlib_handle" );
++    shared = (void *)find_named_export( module, exports, "wine_nx_user_shared_data" );
++
++    *syscall_disp = __wine_syscall_dispatcher;
++    *unixlib_handle = (UINT_PTR)unix_call_funcs;
++    *unix_disp = *unix_ec_disp;
++    *unix_ec_disp = __wine_unix_call_dispatcher;
++    *shared = user_shared_data;
++
++    ldr_init = (void *)find_named_export( module, exports, "LdrInitializeThunk" );
++    rtl_start = (void *)find_named_export( module, exports, "RtlUserThreadStart" );
++    emul_disp = (void *)find_named_export( module, exports, "KiUserEmulationDispatcher" );
++    ldr_init = get_rva( module, redirect_arm64ec_rva( module, (char *)ldr_init - (char *)module, metadata ));
++    rtl_start = get_rva( module, redirect_arm64ec_rva( module, (char *)rtl_start - (char *)module, metadata ));
++    emul_disp = get_rva( module, redirect_arm64ec_rva( module, (char *)emul_disp - (char *)module, metadata ));
++    if (!(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)ldr_init / page_size) / 64] >> (((ULONG_PTR)ldr_init / page_size) & 63) & 1) ||
++        !(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)rtl_start / page_size) / 64] >> (((ULONG_PTR)rtl_start / page_size) & 63) & 1) ||
++        !(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)emul_disp / page_size) / 64] >> (((ULONG_PTR)emul_disp / page_size) & 63) & 1))
++        return STATUS_INVALID_IMAGE_FORMAT;
++
++    *ldr_init_out = ldr_init;
++    *rtl_user_thread_start_out = rtl_start;
++    return STATUS_SUCCESS;
++}
++
++NTSTATUS wine_nx_prepare_wow64_native_ntdll_local( HMODULE native, HMODULE guest )
++{
++    static const char *native_names[] = { "LdrInitializeThunk", "LdrSystemDllInitBlock",
++        "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher", "__wine_unixlib_handle" };
++    static const char *guest_names[] = { "LdrInitializeThunk", "LdrSystemDllInitBlock",
++        "RtlUserThreadStart", "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher",
++        "__wine_unixlib_handle" };
++    const IMAGE_EXPORT_DIRECTORY *native_exports, *guest_exports;
++    SYSTEM_DLL_INIT_BLOCK *native_block, *guest_block;
++    void **native_sys, **native_unix;
++    unixlib_handle_t *native_unixlib;
++    ULONG *usd;
++    unsigned int i;
++
++    if (!native || !guest) return STATUS_INVALID_PARAMETER;
++    native_exports = get_module_data_dir( native, IMAGE_DIRECTORY_ENTRY_EXPORT, NULL );
++    guest_exports = get_module_data_dir( guest, IMAGE_DIRECTORY_ENTRY_EXPORT, NULL );
++    if (!native_exports || !guest_exports) return STATUS_INVALID_IMAGE_FORMAT;
++    for (i = 0; i < ARRAY_SIZE(native_names); i++)
++        if (!find_named_export( native, native_exports, native_names[i] )) return STATUS_PROCEDURE_NOT_FOUND;
++    for (i = 0; i < ARRAY_SIZE(guest_names); i++)
++        if (!find_named_export( guest, guest_exports, guest_names[i] )) return STATUS_PROCEDURE_NOT_FOUND;
++
++    native_sys = (void **)find_named_export( native, native_exports, "__wine_syscall_dispatcher" );
++    native_unix = (void **)find_named_export( native, native_exports, "__wine_unix_call_dispatcher" );
++    native_unixlib = (unixlib_handle_t *)find_named_export( native, native_exports, "__wine_unixlib_handle" );
++    native_block = (SYSTEM_DLL_INIT_BLOCK *)find_named_export( native, native_exports, "LdrSystemDllInitBlock" );
++    if (!native_sys || !native_unix || !native_unixlib || !native_block) return STATUS_PROCEDURE_NOT_FOUND;
++
++    *native_sys = __wine_syscall_dispatcher;
++    *native_unix = __wine_unix_call_dispatcher;
++    *native_unixlib = (UINT_PTR)unix_call_funcs;
++
++    native_block->ntdll_handle = (ULONG_PTR)guest;
++    native_block->pKiUserApcDispatcher = find_named_export( guest, guest_exports, "KiUserApcDispatcher" );
++    native_block->pKiUserCallbackDispatcher = find_named_export( guest, guest_exports, "KiUserCallbackDispatcher" );
++    native_block->pKiUserExceptionDispatcher = find_named_export( guest, guest_exports, "KiUserExceptionDispatcher" );
++    native_block->pLdrInitializeThunk = find_named_export( guest, guest_exports, "LdrInitializeThunk" );
++    native_block->pLdrSystemDllInitBlock = find_named_export( guest, guest_exports, "LdrSystemDllInitBlock" );
++    native_block->pRtlUserThreadStart = find_named_export( guest, guest_exports, "RtlUserThreadStart" );
++    native_block->pRtlpFreezeTimeBias = find_named_export( guest, guest_exports, "RtlpFreezeTimeBias" );
++    native_block->pRtlpQueryProcessDebugInformationRemote =
++        find_named_export( guest, guest_exports, "RtlpQueryProcessDebugInformationRemote" );
++
++    if ((usd = (ULONG *)find_named_export( guest, guest_exports, "wine_nx_user_shared_data" )) &&
++        (ULONG_PTR)user_shared_data <= 0xffffffff)
++        *usd = PtrToUlong( user_shared_data );
++
++#ifdef _WIN64
++    {
++        unixlib_handle_t *guest_unixlib = (void *)find_named_export( guest, guest_exports, "__wine_unixlib_handle" );
++        *guest_unixlib = (UINT_PTR)unix_call_wow64_funcs;
++    }
++#endif
++
++    guest_block = (SYSTEM_DLL_INIT_BLOCK *)(ULONG_PTR)native_block->pLdrSystemDllInitBlock;
++    if (!guest_block) return STATUS_PROCEDURE_NOT_FOUND;
++    memcpy( guest_block, native_block, sizeof(*guest_block) );
++    return STATUS_SUCCESS;
++}
++
++NTSTATUS wine_nx_prepare_wow64_child_ntdll( HMODULE native_ntdll, HMODULE guest, ULONG *ldr_init_out,
++                                            ULONG *rtl_user_thread_start_out )
++{
++    static const char *guest_names[] = { "LdrInitializeThunk", "LdrSystemDllInitBlock",
++        "RtlUserThreadStart", "__wine_syscall_dispatcher", "__wine_unix_call_dispatcher",
++        "__wine_unixlib_handle" };
++    const IMAGE_EXPORT_DIRECTORY *exports, *parent_exports, *native_exports;
++    SYSTEM_DLL_INIT_BLOCK *base_block = pLdrSystemDllInitBlock;
++    HMODULE parent_guest;
++    ULONG *usd, *child_sys, *child_unix, *parent_sys, *parent_unix;
++    SYSTEM_DLL_INIT_BLOCK *child_block;
++    unsigned int i;
++
++    if (!guest || !ldr_init_out || !rtl_user_thread_start_out)
++        return STATUS_INVALID_PARAMETER;
++
++    if (native_ntdll)
++    {
++        native_exports = get_module_data_dir( native_ntdll, IMAGE_DIRECTORY_ENTRY_EXPORT, NULL );
++        if (!native_exports) return STATUS_INVALID_IMAGE_FORMAT;
++        base_block = (SYSTEM_DLL_INIT_BLOCK *)find_named_export( native_ntdll, native_exports,
++                                                                 "LdrSystemDllInitBlock" );
++    }
++    if (!base_block || !base_block->ntdll_handle)
++        return STATUS_INVALID_PARAMETER;
++
++    exports = get_module_data_dir( guest, IMAGE_DIRECTORY_ENTRY_EXPORT, NULL );
++    if (!exports) return STATUS_INVALID_IMAGE_FORMAT;
++    for (i = 0; i < ARRAY_SIZE(guest_names); i++)
++        if (!find_named_export( guest, exports, guest_names[i] )) return STATUS_PROCEDURE_NOT_FOUND;
++
++    parent_guest = (HMODULE)(ULONG_PTR)base_block->ntdll_handle;
++    parent_exports = get_module_data_dir( parent_guest, IMAGE_DIRECTORY_ENTRY_EXPORT, NULL );
++    if (!parent_exports) return STATUS_INVALID_IMAGE_FORMAT;
++
++    parent_sys = (ULONG *)find_named_export( parent_guest, parent_exports, "__wine_syscall_dispatcher" );
++    parent_unix = (ULONG *)find_named_export( parent_guest, parent_exports, "__wine_unix_call_dispatcher" );
++    child_sys = (ULONG *)find_named_export( guest, exports, "__wine_syscall_dispatcher" );
++    child_unix = (ULONG *)find_named_export( guest, exports, "__wine_unix_call_dispatcher" );
++    if (!parent_sys || !parent_unix || !child_sys || !child_unix) return STATUS_PROCEDURE_NOT_FOUND;
++
++    *child_sys = *parent_sys;
++    *child_unix = *parent_unix;
++
++    if ((usd = (ULONG *)find_named_export( guest, exports, "wine_nx_user_shared_data" )) &&
++        (ULONG_PTR)user_shared_data <= 0xffffffff)
++        *usd = PtrToUlong( user_shared_data );
++
++#ifdef _WIN64
++    {
++        unixlib_handle_t *child_unixlib = (void *)find_named_export( guest, exports, "__wine_unixlib_handle" );
++        *child_unixlib = (UINT_PTR)unix_call_wow64_funcs;
++    }
++#endif
++
++    child_block = (SYSTEM_DLL_INIT_BLOCK *)(ULONG_PTR)find_named_export( guest, exports, "LdrSystemDllInitBlock" );
++    if (!child_block) return STATUS_PROCEDURE_NOT_FOUND;
++    memcpy( child_block, base_block, sizeof(*child_block) );
++    child_block->ntdll_handle = (ULONG_PTR)guest;
++    child_block->pKiUserApcDispatcher = find_named_export( guest, exports, "KiUserApcDispatcher" );
++    child_block->pKiUserCallbackDispatcher = find_named_export( guest, exports, "KiUserCallbackDispatcher" );
++    child_block->pKiUserExceptionDispatcher = find_named_export( guest, exports, "KiUserExceptionDispatcher" );
++    child_block->pLdrInitializeThunk = find_named_export( guest, exports, "LdrInitializeThunk" );
++    child_block->pLdrSystemDllInitBlock = (ULONG_PTR)child_block;
++    child_block->pRtlUserThreadStart = find_named_export( guest, exports, "RtlUserThreadStart" );
++    child_block->pRtlpFreezeTimeBias = find_named_export( guest, exports, "RtlpFreezeTimeBias" );
++    child_block->pRtlpQueryProcessDebugInformationRemote =
++        find_named_export( guest, exports, "RtlpQueryProcessDebugInformationRemote" );
++
++    *ldr_init_out = (ULONG)child_block->pLdrInitializeThunk;
++    *rtl_user_thread_start_out = (ULONG)child_block->pRtlUserThreadStart;
++    return STATUS_SUCCESS;
++}
+ #endif
+ 
+ 

@@ -1,0 +1,14 @@
+Carafe: skip 64-bit main-module relocation during on-demand WoW64 bootstrap.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/loader.c
++++ b/dlls/ntdll/loader.c
+@@ -4398,7 +4398,7 @@
+     void *module = NtCurrentTeb()->Peb->ImageBaseAddress;
+ 
+     NtQueryInformationProcess( GetCurrentProcess(), ProcessImageInformation, &info, sizeof(info), NULL );
+-    if (info.Machine == IMAGE_FILE_MACHINE_I386)
++    if (info.Machine == IMAGE_FILE_MACHINE_I386 || NtCurrentTeb()->WowTebOffset)
+     {
+         /* The native loader records the guest image without rewriting PE32
+          * headers or binding its imports using ARM64 thunks. */

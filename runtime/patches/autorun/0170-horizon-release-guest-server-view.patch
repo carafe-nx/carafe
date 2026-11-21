@@ -1,0 +1,56 @@
+Carafe: release server view references by the guest view's shared address.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -14380,7 +14380,7 @@
+ 
+     for (ptr = &horizon_image_views; (view = *ptr); ptr = &view->next)
+     {
+-        if (view->pid != pid || view->base != base) continue;
++        if ((pid && view->pid != pid) || view->base != base) continue;
+         *ptr = view->next;
+         if (!--view->mapping->refs) horizon_server_free_object( view->mapping );
+         free( view );
+@@ -14523,20 +14523,34 @@
+-static int horizon_server_handle_unmap_view( struct horizon_server_connection *connection,
+-                                             const unsigned char *message )
++static void horizon_server_unmap_view_locked( unsigned int pid, unsigned long long base )
+ {
+-    const struct horizon_unmap_view_request *request = (const void *)message;
+     struct horizon_section_view **ptr, *view;
+ 
+-    pthread_mutex_lock( &horizon_server_objects_mutex );
+-    horizon_server_remove_session_view_locked( request->base );
+-    horizon_server_remove_image_view_locked( connection->pid, request->base );
++    horizon_server_remove_session_view_locked( base );
++    horizon_server_remove_image_view_locked( pid, base );
+     for (ptr = &horizon_section_views; (view = *ptr); ptr = &view->next)
+     {
+-        if (view->base != request->base) continue;
++        if (view->base != base) continue;
+         *ptr = view->next;
+         horizon_memfile_unref( view->memfile );
+         free( view );
+         break;
+     }
++}
++
++void horizon_guest_unmap_view( unsigned long long base );
++void horizon_guest_unmap_view( unsigned long long base )
++{
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    horizon_server_unmap_view_locked( 0, base );
++    pthread_mutex_unlock( &horizon_server_objects_mutex );
++}
++
++static int horizon_server_handle_unmap_view( struct horizon_server_connection *connection,
++                                             const unsigned char *message )
++{
++    const struct horizon_unmap_view_request *request = (const void *)message;
++
++    pthread_mutex_lock( &horizon_server_objects_mutex );
++    horizon_server_unmap_view_locked( connection->pid, request->base );
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return horizon_server_write_status( connection->reply_fd, HORIZON_STATUS_SUCCESS );
+ }

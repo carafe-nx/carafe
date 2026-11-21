@@ -1,0 +1,214 @@
+Carafe: spawn guest child threads using child machine/CPU area/VA limits and defer child thread pthread join to server teardown.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/thread.c
++++ b/dlls/ntdll/unix/thread.c
+@@ -1240,13 +1240,17 @@
+     WOW64_CPURESERVED *cpu;
+     ULONG align;
+ 
+-    if (!is_wow64()) return NULL;
++    if (!is_wow64()
++#ifdef __SWITCH__
++        && (!data || !data->teb || !get_wow_teb( data->teb ))
++#endif
++       ) return NULL;
+ #ifdef _WIN64
+     cpu = data->teb->TlsSlots[WOW64_TLS_CPURESERVED];
+ #else
+     cpu = ULongToPtr( get_teb64(data->teb)->TlsSlots[WOW64_TLS_CPURESERVED] );
+ #endif
+-    if (cpu->Machine != machine) return NULL;
++    if (!cpu || cpu->Machine != machine) return NULL;
+     switch (cpu->Machine)
+     {
+     case IMAGE_FILE_MACHINE_I386: align = TYPE_ALIGNMENT(I386_CONTEXT); break;
+@@ -1267,17 +1271,31 @@
+     WOW_TEB *wow_teb = get_wow_teb( teb );
+     INITIAL_TEB stack;
+     NTSTATUS status;
++#ifdef __SWITCH__
++    extern USHORT wine_nx_virtual_get_teb_machine( const TEB *teb );
++    extern ULONG_PTR wine_nx_virtual_get_teb_wow_limit( const TEB *teb );
++    USHORT thread_machine = wine_nx_virtual_get_teb_machine( teb );
++#endif
+ 
+     if (wow_teb)
+     {
+         WOW64_CPURESERVED *cpu;
++#ifdef __SWITCH__
++        USHORT cpu_machine = (!is_machine_64bit( thread_machine )) ? thread_machine : IMAGE_FILE_MACHINE_I386;
++        ULONG_PTR wow_limit = wine_nx_virtual_get_teb_wow_limit( teb );
++        SIZE_T cpusize = sizeof(WOW64_CPURESERVED) +
++            ((get_machine_context_size( cpu_machine ) + 7) & ~7) + sizeof(ULONG64);
++#else
++        USHORT cpu_machine = main_image_info.Machine;
++        ULONG_PTR wow_limit = user_space_wow_limit;
+         SIZE_T cpusize = sizeof(WOW64_CPURESERVED) +
+-            ((get_machine_context_size( main_image_info.Machine ) + 7) & ~7) + sizeof(ULONG64);
++            ((get_machine_context_size( cpu_machine ) + 7) & ~7) + sizeof(ULONG64);
++#endif
+ 
+         /* 64-bit stack */
+         if ((status = virtual_alloc_thread_stack( &stack, limit_4g, 0, 0x40000, 0x40000, TRUE ))) return status;
+         cpu = (WOW64_CPURESERVED *)(((ULONG_PTR)stack.StackBase - cpusize) & ~15);
+-        cpu->Machine = main_image_info.Machine;
++        cpu->Machine = cpu_machine;
+ 
+ #ifdef _WIN64
+         teb->Tib.StackBase = teb->TlsSlots[WOW64_TLS_CPURESERVED] = cpu;
+@@ -1285,7 +1303,10 @@
+         teb->DeallocationStack = stack.DeallocationStack;
+ 
+         /* 32-bit stack */
+-        if (!limit || limit > user_space_wow_limit) limit = user_space_wow_limit;
++#ifdef __SWITCH__
++        if (!wow_limit) wow_limit = (ULONG_PTR)0x7fffffff;
++#endif
++        if (!limit || limit > wow_limit) limit = wow_limit;
+         if ((status = virtual_alloc_thread_stack( &stack, 0, limit, reserve_size, commit_size, TRUE )))
+             return status;
+         wow_teb->Tib.StackBase = PtrToUlong( stack.StackBase );
+@@ -1300,7 +1321,12 @@
+     }
+ 
+ #ifdef __aarch64__
++#ifdef __SWITCH__
++    if (is_arm64ec() ||
++        (current_machine == IMAGE_FILE_MACHINE_ARM64 && thread_machine == IMAGE_FILE_MACHINE_AMD64))
++#else
+     if (is_arm64ec())
++#endif
+     {
+         CHPE_V2_CPU_AREA_INFO *cpu_area;
+         const SIZE_T chpev2_stack_size = 0x40000;
+@@ -1330,9 +1356,9 @@
+ /***********************************************************************
+  *           create_server_thread
+  */
+-static NTSTATUS create_server_thread( HANDLE *handle, struct thread_data **data_ret,
+-                                      ACCESS_MASK access, OBJECT_ATTRIBUTES *attr,
+-                                      void *start, void *param, ULONG flags, BOOL is_system )
++static NTSTATUS create_server_thread_for_process( HANDLE process, HANDLE *handle, struct thread_data **data_ret,
++                                                  ACCESS_MASK access, OBJECT_ATTRIBUTES *attr,
++                                                  void *start, void *param, ULONG flags, BOOL is_system )
+ {
+     data_size_t len;
+     struct object_attributes *objattr;
+@@ -1352,7 +1378,7 @@
+ 
+     SERVER_START_REQ( new_thread )
+     {
+-        req->process    = wine_server_obj_handle( NtCurrentProcess() );
++        req->process    = wine_server_obj_handle( process );
+         req->access     = access;
+         req->flags      = flags;
+         req->is_system  = !!is_system;
+@@ -1390,6 +1416,14 @@
+     return STATUS_SUCCESS;
+ }
+ 
++static NTSTATUS create_server_thread( HANDLE *handle, struct thread_data **data_ret,
++                                      ACCESS_MASK access, OBJECT_ATTRIBUTES *attr,
++                                      void *start, void *param, ULONG flags, BOOL is_system )
++{
++    return create_server_thread_for_process( NtCurrentProcess(), handle, data_ret, access, attr,
++                                             start, param, flags, is_system );
++}
++
+ 
+ /***********************************************************************
+  *           spawn_thread
+@@ -1572,6 +1606,53 @@
+ }
+ 
+ 
++#ifdef __SWITCH__
++NTSTATUS wine_nx_thread_spawn_guest_child( HANDLE process_handle, DWORD child_pid,
++                                           const void *guest_ctx, unsigned int ctx_id,
++                                           void *entry_point, void *arg,
++                                           ACCESS_MASK thread_access, OBJECT_ATTRIBUTES *thread_attr,
++                                           ULONG thread_flags, SIZE_T stack_reserve, SIZE_T stack_commit,
++                                           ULONG_PTR stack_limit, HANDLE *thread_handle_out,
++                                           ULONG *thread_id_out )
++{
++    extern unsigned int wine_nx_virtual_set_guest_ctx( unsigned int ctx_id );
++    extern NTSTATUS wine_nx_virtual_init_guest_teb( struct thread_data *data, const void *ctx, DWORD child_pid );
++    struct thread_data *data = NULL;
++    HANDLE handle = 0;
++    unsigned int prev_ctx;
++    NTSTATUS status;
++
++    if (!thread_handle_out || !thread_id_out || !guest_ctx) return STATUS_INVALID_PARAMETER;
++    *thread_handle_out = 0;
++    *thread_id_out = 0;
++
++    horizon_lifecycle_baseline();
++    if (!thread_access) thread_access = THREAD_ALL_ACCESS;
++
++    status = create_server_thread_for_process( process_handle, &handle, &data, thread_access,
++                                               thread_attr, entry_point, arg, thread_flags, FALSE );
++    if (status) return status;
++
++    prev_ctx = wine_nx_virtual_set_guest_ctx( ctx_id );
++    status = wine_nx_virtual_init_guest_teb( data, guest_ctx, child_pid );
++    if (!status) status = init_thread_stack( data->teb, stack_limit, stack_reserve, stack_commit );
++    wine_nx_virtual_set_guest_ctx( prev_ctx );
++    if (!status) status = spawn_thread( data );
++
++    if (status)
++    {
++        NtClose( handle );
++        close( data->request_fd );
++        virtual_free_thread_data( data );
++        return status;
++    }
++
++    *thread_handle_out = handle;
++    *thread_id_out = data->tid;
++    return STATUS_SUCCESS;
++}
++#endif
++
+ /***********************************************************************
+  *              PsCreateSystemThread   (ntdll.so)
+  */
+@@ -1647,6 +1728,20 @@
+     if (InterlockedDecrement( &nb_threads ) <= 0) exit_process( status );
+ 
+ #ifdef __SWITCH__
++    {
++        extern DWORD wine_nx_current_guest_child_pid( void ) __attribute__((weak));
++        extern int horizon_guest_process_queue_exited_thread( unsigned int child_pid, void *thread_data )
++            __attribute__((weak));
++        DWORD child_pid = &wine_nx_current_guest_child_pid ? wine_nx_current_guest_child_pid() : 0;
++
++        if (child_pid && &horizon_guest_process_queue_exited_thread &&
++            horizon_guest_process_queue_exited_thread( child_pid, get_thread_data() ))
++        {
++            __atomic_add_fetch( &horizon_lifecycle.thread_exits, 1, __ATOMIC_RELAXED );
++            horizon_lifecycle_report( "exit", get_thread_data()->tid, status );
++            pthread_exit_wrapper( status );
++        }
++    }
+     if ((data = horizon_swap_prev_data( get_thread_data() )))
+ #else
+     if ((data = InterlockedExchangePointer( &prev_data, get_thread_data() )))
+@@ -1678,6 +1773,17 @@
+  * Called by the runtime once the program's threads are gone, on its way back to
+  * the launcher: the loader cannot reset a heap that still lends pages out.
+  */
++void wine_nx_thread_join_and_free_guest_data( void *ptr )
++{
++    extern void wine_nx_virtual_free_guest_thread_data( struct thread_data *data );
++    struct thread_data *data = ptr;
++
++    if (!data) return;
++    if (data->pthread_id)
++        pthread_join( data->pthread_id, NULL );
++    wine_nx_virtual_free_guest_thread_data( data );
++}
++
+ unsigned int horizon_join_last_exited_thread(void)
+ {
+     struct thread_data *data = horizon_swap_prev_data( NULL );

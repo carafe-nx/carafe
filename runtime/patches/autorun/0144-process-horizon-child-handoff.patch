@@ -1,0 +1,193 @@
+Carafe: wire NtCreateUserProcess, NtTerminateProcess and NtQueryInformationProcess to in-process guest child execution.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -797,6 +797,43 @@
+         goto done;
+     }
+ 
++#ifdef __SWITCH__
++    {
++        extern NTSTATUS wine_nx_runtime_spawn_guest_child(
++            const char *unix_path,
++            USHORT machine,
++            RTL_USER_PROCESS_PARAMETERS *params,
++            ACCESS_MASK process_access,
++            ACCESS_MASK thread_access,
++            OBJECT_ATTRIBUTES *thread_attr,
++            ULONG process_flags,
++            ULONG thread_flags,
++            const unsigned int *inherit_handles,
++            unsigned int inherit_handle_count,
++            HANDLE *process_handle_out,
++            HANDLE *thread_handle_out,
++            ULONG *process_id_out,
++            ULONG *thread_id_out ) __attribute__((weak));
++
++        free( objattr );
++        free( jobs );
++        if (&wine_nx_runtime_spawn_guest_child)
++        {
++            status = wine_nx_runtime_spawn_guest_child(
++                unix_name, machine, params, process_access, thread_access, thread_attr,
++                process_flags, thread_flags, handles,
++                (unsigned int)(handles_size / sizeof(obj_handle_t)),
++                &process_handle, &thread_handle, &process_id, &thread_id );
++            free( handles );
++            if (status) goto done;
++            goto finish_output;
++        }
++        free( handles );
++        status = STATUS_NOT_SUPPORTED;
++        goto done;
++    }
++#endif
++
+     /* create the socket for the new process */
+ 
+     if (socketpair( PF_UNIX, SOCK_STREAM, 0, socketfd ) == -1)
+@@ -908,6 +945,9 @@
+         goto done;
+     }
+ 
++#ifdef __SWITCH__
++finish_output:
++#endif
+     TRACE( "%s pid %04x tid %04x handles %p/%p\n", debugstr_us(&path),
+            process_id, thread_id, process_handle, thread_handle );
+ 
+@@ -972,6 +1012,38 @@
+     TRACE("handle %p, exit_code %d, process_exiting %d.\n", handle, (int)exit_code, process_exiting);
+ 
+ #ifdef __SWITCH__
++    {
++        extern DWORD wine_nx_current_guest_child_pid(void) __attribute__((weak));
++        extern int horizon_guest_process_terminate_others( unsigned int child_pid, unsigned int exclude_tid,
++                                                           unsigned int exit_code ) __attribute__((weak));
++        extern int horizon_guest_process_begin_exit( unsigned int child_pid, unsigned int exclude_tid,
++                                                     unsigned int exit_code ) __attribute__((weak));
++        extern int horizon_guest_process_terminate_handle( unsigned int caller_pid, unsigned int handle,
++                                                           unsigned int exit_code ) __attribute__((weak));
++        TEB *current_teb = NtCurrentTeb();
++        DWORD child_pid = &wine_nx_current_guest_child_pid ? wine_nx_current_guest_child_pid() : 0;
++        unsigned int current_tid = current_teb ? HandleToULong( current_teb->ClientId.UniqueThread ) : 0;
++        unsigned int caller_pid = current_teb ? HandleToULong( current_teb->ClientId.UniqueProcess ) : 0;
++
++        if (handle == NULL && child_pid != 0)
++        {
++            if (&horizon_guest_process_terminate_others)
++                horizon_guest_process_terminate_others( child_pid, current_tid, (unsigned int)exit_code );
++            return STATUS_SUCCESS;
++        }
++        if (handle == GetCurrentProcess() && child_pid != 0)
++        {
++            if (&horizon_guest_process_begin_exit)
++                horizon_guest_process_begin_exit( child_pid, current_tid, (unsigned int)exit_code );
++            return NtTerminateThread( GetCurrentThread(), exit_code );
++        }
++        if (handle != GetCurrentProcess() && handle != NULL && &horizon_guest_process_terminate_handle)
++        {
++            if (horizon_guest_process_terminate_handle( caller_pid, wine_server_obj_handle( handle ),
++                                                        (unsigned int)exit_code ))
++                return STATUS_SUCCESS;
++        }
++    }
+     /* wineserver is stubbed on Horizon: terminate_process goes nowhere and
+      * the caller (ucrtbase/_exit) retries forever. Log the exit code so we
+      * can see why the process is bailing, then park. Returning through
+@@ -1167,18 +1239,44 @@
+                 else
+                 {
+ #ifdef __SWITCH__
+-                    /* wineserver is stubbed on Horizon: synthesize the reply from
+-                     * locals so DllMain doesn't get a NULL PebBaseAddress and fault. */
+-                    TEB *current_teb = NtCurrentTeb();
+-
+-                    pbi.ExitStatus = STATUS_PENDING;
+-                    pbi.PebBaseAddress = peb ? peb : (current_teb ? current_teb->Peb : NULL);
+-                    pbi.AffinityMask = affinity_mask;
+-                    pbi.BasePriority = 8 /* NORMAL_PRIORITY_CLASS */;
+-                    pbi.UniqueProcessId = current_teb ?
+-                        (ULONG_PTR)current_teb->ClientId.UniqueProcess : 0;
+-                    pbi.InheritedFromUniqueProcessId = 0;
+-                    ret = STATUS_SUCCESS;
++                    {
++                        extern unsigned int horizon_guest_process_query(
++                            unsigned int caller_pid, unsigned int handle, unsigned int *pid_out,
++                            unsigned int *ppid_out, unsigned int *exit_code_out, unsigned long long *peb_out,
++                            unsigned short *machine_out ) __attribute__((weak));
++                        TEB *caller_teb = NtCurrentTeb();
++                        unsigned int caller_pid = caller_teb ? HandleToULong( caller_teb->ClientId.UniqueProcess ) : 0;
++                        unsigned int child_pid = 0, child_ppid = 0, child_exit = STATUS_PENDING;
++                        unsigned long long child_peb_addr = 0;
++                        unsigned short child_machine = 0;
++
++                        if (handle != GetCurrentProcess() && &horizon_guest_process_query &&
++                            !horizon_guest_process_query( caller_pid, wine_server_obj_handle( handle ),
++                                                          &child_pid, &child_ppid, &child_exit,
++                                                          &child_peb_addr, &child_machine ))
++                        {
++                            pbi.ExitStatus = child_exit;
++                            pbi.PebBaseAddress = (PEB *)(ULONG_PTR)child_peb_addr;
++                            pbi.AffinityMask = affinity_mask;
++                            pbi.BasePriority = 8;
++                            pbi.UniqueProcessId = child_pid;
++                            pbi.InheritedFromUniqueProcessId = child_ppid;
++                            ret = STATUS_SUCCESS;
++                        }
++                        else
++                        {
++                            TEB *current_teb = NtCurrentTeb();
++
++                            pbi.ExitStatus = STATUS_PENDING;
++                            pbi.PebBaseAddress = (current_teb && current_teb->Peb) ? current_teb->Peb : peb;
++                            pbi.AffinityMask = affinity_mask;
++                            pbi.BasePriority = 8;
++                            pbi.UniqueProcessId = current_teb ?
++                                (ULONG_PTR)current_teb->ClientId.UniqueProcess : 0;
++                            pbi.InheritedFromUniqueProcessId = 0;
++                            ret = STATUS_SUCCESS;
++                        }
++                    }
+ #else
+                     SERVER_START_REQ(get_process_info)
+                     {
+@@ -1494,9 +1592,37 @@
+         len = sizeof(ULONG_PTR);
+         if (size != len) return STATUS_INFO_LENGTH_MISMATCH;
+         if (handle == GetCurrentProcess())
++        {
++#ifdef __SWITCH__
++            TEB *current_teb = NtCurrentTeb();
++            WOW_TEB *current_wow_teb = current_teb ? get_wow_teb( current_teb ) : NULL;
++            *(ULONG_PTR *)info = current_wow_teb ? (ULONG_PTR)current_wow_teb->Peb
++                                                 : (is_old_wow64() ? (ULONG_PTR)peb : (ULONG_PTR)wow_peb);
++#else
+             *(ULONG_PTR *)info = is_old_wow64() ? (ULONG_PTR)peb : (ULONG_PTR)wow_peb;
++#endif
++        }
+         else
+         {
++#ifdef __SWITCH__
++            extern unsigned int horizon_guest_process_query(
++                unsigned int caller_pid, unsigned int handle, unsigned int *pid_out,
++                unsigned int *ppid_out, unsigned int *exit_code_out, unsigned long long *peb_out,
++                unsigned short *machine_out ) __attribute__((weak));
++            TEB *caller_teb = NtCurrentTeb();
++            unsigned int caller_pid = caller_teb ? HandleToULong( caller_teb->ClientId.UniqueProcess ) : 0;
++            unsigned long long child_peb_addr = 0;
++            unsigned short child_machine = 0;
++
++            if (&horizon_guest_process_query &&
++                !horizon_guest_process_query( caller_pid, wine_server_obj_handle( handle ), NULL, NULL, NULL,
++                                              &child_peb_addr, &child_machine ))
++            {
++                *(ULONG_PTR *)info = (!is_machine_64bit( child_machine ) && is_machine_64bit( native_machine ))
++                    ? (ULONG_PTR)(child_peb_addr + 0x1000) : 0;
++                break;
++            }
++#endif
+             ULONG_PTR val = 0;
+ 
+             SERVER_START_REQ( get_process_info )

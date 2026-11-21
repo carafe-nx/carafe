@@ -1,0 +1,19 @@
+Carafe: keep ARM64X DLLs native ARM64 on WoW64 threads and route WoW64 exceptions/continues without ARM64EC parent dispatch.
+LGPL-2.1-or-later, as the files it changes.
+
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -3861,9 +3861,12 @@ static NTSTATUS map_image_into_view( struct file_view *view, const UNICODE_STRIN
+ #ifdef __aarch64__
+     if ((dir = get_data_dir( nt, total_size, IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG )))
+     {
++        struct thread_data *data = get_thread_data();
++        BOOL wow64_thread = data && data->teb && data->teb->WowTebOffset != 0;
++
+         if (image_info->machine == IMAGE_FILE_MACHINE_ARM64 &&
+             (machine == IMAGE_FILE_MACHINE_AMD64 ||
+-             (!machine && main_image_info.Machine == IMAGE_FILE_MACHINE_AMD64)))
++             (!machine && main_image_info.Machine == IMAGE_FILE_MACHINE_AMD64 && !wow64_thread)))
+         {
+             update_arm64x_mapping( view, nt, dir, sec );
+             /* reload changed machine from NT header */

@@ -1,0 +1,51 @@
+Carafe: add guest child thread dispatch hook and per-child ARM64EC entry helper.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/signal_arm64.c
++++ b/dlls/ntdll/unix/signal_arm64.c
+@@ -609,6 +609,36 @@
+ 
+ /* Installed by the opt-in runtime after native WoW64 initialization. */
+ void (*wine_nx_wow64_thread_start)( PRTL_THREAD_START_ROUTINE, void *, BOOL, TEB * );
++BOOL (*wine_nx_child_thread_start)( PRTL_THREAD_START_ROUTINE, void *, BOOL, TEB * );
++
++void DECLSPEC_NORETURN wine_nx_start_arm64ec_child_thread( PRTL_THREAD_START_ROUTINE entry, void *arg,
++                                                           BOOL suspend, TEB *teb,
++                                                           void *ldr_init, void *rtl_user_thread_start )
++{
++    extern void horizon_continue_context( const CONTEXT *context );
++    CONTEXT initial = {0}, *saved;
++
++    wine_nx_set_active_pe_teb( teb );
++    initial.ContextFlags = CONTEXT_ARM64_FULL;
++    initial.X0 = (ULONG_PTR)entry;
++    initial.X1 = (ULONG_PTR)arg;
++    initial.X18 = (ULONG_PTR)teb;
++    initial.Sp = (ULONG_PTR)teb->Tib.StackBase & ~(ULONG_PTR)15;
++    initial.Pc = (ULONG_PTR)rtl_user_thread_start;
++    if (suspend)
++    {
++        initial.ContextFlags |= CONTEXT_EXCEPTION_REPORTING | CONTEXT_EXCEPTION_ACTIVE;
++        wait_suspend( &initial );
++        initial.ContextFlags = CONTEXT_ARM64_FULL;
++    }
++    saved = (CONTEXT *)(initial.Sp & ~(ULONG_PTR)15) - 1;
++    *saved = initial;
++    initial.Sp = (ULONG_PTR)saved;
++    initial.X0 = (ULONG_PTR)saved;
++    initial.Pc = (ULONG_PTR)ldr_init;
++    horizon_continue_context( &initial );
++    for (;;) sleep( 3600 );
++}
+ 
+ void DECLSPEC_NORETURN wine_nx_start_arm64ec_thread( PRTL_THREAD_START_ROUTINE entry, void *arg,
+                                                   BOOL suspend, TEB *teb )
+@@ -642,6 +672,8 @@
+ {
+     BOOL suspend = get_thread_data()->suspend;
+ 
++    if (wine_nx_child_thread_start && wine_nx_child_thread_start( entry, arg, suspend, teb ))
++        for (;;) sleep( 3600 );
+     if (is_arm64ec()) wine_nx_start_arm64ec_thread( entry, arg, suspend, teb );
+     if (get_wow_teb( teb ))
+     {

@@ -1,0 +1,61 @@
+--- a/dlls/ntdll/unix/horizon_async.h
++++ b/dlls/ntdll/unix/horizon_async.h
+@@ -68,3 +68,4 @@
+ struct horizon_async
+ {
++    unsigned int owner_pid;
+     struct horizon_async *next;
+@@ -234,11 +235,11 @@
+-static inline struct horizon_async *horizon_async_next_queued( const struct horizon_async_list *list,
+-                                                               unsigned int sock, int direction )
++static inline struct horizon_async *horizon_async_next_queued_for_pid( const struct horizon_async_list *list,
++                                                                       unsigned int pid, unsigned int sock, int direction )
+ {
+     struct horizon_async *async;
+ 
+     for (async = list->head; async; async = async->next)
+     {
+-        if (async->sock != sock || async->direction != direction) continue;
++        if ((pid && async->owner_pid != pid) || async->sock != sock || async->direction != direction) continue;
+         if (async->state == HORIZON_ASYNC_QUEUED) return async;
+         if (async->state == HORIZON_ASYNC_READY || async->state == HORIZON_ASYNC_RUNNING) return NULL;
+     }
+@@ -245,4 +246,10 @@
+     return NULL;
+ }
+ 
++static inline struct horizon_async *horizon_async_next_queued( const struct horizon_async_list *list,
++                                                               unsigned int sock, int direction )
++{
++    return horizon_async_next_queued_for_pid( list, 0, sock, direction );
++}
++
+ /* Whether anything on this socket is waiting for it to be ready, in either
+@@ -292,9 +299,10 @@
+-static inline unsigned int horizon_async_cancel( struct horizon_async_list *list, unsigned int sock,
++static inline unsigned int horizon_async_cancel_for_pid( struct horizon_async_list *list, unsigned int pid, unsigned int sock,
+                                                  unsigned long long iosb, unsigned int tid,
+                                                  unsigned long long now, int closing )
+ {
+     struct horizon_async *async;
+     unsigned int count = 0;
+ 
+     for (async = list->head; async; async = async->next)
+     {
++        if (pid && async->owner_pid != pid) continue;
+@@ -309,8 +317,15 @@
+     }
+     return count;
+ }
+ 
++static inline unsigned int horizon_async_cancel( struct horizon_async_list *list, unsigned int sock,
++                                                 unsigned long long iosb, unsigned int tid,
++                                                 unsigned long long now, int closing )
++{
++    return horizon_async_cancel_for_pid( list, 0, sock, iosb, tid, now, closing );
++}
++
+ /* The buffer AcceptEx fills, as server/sock.c's fill_accept_output lays it out
+  * for ws2_32 to read back: the first data received, then the local and the
+  * remote address, each as an int with its length and the address after it. */
+ static inline int horizon_async_accept_layout( unsigned int out_size, unsigned int recv_len, unsigned int local_len,

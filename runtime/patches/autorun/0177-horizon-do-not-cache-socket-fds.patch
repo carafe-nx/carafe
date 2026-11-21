@@ -1,0 +1,11 @@
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -12975,7 +12975,7 @@
+     else if (entry->object->type == HORIZON_SERVER_OBJECT_SOCK)
+     {
+         reply.type = HORIZON_FD_TYPE_SOCKET;
+-        reply.cacheable = 1;
++        reply.cacheable = 0;
+         reply.access = FILE_READ_DATA | FILE_WRITE_DATA | FILE_APPEND_DATA;
+         reply.options = entry->object->file_options;
+         horizon_server_queue_fd( entry->object->file_fd, request->handle );

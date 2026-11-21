@@ -1,0 +1,24 @@
+Carafe: allow a WoW64 guest child thread to patch its x86 ntdll dispatchers and enter its own LdrInitializeThunk.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/wow64/syscall.c
++++ b/dlls/wow64/syscall.c
+@@ -1127,8 +1127,17 @@
+             *(--stack) = 0;
+             *(--stack) = PtrToUlong( ctx_ptr );
+             *(--stack) = 0xdeadbabe;
++            ULONG child_ldr = PtrToUlong( NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER - 1] );
++            HMODULE child_ntdll = NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER - 2];
++            if (child_ntdll)
++            {
++                ULONG *child_sys = RtlFindExportedRoutineByName( child_ntdll, "__wine_syscall_dispatcher" );
++                ULONG *child_unix = RtlFindExportedRoutineByName( child_ntdll, "__wine_unix_call_dispatcher" );
++                if (child_sys) *child_sys = PtrToUlong( pBTCpuGetBopCode() );
++                if (child_unix) *child_unix = PtrToUlong( p__wine_get_unix_opcode() );
++            }
+             ctx.Esp = PtrToUlong( stack );
+-            ctx.Eip = pLdrSystemDllInitBlock->pLdrInitializeThunk;
++            ctx.Eip = child_ldr ? child_ldr : pLdrSystemDllInitBlock->pLdrInitializeThunk;
+             if ((status = pBTCpuSetContext( GetCurrentThread(), GetCurrentProcess(), NULL, &ctx ))) return status;
+         }
+         break;

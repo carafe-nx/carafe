@@ -1,0 +1,65 @@
+Carafe: report guest child machine and WoW64 emulation limits from child context in NtQuerySystemInformation.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/system.c
++++ b/dlls/ntdll/unix/system.c
+@@ -3867,8 +3867,13 @@
+     case SystemEmulationBasicInformation:  /* 62 */
+     {
+         SYSTEM_BASIC_INFORMATION sbi;
+-
++#ifdef __SWITCH__
++        TEB *current_teb = NtCurrentTeb();
++        BOOL current_wow64 = is_wow64() || (current_teb && get_wow_teb( current_teb ) != NULL);
++        virtual_get_system_info( &sbi, current_wow64 );
++#else
+         virtual_get_system_info( &sbi, is_wow64() );
++#endif
+         len = sizeof(sbi);
+         if (size == len)
+         {
+@@ -4303,7 +4308,20 @@
+         if (process)
+         {
+ #ifdef __SWITCH__
+-            if (process == NtCurrentProcess()) machine = main_image_info.Machine;
++            extern USHORT wine_nx_virtual_current_machine( void ) __attribute__((weak));
++            extern unsigned int horizon_guest_process_query(
++                unsigned int caller_pid, unsigned int handle, unsigned int *pid_out,
++                unsigned int *ppid_out, unsigned int *exit_code_out, unsigned long long *peb_out,
++                unsigned short *machine_out ) __attribute__((weak));
++            unsigned short child_machine = 0;
++
++            if (process == NtCurrentProcess())
++                machine = &wine_nx_virtual_current_machine ? wine_nx_virtual_current_machine() : main_image_info.Machine;
++            else if (&horizon_guest_process_query &&
++                     !horizon_guest_process_query(
++                         NtCurrentTeb() ? HandleToULong( NtCurrentTeb()->ClientId.UniqueProcess ) : 0,
++                         wine_server_obj_handle( process ), NULL, NULL, NULL, NULL, &child_machine ))
++                machine = child_machine;
+             else
+ #endif
+             {
+@@ -4327,6 +4345,22 @@
+             machines_to_return[machines_to_return_count] = supported_machines[i];
+             machines_to_return_count++;
+         }
++#ifdef __SWITCH__
++        if (machine && machines_to_return_count < ARRAY_SIZE(machines_to_return))
++        {
++            BOOL seen = FALSE;
++            for (i = 0; i < machines_to_return_count; i++)
++            {
++                if (machines_to_return[i] == machine)
++                {
++                    seen = TRUE;
++                    break;
++                }
++            }
++            if (!seen)
++                machines_to_return[machines_to_return_count++] = machine;
++        }
++#endif
+ 
+         len = (machines_to_return_count + 1) * sizeof(*machines);
+         if (size < len)

@@ -1,0 +1,40 @@
+Carafe: switch and restore wine_nx_active_pe_teb around on-demand WoW64 bootstrap so parent ARM64EC syscalls return with the parent TEB.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -3103,10 +3103,13 @@
+ static NTSTATUS runtime_ensure_wow64_initialized( struct wine_nx_guest_va_peb *ctx,
+                                                   const UNICODE_STRING *image_name )
+ {
++    extern void *wine_nx_current_teb( void );
++    extern void wine_nx_set_active_pe_teb( TEB *teb );
+     NTSTATUS status = STATUS_SUCCESS;
+     unsigned int prev_ctx;
+     struct thread_data *data;
+     TEB *saved_teb;
++    TEB *saved_active_pe_teb;
+     HMODULE native = NULL, shared_guest = NULL;
+     void *initialize = NULL;
+     SIZE_T guest_size = 0;
+@@ -3138,6 +3141,7 @@
+ 
+     data = get_thread_data();
+     saved_teb = data->teb;
++    saved_active_pe_teb = (TEB *)wine_nx_current_teb();
+     prev_ctx = wine_nx_virtual_set_guest_ctx( 0 );
+     if (!wow64_bootstrap_block)
+     {
+@@ -3239,10 +3243,12 @@
+     bootstrap_teb->StaticUnicodeString.MaximumLength = sizeof(bootstrap_teb->StaticUnicodeBuffer);
+ 
+     data->teb = bootstrap_teb;
++    wine_nx_set_active_pe_teb( bootstrap_teb );
+     status = wine_nx_loader_bootstrap( image_name );
+     if (!status)
+         status = wine_nx_loader_prepare_wow64( &native, &initialize, runtime_fex );
+     data->teb = saved_teb;
++    wine_nx_set_active_pe_teb( saved_active_pe_teb );
+     bootstrap_teb->ChpeV2CpuAreaInfo = NULL;
+ 
+     if (!status)

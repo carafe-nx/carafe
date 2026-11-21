@@ -1,0 +1,97 @@
+Carafe: accept cross-arch STATUS_IMAGE_MACHINE_TYPE_MISMATCH in map_pe_image_with_limit and keep on-demand WoW64 bootstrap PEB/TEB in permanent storage.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -2123,6 +2123,21 @@
+             if (relocated_out) *relocated_out = TRUE;
+             status = STATUS_SUCCESS;
+         }
++        else if (status == STATUS_IMAGE_MACHINE_TYPE_MISMATCH)
++        {
++            if (relocated_out && *module)
++            {
++                IMAGE_NT_HEADERS64 *nt = runtime_nt_headers( *module );
++                if (nt && nt->Signature == IMAGE_NT_SIGNATURE)
++                {
++                    ULONGLONG preferred = (nt->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
++                        ? ((IMAGE_NT_HEADERS32 *)nt)->OptionalHeader.ImageBase
++                        : nt->OptionalHeader.ImageBase;
++                    if ((ULONG_PTR)(*module) != (ULONG_PTR)preferred) *relocated_out = TRUE;
++                }
++            }
++            status = STATUS_SUCCESS;
++        }
+         close_handle_object( section );
+     }
+     close_handle_object( file );
+@@ -3090,10 +3105,14 @@
+     unsigned int prev_ctx;
+     struct thread_data *data;
+     TEB *saved_teb;
+-    TEB *child_teb;
+     HMODULE native = NULL, shared_guest = NULL;
+     void *initialize = NULL;
+     SIZE_T guest_size = 0;
++    static PEB wow64_bootstrap_peb;
++    static TEB wow64_bootstrap_teb;
++    static RTL_USER_PROCESS_PARAMETERS wow64_bootstrap_params;
++    static WCHAR wow64_bootstrap_dll_path[1024];
++    RTL_USER_PROCESS_PARAMETERS *src_params;
+ 
+     if (!ctx || !ctx->peb || !ctx->initial_teb || !image_name) return STATUS_INVALID_PARAMETER;
+ 
+@@ -3110,15 +3129,34 @@
+ 
+     data = get_thread_data();
+     saved_teb = data->teb;
+-    child_teb = (TEB *)ctx->initial_teb;
+-    memset( child_teb, 0, ctx->teb_block_size );
+-    child_teb->Peb = ctx->peb;
+-    child_teb->Tib.Self = &child_teb->Tib;
+-    child_teb->WowTebOffset = (LONG)((sizeof(TEB) + 0xfff) & ~(SIZE_T)0xfff);
+-    child_teb->ClientId = saved_teb ? saved_teb->ClientId : make_client_id( 0, 0 );
++    memset( &wow64_bootstrap_peb, 0, sizeof(wow64_bootstrap_peb) );
++    memset( &wow64_bootstrap_teb, 0, sizeof(wow64_bootstrap_teb) );
++    memset( &wow64_bootstrap_params, 0, sizeof(wow64_bootstrap_params) );
++    wow64_bootstrap_peb = *ctx->peb;
++    src_params = ctx->peb->ProcessParameters;
++    if (src_params)
++    {
++        wow64_bootstrap_params = *src_params;
++        if (src_params->DllPath.Buffer && src_params->DllPath.Length)
++        {
++            SIZE_T copy_bytes = src_params->DllPath.Length;
++            if (copy_bytes >= sizeof(wow64_bootstrap_dll_path))
++                copy_bytes = sizeof(wow64_bootstrap_dll_path) - sizeof(WCHAR);
++            memcpy( wow64_bootstrap_dll_path, src_params->DllPath.Buffer, copy_bytes );
++            wow64_bootstrap_dll_path[copy_bytes / sizeof(WCHAR)] = 0;
++            wow64_bootstrap_params.DllPath.Buffer = wow64_bootstrap_dll_path;
++            wow64_bootstrap_params.DllPath.Length = (USHORT)copy_bytes;
++            wow64_bootstrap_params.DllPath.MaximumLength = (USHORT)(copy_bytes + sizeof(WCHAR));
++        }
++        wow64_bootstrap_peb.ProcessParameters = &wow64_bootstrap_params;
++    }
++    wow64_bootstrap_teb.Peb = &wow64_bootstrap_peb;
++    wow64_bootstrap_teb.Tib.Self = &wow64_bootstrap_teb.Tib;
++    wow64_bootstrap_teb.WowTebOffset = (LONG)((sizeof(TEB) + 0xfff) & ~(SIZE_T)0xfff);
++    wow64_bootstrap_teb.ClientId = saved_teb ? saved_teb->ClientId : make_client_id( 0, 0 );
+ 
+     prev_ctx = wine_nx_virtual_set_guest_ctx( 0 );
+-    data->teb = child_teb;
++    data->teb = &wow64_bootstrap_teb;
+     status = wine_nx_loader_bootstrap( image_name );
+     if (!status)
+         status = wine_nx_loader_prepare_wow64( &native, &initialize, runtime_fex );
+@@ -3139,9 +3177,8 @@
+ 
+     if (!status)
+     {
+-        static PEB wow64_loader_peb_template;
+-        runtime_copy_wow64_loader_peb( &wow64_loader_peb_template, ctx->peb );
+-        runtime_wow64_ldr_peb = &wow64_loader_peb_template;
++        runtime_wow64_ldr_peb = &wow64_bootstrap_peb;
++        runtime_copy_wow64_loader_peb( ctx->peb, runtime_wow64_ldr_peb );
+         runtime_wow64_native_ntdll = native;
+         runtime_wow64_initialize = initialize;
+         wine_nx_wow64_thread_start = runtime_start_x86_thread;

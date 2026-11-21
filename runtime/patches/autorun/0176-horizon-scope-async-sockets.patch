@@ -1,0 +1,137 @@
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -5358,6 +5358,6 @@
+     horizon_server_unlink_handle_locked( entry );
+     if (object) horizon_sync_notify_object_locked( object, 0 );
+     if (object && object->type == HORIZON_SERVER_OBJECT_SOCK && horizon_asyncs.head &&
+-        horizon_async_cancel( &horizon_asyncs, handle, 0, 0, horizon_async_now(), 1 ))
++        horizon_async_cancel_for_pid( &horizon_asyncs, entry->owner_pid, handle, 0, 0, horizon_async_now(), 1 ))
+         horizon_sync_notify_async_locked();
+     if (object && object->type == HORIZON_SERVER_OBJECT_COMPLETION &&
+@@ -14195,12 +14195,18 @@
+-static unsigned int horizon_server_find_sock_locked( unsigned int handle,
++static unsigned int horizon_server_find_sock_for_pid_locked( unsigned int pid, unsigned int handle,
+                                                      struct horizon_server_object **object )
+ {
+-    struct horizon_server_handle_entry *entry = horizon_server_find_handle_locked( handle );
++    struct horizon_server_handle_entry *entry = horizon_server_find_handle_for_pid_locked( pid, handle );
+ 
+     *object = NULL;
+     if (!entry) return HORIZON_STATUS_INVALID_HANDLE;
+     if (entry->object->type != HORIZON_SERVER_OBJECT_SOCK) return HORIZON_STATUS_OBJECT_TYPE_MISMATCH;
+     *object = entry->object;
+     return HORIZON_STATUS_SUCCESS;
+ }
+ 
++static unsigned int horizon_server_find_sock_locked( unsigned int handle,
++                                                     struct horizon_server_object **object )
++{
++    return horizon_server_find_sock_for_pid_locked( horizon_server_current_pid(), handle, object );
++}
++
+@@ -14268,3 +14274,4 @@
+     async->owner_tid = connection->tid;
++    async->owner_pid = connection->pid;
+     async->sock = data->handle;
+     async->data = *data;
+@@ -14299,9 +14306,9 @@
+ static struct horizon_server_handle_entry *horizon_server_accepted_sock_locked( struct horizon_server_object *listener,
+-                                                                                int fd )
++                                                                                int fd, unsigned int pid )
+ {
+     struct horizon_server_handle_entry *entry;
+     struct horizon_server_object *sock;
+ 
+-    if (!(entry = horizon_server_create_handle_locked( HORIZON_SERVER_OBJECT_SOCK ))) return NULL;
++    if (!(entry = horizon_server_create_handle_for_pid_locked( pid, HORIZON_SERVER_OBJECT_SOCK ))) return NULL;
+     sock = entry->object;
+     sock->file_access = listener->file_access;
+@@ -14389,6 +14396,6 @@
+     int fd;
+ 
+     if (async->kind == HORIZON_ASYNC_ACCEPT_INTO &&
+-        (horizon_server_find_sock_locked( async->accept_into, &target ) || target->file_fd == -1))
++        (horizon_server_find_sock_for_pid_locked( async->owner_pid, async->accept_into, &target ) || target->file_fd == -1))
+     {
+         horizon_async_ready( &horizon_asyncs, async, HORIZON_STATUS_INVALID_HANDLE, horizon_async_now() );
+@@ -14406,6 +14413,6 @@
+         if (async->kind == HORIZON_ASYNC_ACCEPT)
+         {
+             if (!(async->out = malloc( sizeof(handle) )) ||
+-                !(entry = horizon_server_accepted_sock_locked( listener, fd )))
++                !(entry = horizon_server_accepted_sock_locked( listener, fd, async->owner_pid )))
+             {
+                 close( fd );
+@@ -14425,8 +14432,10 @@
+         close( target->file_fd );
+         target->file_fd = fd;
+         target->sock_bound = 1;
+         target->sock_pending_events = 0;
+-        horizon_client_forget_fd( async->accept_into );
++        for (entry = horizon_server_handles; entry; entry = entry->next)
++            if (entry->owner_pid == horizon_server_root_pid && entry->object == target)
++                horizon_client_forget_fd( entry->handle );
+         async->accepted = 1;
+     }
+     return horizon_sock_accept_output_locked( async, target );
+@@ -14438,9 +14447,9 @@
+-static int horizon_sock_poll_asyncs_locked( unsigned int handle, struct horizon_server_object *sock )
++static int horizon_sock_poll_asyncs_locked( unsigned int pid, unsigned int handle, struct horizon_server_object *sock )
+ {
+     int direction, changed = 0;
+ 
+     for (direction = HORIZON_ASYNC_READ; direction <= HORIZON_ASYNC_WRITE; direction++)
+     {
+-        struct horizon_async *async = horizon_async_next_queued( &horizon_asyncs, handle, direction );
++        struct horizon_async *async = horizon_async_next_queued_for_pid( &horizon_asyncs, pid, handle, direction );
+         struct horizon_server_object *target;
+         struct pollfd pfd;
+@@ -14451,5 +14460,5 @@
+          * the connection went into. */
+         if (async->kind == HORIZON_ASYNC_ACCEPT_INTO && async->accepted &&
+-            !horizon_server_find_sock_locked( async->accept_into, &target ))
++            !horizon_server_find_sock_for_pid_locked( async->owner_pid, async->accept_into, &target ))
+             pfd.fd = target->file_fd;
+         if (pfd.fd == -1) continue;
+@@ -14471,17 +14480,23 @@
+     struct horizon_server_object *sock;
+     struct horizon_async *async;
+-    unsigned int handles[64], count = 0, i;
++    struct { unsigned int pid, handle; } sockets[64];
++    unsigned int count = 0, i;
+     int changed = 0;
+ 
+-    for (async = horizon_asyncs.head; async && count < ARRAY_SIZE(handles); async = async->next)
++    for (async = horizon_asyncs.head; async && count < ARRAY_SIZE(sockets); async = async->next)
+     {
+         if (async->state != HORIZON_ASYNC_QUEUED) continue;
+-        for (i = 0; i < count; i++) if (handles[i] == async->sock) break;
+-        if (i == count) handles[count++] = async->sock;
++        for (i = 0; i < count; i++)
++            if (sockets[i].pid == async->owner_pid && sockets[i].handle == async->sock) break;
++        if (i == count)
++        {
++            sockets[count].pid = async->owner_pid;
++            sockets[count++].handle = async->sock;
++        }
+     }
+     for (i = 0; i < count; i++)
+-        if (!horizon_server_find_sock_locked( handles[i], &sock ) && sock->file_fd != -1 &&
+-            horizon_sock_poll_asyncs_locked( handles[i], sock ))
++        if (!horizon_server_find_sock_for_pid_locked( sockets[i].pid, sockets[i].handle, &sock ) && sock->file_fd != -1 &&
++            horizon_sock_poll_asyncs_locked( sockets[i].pid, sockets[i].handle, sock ))
+             changed = 1;
+     return changed;
+ }
+@@ -15459,3 +15474,3 @@
+-            if ((entry = horizon_server_accepted_sock_locked( listener, fd )))
++            if ((entry = horizon_server_accepted_sock_locked( listener, fd, connection->pid )))
+             {
+                 *handle = entry->handle;
+@@ -16158,5 +16173,5 @@
+     pthread_mutex_lock( &horizon_server_objects_mutex );
+-    if (horizon_async_cancel( &horizon_asyncs, request->handle, request->iosb,
++    if (horizon_async_cancel_for_pid( &horizon_asyncs, connection->pid, request->handle, request->iosb,
+                               request->only_thread ? connection->tid : 0, horizon_async_now(), 0 ))
+     {
+         status = HORIZON_STATUS_SUCCESS;

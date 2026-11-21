@@ -1,0 +1,16 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -5580,4 +5580,5 @@
+         horizon_guest_unmap_view( wine_server_client_ptr( victim->base ) );
++        if (victim->protect & SEC_IMAGE) release_builtin_module( victim->base );
+         delete_view( victim );
+         released++;
+     }
+@@ -8390,4 +8391,7 @@
+     server_enter_uninterrupted_section( &virtual_mutex, &sigset );
+     if (!(view = find_view( addr, 0 )) || is_view_valloc( view )) goto done;
++#ifdef __SWITCH__
++    if (view->guest_ctx_id != current_view_guest_ctx_id) goto done;
++#endif
+ 
+     if (flags & MEM_PRESERVE_PLACEHOLDER && !(view->protect & VPROT_PLACEHOLDER))

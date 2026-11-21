@@ -1,0 +1,37 @@
+Carafe: release guest server view references before freeing their local addresses.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -5540,6 +5540,8 @@
+     __atomic_sub_fetch( &horizon_lifecycle.worker_pthreads, 1, __ATOMIC_RELAXED );
+ }
+ 
++extern void horizon_guest_unmap_view( unsigned long long base );
++
+ unsigned int wine_nx_virtual_release_guest_context( unsigned int ctx_id )
+ {
+     sigset_t sigset;
+@@ -5566,6 +5568,7 @@
+             }
+         }
+         if (!victim) break;
++        horizon_guest_unmap_view( wine_server_client_ptr( victim->base ) );
+         delete_view( victim );
+         released++;
+     }
+@@ -8230,6 +8233,14 @@
+         }
+     }
+ 
++#ifdef __SWITCH__
++    if (view->guest_ctx_id)
++    {
++        horizon_guest_unmap_view( wine_server_client_ptr( view->base ) );
++        status = STATUS_SUCCESS;
++    }
++    else
++#endif
+     SERVER_START_REQ( unmap_view )
+     {
+         req->base = wine_server_client_ptr( view->base );

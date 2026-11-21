@@ -1,0 +1,39 @@
+Carafe: resolve the native ARM64EC exception entry in child ntdll.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -1881,4 +1881,5 @@
+ NTSTATUS wine_nx_prepare_arm64ec_child_ntdll( HMODULE module, void *ec_code_bitmap,
+-                                              void **ldr_init_out, void **rtl_user_thread_start_out )
++                                              void **ldr_init_out, void **rtl_user_thread_start_out,
++                                              void **exception_dispatcher_out )
+ {
+     static const char *names[] =
+@@ -1898,6 +1899,6 @@
+-    void *ldr_init, *rtl_start, *emul_disp;
++    void *ldr_init, *rtl_start, *emul_disp, *exception_disp;
+     ULONG size;
+     unsigned int i;
+ 
+-    if (!module || !ec_code_bitmap || !ldr_init_out || !rtl_user_thread_start_out)
++    if (!module || !ec_code_bitmap || !ldr_init_out || !rtl_user_thread_start_out || !exception_dispatcher_out)
+         return STATUS_INVALID_PARAMETER;
+@@ -1928,11 +1929,16 @@
+     rtl_start = get_rva( module, redirect_arm64ec_rva( module, (char *)rtl_start - (char *)module, metadata ));
+     emul_disp = get_rva( module, redirect_arm64ec_rva( module, (char *)emul_disp - (char *)module, metadata ));
++    exception_disp = (void *)find_named_export( module, exports, "KiUserExceptionDispatcher" );
++    exception_disp = get_rva( module, redirect_arm64ec_rva( module, (char *)exception_disp - (char *)module, metadata ));
+     if (!(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)ldr_init / page_size) / 64] >> (((ULONG_PTR)ldr_init / page_size) & 63) & 1) ||
+         !(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)rtl_start / page_size) / 64] >> (((ULONG_PTR)rtl_start / page_size) & 63) & 1) ||
+-        !(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)emul_disp / page_size) / 64] >> (((ULONG_PTR)emul_disp / page_size) & 63) & 1))
++        !(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)emul_disp / page_size) / 64] >> (((ULONG_PTR)emul_disp / page_size) & 63) & 1) ||
++        !(((const UINT64 *)ec_code_bitmap)[((ULONG_PTR)exception_disp / page_size) / 64] >>
++          (((ULONG_PTR)exception_disp / page_size) & 63) & 1))
+         return STATUS_INVALID_IMAGE_FORMAT;
+ 
+     *ldr_init_out = ldr_init;
+     *rtl_user_thread_start_out = rtl_start;
++    *exception_dispatcher_out = exception_disp;
+     return STATUS_SUCCESS;
+ }

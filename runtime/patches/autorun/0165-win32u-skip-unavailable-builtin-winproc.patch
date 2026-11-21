@@ -1,0 +1,21 @@
+Carafe: do not dispatch missing built-in winprocs.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/win32u/message.c
++++ b/dlls/win32u/message.c
+@@ -481,7 +481,7 @@
+     params->dpi_context = get_window_dpi_awareness_context( params->hwnd );
+     get_winproc_params( params, TRUE );
+-    return TRUE;
++    return params->procA || params->procW;
+ }
+ 
+ static BOOL init_window_call_params( struct win_proc_params *params, HWND hwnd, UINT msg, WPARAM wParam,
+                                      LPARAM lParam, BOOL ansi, enum wm_char_mapping mapping )
+@@ -508,5 +508,6 @@
+     params->dpi_context = get_window_dpi_awareness_context( params->hwnd );
+     get_winproc_params( params, !is_dialog );
++    if (!params->procA && !params->procW) return FALSE;
+ #ifdef __SWITCH__
+     nx_trace_winproc( "init", params, STATUS_SUCCESS, 0 );
+ #endif

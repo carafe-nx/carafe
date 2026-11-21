@@ -1,0 +1,68 @@
+Carafe: populate on-demand WoW64 bootstrap DllPath, EcCodeBitMap and stack bounds.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -3133,25 +3133,54 @@
+     memset( &wow64_bootstrap_teb, 0, sizeof(wow64_bootstrap_teb) );
+     memset( &wow64_bootstrap_params, 0, sizeof(wow64_bootstrap_params) );
+     wow64_bootstrap_peb = *ctx->peb;
++    if (saved_teb && saved_teb->Peb && !wow64_bootstrap_peb.EcCodeBitMap)
++        wow64_bootstrap_peb.EcCodeBitMap = saved_teb->Peb->EcCodeBitMap;
+     src_params = ctx->peb->ProcessParameters;
+     if (src_params)
++        wow64_bootstrap_params = *src_params;
+     {
+-        wow64_bootstrap_params = *src_params;
+-        if (src_params->DllPath.Buffer && src_params->DllPath.Length)
++        static const char fallback_dll_path[] = "C:\\windows\\system32;C:\\windows;C:\\";
++        const WCHAR *src_dll_path = NULL;
++        SIZE_T copy_bytes = 0;
++
++        if (src_params && src_params->DllPath.Buffer && src_params->DllPath.Length)
+         {
+-            SIZE_T copy_bytes = src_params->DllPath.Length;
++            src_dll_path = src_params->DllPath.Buffer;
++            copy_bytes = src_params->DllPath.Length;
++        }
++        else if (saved_teb && saved_teb->Peb && saved_teb->Peb->ProcessParameters &&
++                 saved_teb->Peb->ProcessParameters->DllPath.Buffer &&
++                 saved_teb->Peb->ProcessParameters->DllPath.Length)
++        {
++            src_dll_path = saved_teb->Peb->ProcessParameters->DllPath.Buffer;
++            copy_bytes = saved_teb->Peb->ProcessParameters->DllPath.Length;
++        }
++        if (src_dll_path && copy_bytes)
++        {
+             if (copy_bytes >= sizeof(wow64_bootstrap_dll_path))
+                 copy_bytes = sizeof(wow64_bootstrap_dll_path) - sizeof(WCHAR);
+-            memcpy( wow64_bootstrap_dll_path, src_params->DllPath.Buffer, copy_bytes );
+-            wow64_bootstrap_dll_path[copy_bytes / sizeof(WCHAR)] = 0;
+-            wow64_bootstrap_params.DllPath.Buffer = wow64_bootstrap_dll_path;
+-            wow64_bootstrap_params.DllPath.Length = (USHORT)copy_bytes;
+-            wow64_bootstrap_params.DllPath.MaximumLength = (USHORT)(copy_bytes + sizeof(WCHAR));
++            memcpy( wow64_bootstrap_dll_path, src_dll_path, copy_bytes );
+         }
++        else
++        {
++            SIZE_T i;
++            copy_bytes = (sizeof(fallback_dll_path) - 1) * sizeof(WCHAR);
++            for (i = 0; i < sizeof(fallback_dll_path) - 1; i++)
++                wow64_bootstrap_dll_path[i] = (unsigned char)fallback_dll_path[i];
++        }
++        wow64_bootstrap_dll_path[copy_bytes / sizeof(WCHAR)] = 0;
++        wow64_bootstrap_params.DllPath.Buffer = wow64_bootstrap_dll_path;
++        wow64_bootstrap_params.DllPath.Length = (USHORT)copy_bytes;
++        wow64_bootstrap_params.DllPath.MaximumLength = (USHORT)(copy_bytes + sizeof(WCHAR));
+         wow64_bootstrap_peb.ProcessParameters = &wow64_bootstrap_params;
+     }
+     wow64_bootstrap_teb.Peb = &wow64_bootstrap_peb;
+     wow64_bootstrap_teb.Tib.Self = &wow64_bootstrap_teb.Tib;
++    if (saved_teb)
++    {
++        wow64_bootstrap_teb.Tib.StackBase = saved_teb->Tib.StackBase;
++        wow64_bootstrap_teb.Tib.StackLimit = saved_teb->Tib.StackLimit;
++    }
+     wow64_bootstrap_teb.WowTebOffset = (LONG)((sizeof(TEB) + 0xfff) & ~(SIZE_T)0xfff);
+     wow64_bootstrap_teb.ClientId = saved_teb ? saved_teb->ClientId : make_client_id( 0, 0 );
+ 
