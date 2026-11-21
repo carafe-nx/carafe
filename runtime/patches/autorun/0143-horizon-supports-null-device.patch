@@ -1,0 +1,128 @@
+diff --git a/dlls/ntdll/unix/horizon.c b/dlls/ntdll/unix/horizon.c
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -3323,3 +3323,4 @@
+     int file_is_dir;
++    int file_is_null;
+     unsigned int pipe_flags;
+     unsigned int dir_enum_index;
+@@ -11252,5 +11253,5 @@
+     else
+     {
+-        reply.type = HORIZON_FD_TYPE_FILE;
++        reply.type = entry->object->file_is_null ? HORIZON_FD_TYPE_CHAR : HORIZON_FD_TYPE_FILE;
+         reply.cacheable = 0;
+         reply.access = entry->object->file_access;
+@@ -12845,3 +12846,77 @@
++static int horizon_null_open( struct _reent *r, void *state, const char *path, int flags, int mode )
++{
++    return 0;
++}
++
++static int horizon_null_close( struct _reent *r, void *state )
++{
++    return 0;
++}
++
++static ssize_t horizon_null_read( struct _reent *r, void *state, char *buffer, size_t size )
++{
++    return 0;
++}
++
++static ssize_t horizon_null_write( struct _reent *r, void *state, const char *buffer, size_t size )
++{
++    return size;
++}
++
++static int horizon_null_fstat( struct _reent *r, void *state, struct stat *st )
++{
++    memset( st, 0, sizeof(*st) );
++    st->st_mode = S_IFCHR | 0666;
++    st->st_nlink = 1;
++    return 0;
++}
++
++static const devoptab_t horizon_null_devoptab =
++{
++    .name = "winenull",
++    .structSize = 1,
++    .open_r = horizon_null_open,
++    .close_r = horizon_null_close,
++    .read_r = horizon_null_read,
++    .write_r = horizon_null_write,
++    .fstat_r = horizon_null_fstat,
++};
++
++static int horizon_null_device;
++
++static void horizon_null_init( void )
++{
++    horizon_null_device = AddDevice( &horizon_null_devoptab );
++}
++
++static int horizon_null_name( const unsigned char *data, unsigned int size, const char *name )
++{
++    unsigned int i;
++    if (size != strlen( name ) * sizeof(unsigned short)) return 0;
++    for (i = 0; i < size / sizeof(unsigned short); i++)
++    {
++        unsigned short c;
++        memcpy( &c, data + i * sizeof(c), sizeof(c) );
++        if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
++        if (c != name[i]) return 0;
++    }
++    return 1;
++}
++
++static int horizon_null_open_fd( unsigned int access )
++{
++    static pthread_once_t once = PTHREAD_ONCE_INIT;
++    const int read_access = access & FILE_READ_DATA;
++    const int write_access = access & (FILE_WRITE_DATA | FILE_APPEND_DATA);
++    pthread_once( &once, horizon_null_init );
++    if (horizon_null_device < 0)
++    {
++        errno = ENODEV;
++        return -1;
++    }
++    return open( "winenull:", write_access ? (read_access ? O_RDWR : O_WRONLY) : O_RDONLY );
++}
++
+ static int horizon_server_handle_open_file_object( struct horizon_server_connection *connection,
+                                                    const unsigned char *message,
+                                                    const unsigned char *data, unsigned int data_size )
+@@ -12854,6 +12929,34 @@
+     int is_nsi = horizon_nsi_device_name( data, data_size );
+ 
+     memset( &reply, 0, sizeof(reply) );
++    if (horizon_null_name( data, data_size, "\\??\\nul" ) ||
++        horizon_null_name( data, data_size, "\\device\\null" ))
++    {
++        const unsigned int access = horizon_file_map_access( request->access );
++        struct horizon_server_handle_entry *entry;
++        int fd;
++
++        if ((request->options & HORIZON_FILE_DIRECTORY_FILE) || (request->options & FILE_DELETE_ON_CLOSE))
++            reply.header.error = HORIZON_STATUS_INVALID_PARAMETER;
++        else if ((fd = horizon_null_open_fd( access )) == -1)
++            reply.header.error = horizon_server_errno_status( errno );
++        else
++        {
++            pthread_mutex_lock( &horizon_server_objects_mutex );
++            if ((entry = horizon_server_create_handle_locked( HORIZON_SERVER_OBJECT_FILE )))
++            {
++                entry->object->file_fd = fd;
++                entry->object->file_access = access;
++                entry->object->file_options = request->options;
++                entry->object->file_is_null = 1;
++                reply.handle = entry->handle;
++            }
++            else reply.header.error = HORIZON_STATUS_NO_MEMORY;
++            pthread_mutex_unlock( &horizon_server_objects_mutex );
++            if (!reply.handle) close( fd );
++        }
++        return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
++    }
+ 
+     /* accept "\Device\Afd" and "\Device\Afd\..." in any case */
+     if (chars >= 11)
