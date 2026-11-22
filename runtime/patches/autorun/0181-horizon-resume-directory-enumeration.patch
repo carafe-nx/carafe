@@ -1,0 +1,130 @@
+Carafe: resume directory enumeration without reopening and replaying each prefix.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -3400,4 +3400,7 @@
+     unsigned int dir_enum_index;
+     int dir_queried;                /* a directory query has run on this handle */
++    DIR *dir_stream;
++    struct dirent *dir_pending;
++    int dir_exhausted;
+     WCHAR *dir_mask;
+     unsigned int dir_mask_len;
+@@ -5287,5 +5290,6 @@
+     free( object->file_name );
+     free( object->mapping_version );
++    if (object->dir_stream) closedir( object->dir_stream );
+     free( object->dir_mask );
+     free( object->name );
+     free( object );
+@@ -13044,9 +13048,7 @@
+     char trace_mask[128] = "<all>";
+     unsigned int trace_index = 0;
+     WCHAR *new_mask = NULL;
+-    DIR *dir = NULL;
+-    unsigned int raw_index = 0;
+     int mask_changed = 0;
+     int ret;
+ 
+     memset( &reply, 0, sizeof(reply) );
+@@ -13074,5 +13076,11 @@
+     if (!reply.header.error)
+     {
+-        if (request->restart_scan) object->dir_enum_index = 0;
++        if (request->restart_scan)
++        {
++            if (object->dir_stream) closedir( object->dir_stream );
++            object->dir_stream = NULL;
++            object->dir_pending = NULL;
++            object->dir_exhausted = object->dir_enum_index = 0;
++        }
+         if (mask_changed && (!object->dir_queried || request->restart_scan))
+         {
+@@ -13085,14 +13093,25 @@
+-        if (!(dir = opendir( object->file_name ))) reply.header.error = horizon_server_errno_status( errno );
++        if (!object->dir_stream && !object->dir_exhausted &&
++            !(object->dir_stream = opendir( object->file_name )))
++            reply.header.error = horizon_server_errno_status( errno );
+     }
+ 
+     while (!reply.header.error)
+     {
+         const char *name = NULL;
+-        struct dirent *de = NULL;
++        struct dirent *de;
+ 
+-        if (raw_index == 0) name = ".";
+-        else if (raw_index == 1) name = "..";
+-        else
++        if (object->dir_enum_index == 0) name = ".";
++        else if (object->dir_enum_index == 1) name = "..";
++        else if (!object->dir_exhausted)
+         {
+-            while ((de = readdir( dir )))
++            for (;;)
+             {
++                if (!(de = object->dir_pending))
++                {
++                    errno = 0;
++                    if (!(de = readdir( object->dir_stream )))
++                    {
++                        if (errno) reply.header.error = horizon_server_errno_status( errno );
++                        break;
++                    }
++                }
+@@ -13103,16 +13124,23 @@
+                     continue;
+                 }
++                object->dir_pending = de;
+                 name = de->d_name;
+                 break;
+             }
+             if (!name)
+             {
+-                reply.header.error = horizon_dir_scan_end_status( !object->dir_queried );
+-                break;
++                if (reply.header.error) break;
++                closedir( object->dir_stream );
++                object->dir_stream = NULL;
++                object->dir_exhausted = 1;
+             }
+         }
++        if (!name)
++        {
++            reply.header.error = horizon_dir_scan_end_status( !object->dir_queried );
++            break;
++        }
+ 
+-        if (raw_index++ < object->dir_enum_index) continue;
+         name_len = horizon_server_utf16_name_len( name );
+         if (object->dir_mask)
+         {
+@@ -13129,7 +13145,12 @@
+             matches = horizon_directory_name_matches( wide_name, name_len / sizeof(WCHAR),
+                                                        object->dir_mask, object->dir_mask_len );
+             free( wide_name );
+-            if (!matches) continue;
++            if (!matches)
++            {
++                object->dir_pending = NULL;
++                object->dir_enum_index++;
++                continue;
++            }
+         }
+         entry_size = (sizeof(dir_entry) + name_len + 3) & ~3;
+         reply.total_len = name_len;
+@@ -13151,5 +13169,6 @@
+         out_size = entry_size;
+         snprintf( trace_name, sizeof(trace_name), "%s", name );
+-        object->dir_enum_index = raw_index;
++        object->dir_pending = NULL;
++        object->dir_enum_index++;
+         break;
+     }
+@@ -13168,5 +13187,4 @@
+         }
+     }
+-    if (dir) closedir( dir );
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     horizon_trace( "[HZDIR] query handle=%08x restart=%u mask=%s name=%s idx=%u err=%08x\n",

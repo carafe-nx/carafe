@@ -60,6 +60,9 @@ struct horizon_server_object {
     char *file_name;
     unsigned int dir_enum_index;
     int dir_queried;
+    DIR *dir_stream;
+    struct dirent *dir_pending;
+    int dir_exhausted;
     WCHAR *dir_mask;
     unsigned int dir_mask_len;
     uint64_t mapping_size;
@@ -97,7 +100,22 @@ static int horizon_server_write_reply(int fd, const void *reply, unsigned int si
     captured_size = data_size;
     return 0;
 }
+static int read_error;
+
+static struct dirent *test_readdir(DIR *dir)
+{
+    if (read_error)
+    {
+        errno = read_error;
+        read_error = 0;
+        return NULL;
+    }
+    return readdir(dir);
+}
+
+#define readdir test_readdir
 #include "directory_unicode_impl.h"
+#undef readdir
 #include "directory_unicode_vectors.h"
 
 static unsigned int checks;
@@ -190,7 +208,10 @@ static void test_directory(void)
     check(query(2, NULL, 1, 4096) == STATUS_NO_MORE_FILES);
     check(query(1, u"test.sav", 1, 4096) == 0); check_name(u"test.sav");
     check(query(2, u"маяк.SAV", 1, 4096) == 0); check_name(u"МАЯК.sav");
-    check(query(1, u"😀.sav", 1, 7) == HORIZON_STATUS_INFO_LENGTH_MISMATCH);
+    read_error = EINTR;
+    check(query(1, u"😀.sav", 1, 4096) == horizon_server_errno_status(EINTR));
+    check(!read_error);
+    check(query(1, NULL, 0, 7) == HORIZON_STATUS_INFO_LENGTH_MISMATCH);
     check(captured_size == 0);
     check(query(1, NULL, 0, 4096) == 0); check_name(u"😀.sav");
     check(query(1, u"*.sav", 1, 4096) == 0);
