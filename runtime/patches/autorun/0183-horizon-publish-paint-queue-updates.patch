@@ -1,0 +1,30 @@
+Carafe: publish paint queue changes when showing, invalidating or validating windows.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -10120,6 +10120,8 @@
+                            window->handle, win_screen.left, win_screen.top,
+                            win_screen.right, win_screen.bottom, !was_visible );
+         }
++        if (geometry_changed || (request->swp_flags & (HORIZON_SWP_SHOWWINDOW | HORIZON_SWP_HIDEWINDOW)))
++            horizon_server_refresh_queues_locked();
+     }
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
+@@ -11557,6 +11559,7 @@
+                        window->has_internal_paint, window->needs_erase, window->needs_nonclient,
+                        window->update_rect.left, window->update_rect.top,
+                        window->update_rect.right, window->update_rect.bottom, status );
++        horizon_server_refresh_queues_locked();
+     }
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return horizon_server_write_status( connection->reply_fd, status );
+@@ -11788,6 +11791,7 @@
+                     if (update_flags & HORIZON_UPDATE_ERASE) target->needs_erase = 0;
+                     if (update_flags & HORIZON_UPDATE_NONCLIENT) target->needs_nonclient = 0;
+                 }
++                horizon_server_refresh_queues_locked();
+             }
+         }
+         horizon_trace( "[HZPAINT] get_update hwnd=%08x from=%08x req=%x child=%08x flags=%x size=%u has=%u internal=%u erase=%u nc=%u rect=%d,%d-%d,%d err=%08x\n",

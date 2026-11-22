@@ -1,0 +1,16 @@
+Carafe: invalidate overlapping children when a parent consumes a paint or erase region.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -11751,6 +11751,10 @@
+             reply.header.reply_size = data_size;
+             if (!(request->flags & HORIZON_UPDATE_NOREGION))
+             {
++                if (target->has_update_rect &&
++                    (update_flags & (HORIZON_UPDATE_PAINT | HORIZON_UPDATE_ERASE)))
++                    horizon_server_redraw_children_locked( target, rect, 0 );
++
+                 if (update_flags & (HORIZON_UPDATE_PAINT | HORIZON_UPDATE_INTERNALPAINT))
+                 {
+                     target->has_update_rect = 0;

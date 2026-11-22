@@ -1,0 +1,58 @@
+Carafe: signal fresh paint work even when the owning queue already has a paint wake bit.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -9451,6 +9451,16 @@
+                                                        struct horizon_rectangle *window_rect,
+                                                        struct horizon_rectangle *client_rect );
+ 
++static void horizon_server_publish_window_paint_locked( const struct horizon_user_window *window, int fresh )
++{
++    struct horizon_msgq *queue = horizon_msgq_find( &horizon_msg_queues, window->tid );
++
++    if (!queue) return;
++    if (fresh && (window->style & HORIZON_WS_VISIBLE))
++        horizon_msgq_touch( queue, HORIZON_MSGQ_QS_PAINT );
++    horizon_server_refresh_queue_locked( queue, horizon_server_timer_clock() );
++}
++
+ static void horizon_server_mark_window_update_locked( struct horizon_user_window *window,
+                                                       struct horizon_rectangle dirty,
+                                                       int erase )
+@@ -9462,6 +9472,7 @@
+         window->update_rect = dirty;
+     window->has_update_rect = 1;
+     if (erase) window->needs_erase = 1;
++    horizon_server_publish_window_paint_locked( window, 1 );
+ }
+ 
+ static void horizon_server_redraw_children_locked( struct horizon_user_window *parent,
+@@ -10122,7 +10133,7 @@
+                            win_screen.right, win_screen.bottom, !was_visible );
+         }
+         if (geometry_changed || (request->swp_flags & (HORIZON_SWP_SHOWWINDOW | HORIZON_SWP_HIDEWINDOW)))
+-            horizon_server_refresh_queues_locked();
++            horizon_server_publish_window_paint_locked( window, 0 );
+     }
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return horizon_server_write_reply( connection->reply_fd, &reply, sizeof(reply), NULL, 0 );
+@@ -11559,7 +11570,8 @@
+                        window->has_internal_paint, window->needs_erase, window->needs_nonclient,
+                        window->update_rect.left, window->update_rect.top,
+                        window->update_rect.right, window->update_rect.bottom, status );
+-        horizon_server_refresh_queues_locked();
++        horizon_server_publish_window_paint_locked( window,
++                                                   !!(request->flags & HORIZON_RDW_INTERNALPAINT) );
+     }
+     pthread_mutex_unlock( &horizon_server_objects_mutex );
+     return horizon_server_write_status( connection->reply_fd, status );
+@@ -11791,7 +11803,7 @@
+                     if (update_flags & HORIZON_UPDATE_ERASE) target->needs_erase = 0;
+                     if (update_flags & HORIZON_UPDATE_NONCLIENT) target->needs_nonclient = 0;
+                 }
+-                horizon_server_refresh_queues_locked();
++                horizon_server_publish_window_paint_locked( target, 0 );
+             }
+         }
+         horizon_trace( "[HZPAINT] get_update hwnd=%08x from=%08x req=%x child=%08x flags=%x size=%u has=%u internal=%u erase=%u nc=%u rect=%d,%d-%d,%d err=%08x\n",

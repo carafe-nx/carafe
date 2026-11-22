@@ -1,0 +1,18 @@
+Carafe: complete the window hierarchy repaint after moving or refitting the game window.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/win32u/winnx_drv.c
++++ b/dlls/win32u/winnx_drv.c
+@@ -921,8 +921,10 @@
+     if (!client.left && !client.top) flags |= SWP_NOMOVE;
+     if ((flags & SWP_NOMOVE) && !(flags & SWP_FRAMECHANGED)) return;
+     if (!get_window_rect( game, &window, dpi )) return;
+-    NtUserSetWindowPos( game, 0, window.left - client.left, window.top - client.top, 0, 0, flags );
+-    NtUserRedrawWindow( game, NULL, 0, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN );
++    if (!NtUserSetWindowPos( game, 0, window.left - client.left, window.top - client.top, 0, 0, flags ))
++        return;
++    NtUserRedrawWindow( game, NULL, 0, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME |
++                        RDW_ALLCHILDREN | RDW_UPDATENOW );
+     if (!(flags & SWP_NOMOVE) && &wine_nx_runtime_trace)
+     {
+         snprintf( line, sizeof(line), "[NXSCREEN] the game's window moved by %d,%d to the screen's corner",

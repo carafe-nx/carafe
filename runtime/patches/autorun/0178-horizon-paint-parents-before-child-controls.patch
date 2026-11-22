@@ -1,0 +1,29 @@
+Carafe: dispatch a pending parent paint before a child paints into the same surface.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/ntdll/unix/horizon.c
++++ b/dlls/ntdll/unix/horizon.c
+@@ -12453,13 +12453,23 @@
+         for (window = horizon_windows; window; window = window->next)
+         {
++            struct horizon_user_window *stop = NULL;
++
+             if (window->tid != connection->tid || !(window->style & HORIZON_WS_VISIBLE)) continue;
+             if (!window->has_update_rect && !window->has_internal_paint) continue;
+             if (request->get_win)
+             {
+                 for (parent = window; parent && parent->handle != request->get_win; )
+                     parent = parent->parent ? horizon_server_find_window_locked( parent->parent ) : NULL;
+                 if (!parent) continue;
++                stop = horizon_server_find_window_locked( parent->parent );
+             }
++            for (parent = horizon_server_find_window_locked( window->parent ); parent && parent != stop;
++                 parent = horizon_server_find_window_locked( parent->parent ))
++            {
++                if ((parent->style & HORIZON_WS_VISIBLE) && parent->tid == connection->tid &&
++                    (parent->has_update_rect || parent->has_internal_paint)) break;
++            }
++            if (parent && parent != stop) continue;
+             reply.win = window->handle;
+             reply.msg = HORIZON_WM_PAINT;
+             reply.type = HORIZON_MSG_POSTED;
