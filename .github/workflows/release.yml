@@ -182,8 +182,69 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  linux:
+    needs: [prepare, runtime]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Install the WebKitGTK build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev pkg-config
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          rustup default 1.99.0
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: runtime
+          path: app/crates/carafe-desktop/resources
+
+      - name: Build hacBrewPack for the host
+        working-directory: .
+        run: make -C tools/hacbrewpack native
+
+      - name: Set the version
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: sed -i "s/^version = \"0.0.0\"$/version = \"$VERSION\"/" Cargo.toml && grep -q "^version = \"$VERSION\"$" Cargo.toml
+
+      - run: npm ci
+
+      - name: Build the Linux packages
+        env:
+          CARAFE_RUNTIME_VERSION: ${{ needs.prepare.outputs.runtime }}
+        run: |
+          npx tauri build --config crates/carafe-desktop/tauri.release.conf.json \
+            --config crates/carafe-desktop/tauri.linux.conf.json
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: linux
+          path: |
+            app/target/release/bundle/deb/*.deb
+            app/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
   draft:
-    needs: [prepare, installer]
+    needs: [prepare, installer, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -195,6 +256,11 @@ jobs:
           pattern: installer-*
           path: dist
           merge-multiple: true
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: linux
+          path: dist
 
       - name: Update manifest
         working-directory: dist
@@ -229,11 +295,14 @@ jobs:
 
       - name: Checksums
         working-directory: dist
-        run: sha256sum *-setup.exe > SHA256SUMS.txt
+        run: sha256sum *-setup.exe *.deb *.AppImage > SHA256SUMS.txt
 
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
         with:
-          subject-path: dist/*-setup.exe
+          subject-path: |
+            dist/*-setup.exe
+            dist/*.deb
+            dist/*.AppImage
 
       - name: Create the draft release
         env:
@@ -245,7 +314,7 @@ jobs:
             echo "::error::A release or draft $TAG already exists. Delete the draft and run again."
             exit 1
           fi
-          gh release create "$TAG" dist/*-setup.exe dist/latest.json dist/SHA256SUMS.txt \
+          gh release create "$TAG" dist/*-setup.exe dist/*.deb dist/*.AppImage dist/latest.json dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --draft \
             --target "$GITHUB_SHA" \

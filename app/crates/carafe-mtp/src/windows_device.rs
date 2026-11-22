@@ -15,6 +15,8 @@ const READ_BUFFER: usize = 1 << 20;
 const NOT_CONNECTED: &str =
     "Switch is not connected: start DBI in MTP mode and plug in the USB cable";
 
+pub const SUPPORTED: bool = true;
+
 pub fn is_connected() -> bool {
     Com::init()
         .and_then(|com| find_switch(&com))

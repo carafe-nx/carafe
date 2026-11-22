@@ -95,6 +95,7 @@ export function LibraryPage() {
             <GameCard
               key={selected.titleId}
               game={selected}
+              supported={device.supported}
               connected={device.connected}
               busyReason={busy}
               onDeleted={() => {

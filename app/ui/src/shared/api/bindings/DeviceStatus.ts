@@ -5,6 +5,10 @@
  */
 export type DeviceStatus = { 
 /**
+ * This build can see the console over MTP: the USB install is available on this system.
+ */
+supported: boolean, 
+/**
  * The Switch is visible over MTP.
  */
 connected: boolean, 

@@ -199,7 +199,8 @@
   "device": {
     "connected": "Switch verbunden · {{via}}",
     "disconnected": "Switch nicht verbunden",
-    "hint": "Starte DBI im MTP-Modus und verbinde die Switch per Kabel"
+    "hint": "Starte DBI im MTP-Modus und verbinde die Switch per Kabel",
+    "unsupported": "Die Installation über USB gibt es nur unter Windows. Kopiere die NSP auf die SD-Karte oder nutze DBI."
   },
   "library": {
     "title": "Bibliothek",

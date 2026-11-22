@@ -24,6 +24,7 @@ impl Device for MtpDevice {
     fn status(&self) -> DeviceStatus {
         let connected = platform::is_connected();
         DeviceStatus {
+            supported: platform::SUPPORTED,
             connected,
             via: connected.then(|| VIA.to_owned()),
         }
@@ -62,6 +63,8 @@ mod platform {
     use carafe_core::ports::{AdapterError, TransferProgress};
 
     const UNSUPPORTED: &str = "MTP is supported on Windows only for now";
+
+    pub const SUPPORTED: bool = false;
 
     pub fn is_connected() -> bool {
         false

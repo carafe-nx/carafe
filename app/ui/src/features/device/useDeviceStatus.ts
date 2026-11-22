@@ -5,7 +5,7 @@ import type { DeviceStatus } from "@/shared/api/bindings/DeviceStatus";
 const POLL_MS = 3000;
 
 export function useDeviceStatus(): DeviceStatus {
-  const [status, setStatus] = useState<DeviceStatus>({ connected: false, via: null });
+  const [status, setStatus] = useState<DeviceStatus>({ supported: false, connected: false, via: null });
   useEffect(() => {
     let active = true;
     const poll = () =>

@@ -199,7 +199,8 @@
   "device": {
     "connected": "Switch verbonden · {{via}}",
     "disconnected": "Switch niet verbonden",
-    "hint": "Start DBI in MTP-modus en sluit de Switch aan met een kabel"
+    "hint": "Start DBI in MTP-modus en sluit de Switch aan met een kabel",
+    "unsupported": "Installeren via USB kan alleen op Windows. Kopieer de NSP naar de SD-kaart of gebruik DBI."
   },
   "library": {
     "title": "Bibliotheek",

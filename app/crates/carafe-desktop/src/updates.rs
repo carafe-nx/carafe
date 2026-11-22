@@ -113,9 +113,12 @@ impl Updates {
     }
 }
 
-/// Returns whether this build may update itself: a release build with a release version.
+/// Returns whether this build may update itself: a Windows release build with a release version.
+///
+/// The updates are the Windows installers from `latest.json`; other systems install Carafe from their package.
 pub fn enabled(app: &AppHandle) -> bool {
-    !cfg!(debug_assertions)
+    cfg!(windows)
+        && !cfg!(debug_assertions)
         && running_version(app).is_some_and(|version| version.to_string() != "0.0.0")
 }
 

@@ -12,8 +12,9 @@ No maintained library on any language builds a complete encrypted NCA (surveyed 
 - hacPack has sources only in archives; Autorun's forwarder builds NCAs on the console without encrypting sections.
 
 So Carafe runs hacBrewPack as a separate program ([rlaphoenix/hacBrewPack](https://github.com/rlaphoenix/hacBrewPack),
-GPL-2.0). It is built for Windows x64 and ARM64 in a container (`tools/hacbrewpack/Makefile`) and ships next to the
-app. The output is a Program NCA (ExeFS + RomFS), a Control NCA and a Meta NCA.
+GPL-2.0). It is built in a container for Windows x64 and ARM64, and with the host compiler on Linux
+(`make -C tools/hacbrewpack native`); it ships next to the app. The output is a Program NCA (ExeFS + RomFS),
+a Control NCA and a Meta NCA.
 
 ## hacBrewPack behaviour
 

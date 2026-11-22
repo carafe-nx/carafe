@@ -199,7 +199,8 @@
   "device": {
     "connected": "Switch подключен · {{via}}",
     "disconnected": "Switch не подключен",
-    "hint": "Запустите DBI в режиме MTP и подключите Switch кабелем"
+    "hint": "Запустите DBI в режиме MTP и подключите Switch кабелем",
+    "unsupported": "Установка по USB доступна только в Windows. Скопируйте NSP на карту SD или используйте DBI."
   },
   "library": {
     "title": "Библиотека",
