@@ -1,0 +1,20 @@
+Carafe: a framed game window whose outer rectangle already fills the screen keeps its place. Its client origin
+is only the frame's thickness inside a window placed at (0,0), so subtracting it would push the frame off the
+screen. This holds when Restore clears the maximized style before the geometry changes; a smaller or offset
+window, or a captionless fullscreen one, still follows the existing path.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/dlls/win32u/winnx_drv.c
++++ b/dlls/win32u/winnx_drv.c
+@@ -906,6 +906,11 @@
+     height = client.bottom - client.top;
+     screen_width = get_system_metrics( SM_CXSCREEN );
+     screen_height = get_system_metrics( SM_CYSCREEN );
++    if ((get_window_long( game, GWL_STYLE ) & WS_CAPTION) == WS_CAPTION &&
++        get_window_rect( game, &window, dpi ) &&
++        !window.left && !window.top &&
++        window.right == screen_width && window.bottom == screen_height)
++        return;
+     if (width != screen_width || height != screen_height)
+     {
+         ret = wine_nx_fit_screen( width, height );

@@ -259,7 +259,10 @@ newlib and libnx details the overlay has to respect:
   scaled `glBlitFramebuffer` to the window came out upside down in Eden.
 - A game in a window gets the same: patch `0017` sets the emulated screen to the client size of the game's main
   window (the largest visible one without an owner, at least 640×400) and moves the window so its client is in the
-  corner. `[NXSCREEN]` lines in the log name the windows it looked at and what it did.
+  corner. A framed window whose exact outer rectangle already fills the screen is left in place (patch `0186`),
+  even when Restore clears the maximized style before the geometry changes: its client origin is only the frame's
+  thickness, and subtracting it would move the frame off the screen. `[NXSCREEN]` lines in the log name the windows
+  it looked at and what it did.
 
 ## Game exit
 
