@@ -1,0 +1,190 @@
+Carafe: the runtime log and the per-game mirror keep a finite byte budget, 512 MiB in all by
+default, so a verbose run cannot fill the card. Every byte written to either sink is counted,
+the start-up copy included, and each sink gets half; urgent lines and final records have reserves.
+Nothing seeks, stats or flushes per line, and no live stream is truncated.
+LGPL-2.1-or-later, as the file it changes.
+
+--- a/horizon-wine/source/runtime.c
++++ b/horizon-wine/source/runtime.c
+@@ -136,6 +136,20 @@
+  * run of that same program writes over. */
+ static FILE *game_log_file;
+ 
++#ifndef CARAFE_LOG_BUDGET_BYTES
++#define CARAFE_LOG_BUDGET_BYTES (512ull * 1024 * 1024)
++#endif
++#define CARAFE_LOG_SINK_BYTES (CARAFE_LOG_BUDGET_BYTES / 2)
++#define CARAFE_LOG_URGENT_TAIL (256ull * 1024)
++#define CARAFE_LOG_FINAL_TAIL (64ull * 1024)
++
++static unsigned long long log_file_bytes;
++static unsigned long long game_log_bytes;
++static int log_file_budget_noted;
++static int game_log_budget_noted;
++static unsigned int log_file_final_seen;
++static unsigned int game_log_final_seen;
++
+ struct runtime_module
+ {
+     char path[512];
+@@ -199,6 +213,59 @@
+            !strncmp( line, "[LIFECYCLE] final", 17 ) || !strncmp( line, "[LIFECYCLE] verdict", 19 );
+ }
+ 
++static int log_line_is_final( const char *line )
++{
++    if (!strncmp( line, "[EXIT]", 6 )) return 2;
++    if (!strncmp( line, "[LIFECYCLE] final", 17 )) return 3;
++    if (!strncmp( line, "[LIFECYCLE] verdict", 19 )) return 4;
++    return 0;
++}
++
++static int log_write_budgeted( FILE *file, unsigned long long *used, int *noted,
++                               unsigned int *final_seen, int priority, const char *data, size_t len )
++{
++    unsigned long long limit = CARAFE_LOG_SINK_BYTES;
++    size_t wrote;
++
++    if (!file || !len) return 0;
++    if (priority >= 2)
++    {
++        unsigned int bit = 1u << (priority - 2);
++        if ((*final_seen & bit) || len > 1024 || *used > limit || len > limit - *used) return 0;
++        wrote = fwrite( data, 1, len, file );
++        *used += wrote;
++        if (wrote == len) *final_seen |= bit;
++        return wrote == len;
++    }
++    if (priority < 2) limit = limit > CARAFE_LOG_FINAL_TAIL ? limit - CARAFE_LOG_FINAL_TAIL : 0;
++    if (!priority) limit = limit > CARAFE_LOG_URGENT_TAIL ? limit - CARAFE_LOG_URGENT_TAIL : 0;
++    if (*used > limit || len > limit - *used)
++    {
++        if (!priority && noted && !*noted)
++        {
++            char note[128];
++            int note_len;
++
++            *noted = 1;
++            note_len = snprintf( note, sizeof(note),
++                                 "[LOG] the log reached its %llu MiB budget; only terminal lines follow\n",
++                                 (unsigned long long)(CARAFE_LOG_SINK_BYTES / (1024 * 1024)) );
++            if (note_len > 0 && CARAFE_LOG_SINK_BYTES > CARAFE_LOG_FINAL_TAIL &&
++                *used < CARAFE_LOG_SINK_BYTES - CARAFE_LOG_FINAL_TAIL &&
++                (unsigned long long)note_len <= CARAFE_LOG_SINK_BYTES - CARAFE_LOG_FINAL_TAIL - *used)
++            {
++                wrote = fwrite( note, 1, note_len, file );
++                *used += wrote;
++                fflush( file );
++            }
++        }
++        return 0;
++    }
++    wrote = fwrite( data, 1, len, file );
++    *used += wrote;
++    return wrote == len;
++}
++
+ static void runtime_tick_std_streams(void);
+ static void runtime_report_interpreter(void);
+ 
+@@ -227,8 +294,13 @@
+     wine_nx_nouveau_skip_clean = skip;
+     if (log_file)
+     {
++        char line[96];
++        int len;
++
+         pthread_mutex_lock( &log_mutex );
+-        fprintf( log_file, "[CLEAN] %s at %llus\n", skip ? "off" : "on", (unsigned long long)seconds );
++        len = snprintf( line, sizeof(line), "[CLEAN] %s at %llus\n",
++                        skip ? "off" : "on", (unsigned long long)seconds );
++        if (len > 0) log_write_budgeted( log_file, &log_file_bytes, &log_file_budget_noted, &log_file_final_seen, 0, line, len );
+         pthread_mutex_unlock( &log_mutex );
+     }
+ }
+@@ -385,15 +457,28 @@
+     if (log_file && log_lock_bounded())
+     {
+         /* One write per line, so concurrent threads never interleave. */
++        int urgent = log_line_is_urgent( line );
++        int final = log_line_is_final( line );
++        int priority = final ? final : urgent;
+         unsigned int dropped = __atomic_exchange_n( &log_lines_dropped, 0, __ATOMIC_RELAXED );
+ 
+-        if (dropped) fprintf( log_file, "[LOG] %u lines dropped while the card was busy\n", dropped );
+-        fwrite( line, 1, len, log_file );
+-        if (!log_flusher_running || log_line_is_urgent( line )) fflush( log_file );
++        if (dropped)
++        {
++            char note[96];
++            int note_len;
++
++            note_len = snprintf( note, sizeof(note), "[LOG] %u lines dropped while the card was busy\n",
++                                 dropped );
++            if (note_len > 0)
++                log_write_budgeted( log_file, &log_file_bytes, &log_file_budget_noted, &log_file_final_seen, 1, note, note_len );
++        }
++        log_write_budgeted( log_file, &log_file_bytes, &log_file_budget_noted, &log_file_final_seen, priority, line, len );
++        if (!log_flusher_running || urgent) fflush( log_file );
+         if (game_log_file)
+         {
+-            fwrite( line, 1, len, game_log_file );
+-            if (!log_flusher_running || log_line_is_urgent( line )) fflush( game_log_file );
++            log_write_budgeted( game_log_file, &game_log_bytes, &game_log_budget_noted,
++                                &game_log_final_seen, priority, line, len );
++            if (!log_flusher_running || urgent) fflush( game_log_file );
+         }
+         pthread_mutex_unlock( &log_mutex );
+     }
+@@ -406,6 +491,13 @@
+  * mattered is gone before it can be read off the card. */
+ extern int wine_nx_runtime_verbose;
+ 
++static int log_is_runtime_path( const char *path )
++{
++    const char *base = strrchr( path, '/' );
++
++    return !strcasecmp( base ? base + 1 : path, "autorun_runtime.log" );
++}
++
+ static void open_game_log( const char *target )
+ {
+     char path[512], name[128];
+@@ -433,8 +525,13 @@
+     snprintf( path, sizeof(path), "%s/%s%s%s.log", RUNTIME_LOGS, name,
+               wine_nx_runtime_verbose ? "_verbose" : "", runtime_profile ? "_profiler" : "" );
+ 
++    if (log_is_runtime_path( path )) return;
++
+     pthread_mutex_lock( &log_mutex );
+     fflush( log_file );
++    game_log_bytes = 0;
++    game_log_budget_noted = 0;
++    game_log_final_seen = 0;
+     if ((game_log_file = fopen( path, "w" )))
+     {
+         /* What was said before this point, so the file stands on its own. */
+@@ -443,7 +540,9 @@
+             char chunk[4096];
+             size_t got;
+ 
+-            while ((got = fread( chunk, 1, sizeof(chunk), sofar )) > 0) fwrite( chunk, 1, got, game_log_file );
++            while ((got = fread( chunk, 1, sizeof(chunk), sofar )) > 0)
++                if (!log_write_budgeted( game_log_file, &game_log_bytes, &game_log_budget_noted,
++                                         &game_log_final_seen, 1, chunk, got )) break;
+             fclose( sofar );
+         }
+         fflush( game_log_file );
+@@ -4727,6 +4826,12 @@
+     log_file = fopen( RUNTIME_LOGS "/autorun_runtime.log", "w" );
+     if (log_file)
+     {
++        log_file_bytes = 0;
++        game_log_bytes = 0;
++        log_file_budget_noted = 0;
++        game_log_budget_noted = 0;
++        log_file_final_seen = 0;
++        game_log_final_seen = 0;
+         setvbuf( log_file, log_file_buffer, _IOFBF, sizeof(log_file_buffer) );
+         log_flusher_running = !pthread_create( &log_flusher_thread, NULL, log_flusher, NULL );
+         /* Above the program's threads (59) and below the audio feeder (56), so

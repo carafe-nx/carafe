@@ -29,7 +29,7 @@ MONO_VERSION := 11.3.0
 MONO_ARCHIVE := $(BUILD)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 MONO_URL := https://github.com/wine-mono/wine-mono/releases/download/wine-mono-$(MONO_VERSION)/wine-mono-$(MONO_VERSION)-arm64.tar.xz
 
-.PHONY: all fetch check-image headers orchestrator-test section-memory-test wine pe fex dxvk loader layout quick clean
+.PHONY: all fetch check-image headers orchestrator-test log-budget-test section-memory-test wine pe fex dxvk loader layout layout-files quick clean
 
 all: layout
 
@@ -78,6 +78,9 @@ orchestrator-test:
 	cc -std=c11 -O2 -Wall -Wextra -Werror -o $(BUILD)/orchestrator-test \
 		$(CURDIR)/orchestrator/test/orchestrator_test.c $(CURDIR)/orchestrator/orchestrator_policy.c
 	$(BUILD)/orchestrator-test
+
+log-budget-test:
+	python3 $(CURDIR)/tests/log_budget_test.py $(WINE)/source/runtime.c $(CURDIR)/patches/autorun
 
 section-memory-test:
 	mkdir -p $(BUILD)/section-memory-test/dlls/ntdll/unix
@@ -149,10 +152,13 @@ $(MONO_ARCHIVE):
 	curl -fL --retry 3 -o $@.part $(MONO_URL)
 	mv $@.part $@
 
-layout: wine pe fex dxvk loader $(MONO_ARCHIVE)
+layout:
+	python3 $(CURDIR)/publish-layout.py "$(OUT)" "$(BUILD)/.layout.lock" "$(MAKE_COMMAND)" layout-files
+
+layout-files: wine pe fex dxvk loader $(MONO_ARCHIVE)
 	@test -f $(DXWRAPPER_BUILD)/stamp || \
 		{ echo "dxwrapper is not built: run docker compose run --rm dxwrapper first" >&2; exit 1; }
-	rm -rf $(OUT) $(NPDM)
+	rm -rf $(NPDM)
 	mkdir -p $(OUT)/exefs $(OUT)/control $(OUT)/logo $(OUT)/symbols $(OUT)/romfs/switch \
 		$(OUT)/romfs/carafe/loading $(OUT)/romfs/carafe/fonts $(NPDM)
 	python3 -c 'import json, sys; src, dst, tid, space = sys.argv[1:]; n = json.load(open(src)); \

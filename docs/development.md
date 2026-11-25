@@ -38,6 +38,15 @@ Wine for Horizon OS with Carafe's builds of FEX and DXVK, and Mesa.
 - From `app/`: `npm run dev` and `npm run build` build the runtime first; `dev:app` and `build:app`
   use the runtime already built; `npm run runtime` builds only the runtime; `npm run check` runs
   formatting, clippy, Rust tests and the TypeScript check.
+- Runtime packing replaces `carafe-runtime.bin` after the new archive is complete. A retry reclaims
+  the packer's unfinished staging files while holding the archive lock.
+- The runtime layout is assembled in a sibling staging directory. The previous layout remains
+  available if assembly fails. The next build recovers an interrupted replacement before assembling
+  a new layout.
+- Cargo incremental compilation is disabled for development builds to limit disk use. Rebuilding
+  changed crates can take longer.
+- The active Autorun runtime log and its per-game mirror share a 512 MiB default budget.
+  `make -C runtime log-budget-test` checks the byte accounting and reserved exit diagnostics.
 
 ## Rules
 

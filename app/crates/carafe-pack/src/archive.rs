@@ -4,9 +4,10 @@
 //! (raw deflate) back to back. Offsets in the index are from the start of the data.
 
 use std::fmt::Write as _;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use carafe_core::cancel::CancelToken;
 use carafe_core::ports::AdapterError;
@@ -54,6 +55,7 @@ struct Index {
 /// An open runtime archive.
 pub struct RuntimeArchive {
     path: PathBuf,
+    file: Mutex<File>,
     data_start: u64,
     entries: Vec<ArchiveEntry>,
 }
@@ -87,6 +89,7 @@ impl RuntimeArchive {
             serde_json::from_slice(&index).map_err(|error| damaged(error.to_string()))?;
         Ok(Self {
             path: path.to_owned(),
+            file: Mutex::new(file),
             data_start: 16 + index_len,
             entries: index.files,
         })
@@ -127,9 +130,8 @@ impl RuntimeArchive {
             .ok_or_else(|| {
                 AdapterError::RuntimeDamaged(format!("{}: no {path}", self.path.display()))
             })?;
-        let mut file = self.open_data()?;
         let mut bytes = Vec::with_capacity(usize::try_from(entry.size).unwrap_or(0));
-        let digest = self.unpack(&mut file, entry, &mut bytes, &mut vec![0; BUFFER_SIZE]);
+        let digest = self.unpack(entry, &mut bytes, &mut vec![0; BUFFER_SIZE]);
         match digest {
             Ok(sha256) if sha256 == entry.sha256 && bytes.len() as u64 == entry.size => Ok(bytes),
             _ => Err(AdapterError::RuntimeDamaged(describe(&[DamagedFile {
@@ -161,7 +163,6 @@ impl RuntimeArchive {
     ) -> Result<usize, AdapterError> {
         let entries: Vec<&ArchiveEntry> = self.under(prefix).collect();
         let total: u64 = entries.iter().map(|entry| entry.size).sum();
-        let mut file = self.open_data()?;
         let mut buffer = vec![0; BUFFER_SIZE];
         let mut damaged = Vec::new();
         let mut done = 0u64;
@@ -177,7 +178,7 @@ impl RuntimeArchive {
             }
             let out = File::create(&target).map_err(|error| io_error(&target, &error))?;
             let mut out = BufWriter::with_capacity(BUFFER_SIZE, out);
-            let digest = self.unpack(&mut file, entry, &mut out, &mut buffer);
+            let digest = self.unpack(entry, &mut out, &mut buffer);
             out.flush().map_err(|error| io_error(&target, &error))?;
             match digest {
                 Ok(sha256) if sha256 == entry.sha256 => {}
@@ -213,22 +214,16 @@ impl RuntimeArchive {
         })
     }
 
-    fn open_data(&self) -> Result<File, AdapterError> {
-        File::open(&self.path).map_err(|error| {
-            AdapterError::RuntimeDamaged(format!("{}: {error}", self.path.display()))
-        })
-    }
-
     fn unpack(
         &self,
-        file: &mut File,
         entry: &ArchiveEntry,
         out: &mut dyn Write,
         buffer: &mut [u8],
     ) -> Result<String, Unpack> {
+        let mut file = self.file.lock().map_err(|_| Unpack::Read)?;
         file.seek(SeekFrom::Start(self.data_start + entry.offset))
             .map_err(|_| Unpack::Read)?;
-        let packed = BufReader::new(Read::by_ref(file).take(entry.packed));
+        let packed = BufReader::new(Read::by_ref(&mut *file).take(entry.packed));
         let mut decoder = DeflateDecoder::new(packed);
         let mut hasher = Sha256::new();
         loop {
@@ -254,7 +249,8 @@ enum Unpack {
 /// [`ARCHIVED_DIRS`] are taken, and [`OPTIONAL_DIRS`] when present, paths are sorted, each file is compressed
 /// separately.
 ///
-/// `on_file` receives the path of each added file.
+/// `on_file` receives the path of each added file. The sidecars with suffixes `.pack.lock`,
+/// `.pack-data.part` and `.pack-output.part` appended to `out` are reserved for the packer.
 ///
 /// # Returns
 ///
@@ -269,6 +265,60 @@ pub fn write_archive(
     out: &Path,
     on_file: &mut dyn FnMut(&str),
 ) -> Result<usize, AdapterError> {
+    let lock_path = archive_sidecar(out, ".pack.lock");
+    let lock = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|error| io_error(&lock_path, &error))?;
+    fs4::FileExt::lock(&lock).map_err(|error| io_error(&lock_path, &error))?;
+    let data_path = archive_sidecar(out, ".pack-data.part");
+    let staging = archive_sidecar(out, ".pack-output.part");
+    for path in [&data_path, &staging] {
+        match fs::remove_file(path) {
+            Ok(()) => (),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => (),
+            Err(error) => return Err(io_error(path, &error)),
+        }
+    }
+    let generation = layout_generation(runtime)?;
+    let result = stage_archive(runtime, &data_path, &staging, on_file).and_then(|count| {
+        if generation != layout_generation(runtime)? {
+            return Err(AdapterError::Io(
+                "Runtime layout changed during packing; retry with the published layout".to_owned(),
+            ));
+        }
+        fs::rename(&staging, out).map_err(|error| io_error(out, &error))?;
+        Ok(count)
+    });
+    let _ = fs::remove_file(&data_path);
+    let _ = fs::remove_file(&staging);
+    result
+}
+
+fn layout_generation(runtime: &Path) -> Result<Option<String>, AdapterError> {
+    let path = runtime.join(".layout-generation");
+    match fs::read_to_string(&path) {
+        Ok(generation) => Ok(Some(generation)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(io_error(&path, &error)),
+    }
+}
+
+fn archive_sidecar(out: &Path, suffix: &str) -> PathBuf {
+    let mut path = out.as_os_str().to_os_string();
+    path.push(suffix);
+    PathBuf::from(path)
+}
+
+fn stage_archive(
+    runtime: &Path,
+    data_path: &Path,
+    staging: &Path,
+    on_file: &mut dyn FnMut(&str),
+) -> Result<usize, AdapterError> {
     let mut files = Vec::new();
     for dir in ARCHIVED_DIRS {
         collect(runtime, Path::new(dir), &mut files)?;
@@ -279,11 +329,14 @@ pub fn write_archive(
         }
     }
     files.sort();
-    let data_path = out.with_extension("data.part");
     let mut entries = Vec::with_capacity(files.len());
     let mut offset = 0u64;
     {
-        let data = File::create(&data_path).map_err(|error| io_error(&data_path, &error))?;
+        let data = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(data_path)
+            .map_err(|error| io_error(data_path, &error))?;
         let mut data = BufWriter::with_capacity(BUFFER_SIZE, data);
         let mut buffer = vec![0; BUFFER_SIZE];
         for path in &files {
@@ -311,7 +364,7 @@ pub fn write_archive(
                 .finish()
                 .map_err(|error| io_error(&source, &error))?;
             data.write_all(&packed)
-                .map_err(|error| io_error(&data_path, &error))?;
+                .map_err(|error| io_error(data_path, &error))?;
             entries.push(ArchiveEntry {
                 path: path.clone(),
                 size,
@@ -322,20 +375,24 @@ pub fn write_archive(
             offset += packed.len() as u64;
             on_file(path);
         }
-        data.flush().map_err(|error| io_error(&data_path, &error))?;
+        data.flush().map_err(|error| io_error(data_path, &error))?;
     }
     let index = serde_json::to_vec(&Index { files: entries })
         .map_err(|error| AdapterError::Io(error.to_string()))?;
     let result = (|| -> io::Result<()> {
-        let mut archive = BufWriter::new(File::create(out)?);
+        let file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(staging)?;
+        let mut archive = BufWriter::new(file);
         archive.write_all(&MAGIC)?;
         archive.write_all(&(index.len() as u64).to_le_bytes())?;
         archive.write_all(&index)?;
-        io::copy(&mut File::open(&data_path)?, &mut archive)?;
-        archive.flush()
+        io::copy(&mut File::open(data_path)?, &mut archive)?;
+        archive.flush()?;
+        archive.get_ref().sync_all()
     })();
-    let _ = fs::remove_file(&data_path);
-    result.map_err(|error| io_error(out, &error))?;
+    result.map_err(|error| io_error(staging, &error))?;
     Ok(files.len())
 }
 
@@ -431,6 +488,56 @@ mod tests {
         fs::remove_dir_all(&source).unwrap();
         fs::remove_dir_all(&dest).unwrap();
         fs::remove_file(&archive_path).unwrap();
+        fs::remove_file(archive_sidecar(&archive_path, ".pack.lock")).unwrap();
+    }
+
+    #[test]
+    fn repacking_preserves_the_last_archive_on_failure_and_replaces_it_on_success() {
+        let source = runtime("replace-source");
+        let destination = temp("replace-destination");
+        fs::create_dir(&destination).unwrap();
+        let archive_path = destination.join("runtime.bin");
+        write_archive(&source, &archive_path, &mut |_| {}).unwrap();
+        let previous = fs::read(&archive_path).unwrap();
+        let dll = source.join("romfs/switch/wine/a.dll");
+        let failed = write_archive(&source, &archive_path, &mut |file| {
+            if file == "exefs/main" {
+                fs::remove_file(&dll).unwrap();
+            }
+        });
+        assert!(failed.is_err());
+        assert_eq!(fs::read(&archive_path).unwrap(), previous);
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 2);
+        fs::write(&dll, b"new dll").unwrap();
+        let generation = source.join(".layout-generation");
+        fs::write(&generation, "first").unwrap();
+        let changed = write_archive(&source, &archive_path, &mut |_| {
+            fs::write(&generation, "second").unwrap();
+        });
+        assert!(changed.is_err());
+        assert_eq!(fs::read(&archive_path).unwrap(), previous);
+        fs::write(archive_sidecar(&archive_path, ".pack-data.part"), b"stale").unwrap();
+        fs::write(
+            archive_sidecar(&archive_path, ".pack-output.part"),
+            b"stale",
+        )
+        .unwrap();
+        let open_archive = RuntimeArchive::open(&archive_path).unwrap();
+        write_archive(&source, &archive_path, &mut |_| {}).unwrap();
+        assert_eq!(
+            open_archive.read("romfs/switch/wine/a.dll").unwrap(),
+            [7; 5000]
+        );
+        assert_eq!(
+            RuntimeArchive::open(&archive_path)
+                .unwrap()
+                .read("romfs/switch/wine/a.dll")
+                .unwrap(),
+            b"new dll"
+        );
+        assert_eq!(fs::read_dir(&destination).unwrap().count(), 2);
+        fs::remove_dir_all(&source).unwrap();
+        fs::remove_dir_all(&destination).unwrap();
     }
 
     #[test]
@@ -447,6 +554,7 @@ mod tests {
         fs::remove_dir_all(&source).unwrap();
         let _ = fs::remove_dir_all(&dest);
         fs::remove_file(&archive_path).unwrap();
+        fs::remove_file(archive_sidecar(&archive_path, ".pack.lock")).unwrap();
         assert_eq!(result, Err(AdapterError::Cancelled));
         assert!(!unpacked);
     }
@@ -466,6 +574,7 @@ mod tests {
         fs::remove_dir_all(&source).unwrap();
         let _ = fs::remove_dir_all(&dest);
         fs::remove_file(&archive_path).unwrap();
+        fs::remove_file(archive_sidecar(&archive_path, ".pack.lock")).unwrap();
         assert!(matches!(result, Err(AdapterError::RuntimeDamaged(_))));
     }
 
